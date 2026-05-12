@@ -1,0 +1,43 @@
+export type AppRoute =
+  | 'login'
+  | 'register'
+  | 'adminKyc'
+  | 'adminDisputes'
+  | 'adminOverview'
+  | 'browse'
+  | 'retailDetail'
+  | 'community'
+  | 'inbox'
+  | 'cart'
+  | 'checkout'
+  | 'orderConfirmed'
+  | 'kyc'
+  | 'openShop'
+  | 'wallet'
+  | 'sellerDashboard'
+  | 'buyerDashboard'
+  | 'home'
+
+export function resolveRoute(pathname: string, search: string): AppRoute {
+  const searchParams = new URLSearchParams(search)
+
+  if (pathname.startsWith('/login')) return 'login'
+  if (pathname.startsWith('/register')) return 'register'
+  if (pathname.startsWith('/admin/kyc')) return 'adminKyc'
+  if (pathname.startsWith('/admin/disputes')) return 'adminDisputes'
+  if (pathname.startsWith('/admin')) return 'adminOverview'
+  if (pathname.startsWith('/browse')) return 'browse'
+  if (pathname.startsWith('/listing')) return 'retailDetail'
+  if (pathname.startsWith('/community')) return 'community'
+  if (pathname.startsWith('/inbox')) return 'inbox'
+  if (pathname.startsWith('/cart')) return 'cart'
+  if (pathname.startsWith('/checkout')) return 'checkout'
+  if (pathname.startsWith('/order-confirmed')) return 'orderConfirmed'
+  if (pathname.startsWith('/kyc')) return 'kyc'
+  if (pathname.startsWith('/open-shop')) return 'openShop'
+  if (pathname.startsWith('/wallet')) return 'wallet'
+  if (pathname.startsWith('/dashboard') && searchParams.get('view') === 'shop') return 'sellerDashboard'
+  if (pathname.startsWith('/dashboard')) return 'buyerDashboard'
+
+  return 'home'
+}
