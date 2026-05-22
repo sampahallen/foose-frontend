@@ -9,12 +9,14 @@ export function CartPage() {
     <AppShell active="browse" searchPlaceholder="Search curated finds...">
       <section className="page-hero small">
         <h1>Your cart</h1>
-        <p>{cart.items.length} API-backed item{cart.items.length === 1 ? '' : 's'} ready for checkout.</p>
+        <p>
+          {cart.items.length} item{cart.items.length === 1 ? '' : 's'} ready for checkout.
+        </p>
       </section>
       {!cart.items.length && (
         <EmptyState
           action={<ButtonLink to="/browse">Browse marketplace</ButtonLink>}
-          body="There is no seeded cart data. Add a real listing from the marketplace to start checkout."
+          body="Browse the marketplace and add a listing to your cart."
           title="Your cart is empty"
         />
       )}
@@ -27,15 +29,19 @@ export function CartPage() {
                 <div>
                   <h2>{item.title}</h2>
                   <p>Shop: {item.shopName}</p>
-                  <div className="qty">
-                    <button onClick={() => cart.updateQuantity(item.listingId, item.quantity - 1)} type="button">
-                      <Icon name="minus" />
-                    </button>
-                    <strong>{item.quantity}</strong>
-                    <button onClick={() => cart.updateQuantity(item.listingId, item.quantity + 1)} type="button">
-                      <Icon name="plus" />
-                    </button>
-                  </div>
+                  {item.type === 'wholesale' ? (
+                    <div className="qty">
+                      <button onClick={() => cart.updateQuantity(item.listingId, item.quantity - 1)} type="button">
+                        <Icon name="minus" />
+                      </button>
+                      <strong>{item.quantity}</strong>
+                      <button onClick={() => cart.updateQuantity(item.listingId, item.quantity + 1)} type="button">
+                        <Icon name="plus" />
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="muted-copy">Single retail item</p>
+                  )}
                 </div>
                 <strong>{formatMoney(item.price * item.quantity, item.currency)}</strong>
                 <button aria-label={`Remove ${item.title}`} className="icon-button" onClick={() => cart.removeItem(item.listingId)} type="button">

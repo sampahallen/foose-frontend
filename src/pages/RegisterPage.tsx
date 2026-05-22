@@ -1,11 +1,15 @@
 import { useState, type FormEvent } from 'react'
 import { AppShell, ButtonLink, ErrorState } from '../components'
 import { useAuth } from '../hooks/useAuth'
+import { authHref, closeTargetForAuthModal, redirectFromSearch } from '../utils/authRedirect'
+import { getErrorMessage } from '../utils/errorMessage'
 
 export function RegisterPage() {
   const { register } = useAuth()
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const redirectTarget = redirectFromSearch()
+  const closeTarget = closeTargetForAuthModal(redirectTarget)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -25,20 +29,24 @@ export function RegisterPage() {
         phone: String(formData.get('phone') || ''),
         username: String(formData.get('username') || ''),
       })
-      window.location.href = '/dashboard'
+      window.location.assign(redirectTarget)
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to register')
+      setError(getErrorMessage(requestError, 'Unable to register'))
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <AppShell>
-      <section className="auth-page">
-        <form className="form-card auth-card" onSubmit={(event) => void handleSubmit(event)}>
+    <AppShell flush>
+      <section className="auth-modal-shell">
+        <a aria-label="Close sign up" className="auth-modal-backdrop" href={closeTarget} />
+        <form className="form-card auth-card auth-modal-card" onSubmit={(event) => void handleSubmit(event)}>
+          <a aria-label="Close sign up" className="modal-close-button" href={closeTarget}>
+            x
+          </a>
           <h1>Create account</h1>
-          <p>Registration is sent to `/api/auth/register` and stores only returned JWTs.</p>
+          <p>Join as a buyer or seller. You can open a DigiShop after identity verification.</p>
           <label>
             Name
             <input autoComplete="name" name="name" required />
@@ -49,7 +57,7 @@ export function RegisterPage() {
           </label>
           <label>
             Username
-            <input autoComplete="username" name="username" pattern="[a-zA-Z0-9_]{3,20}" required />
+            <input autoComplete="username" name="username" pattern="[a-zA-Z0-9_]{3,20}" required title="3-20 letters, numbers, or underscore" />
           </label>
           <label>
             Phone
@@ -73,7 +81,7 @@ export function RegisterPage() {
           <button className="button button-primary full" disabled={submitting} type="submit">
             {submitting ? 'Creating...' : 'Create account'}
           </button>
-          <ButtonLink to="/login" variant="secondary">
+          <ButtonLink to={authHref('/login', redirectTarget)} variant="secondary">
             Log in instead
           </ButtonLink>
         </form>

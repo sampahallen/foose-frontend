@@ -3,22 +3,31 @@ import { AuthRequired } from './components'
 import { useCurrentRoute } from './hooks/useCurrentRoute'
 import {
   AdminDisputesPage,
+  AdminKycDetailPage,
   AdminKycPage,
   AdminOverviewPage,
   BrowsePage,
-  BuyerDashboardPage,
   CartPage,
   CheckoutPage,
+  CommunityEventFormPage,
+  CommunityFinspoDetailPage,
+  CommunityFinspoFormPage,
   CommunityPage,
+  EventDetailPage,
   HomePage,
   InboxPage,
   KycPage,
   LoginPage,
+  NewListingPage,
   OpenShopPage,
   OrderConfirmedPage,
+  ProfilePage,
   RegisterPage,
   RetailDetailPage,
+  SavedPage,
   SellerDashboardPage,
+  ShopPage,
+  TopPicksPage,
   WalletPage,
 } from './pages'
 import { resolveRoute } from './utils/routes'
@@ -37,6 +46,12 @@ function App() {
           <AdminKycPage />
         </AuthRequired>
       )
+    case 'adminKycDetail':
+      return (
+        <AuthRequired adminOnly>
+          <AdminKycDetailPage />
+        </AuthRequired>
+      )
     case 'adminDisputes':
       return (
         <AuthRequired adminOnly>
@@ -51,10 +66,45 @@ function App() {
       )
     case 'browse':
       return <BrowsePage />
+    case 'topPicks':
+      return <TopPicksPage />
+    case 'shop':
+      return <ShopPage />
     case 'retailDetail':
       return <RetailDetailPage />
+    case 'newListing':
+    case 'editListing':
+      return (
+        <AuthRequired>
+          <NewListingPage />
+        </AuthRequired>
+      )
     case 'community':
       return <CommunityPage />
+    case 'eventDetail':
+      return <EventDetailPage />
+    case 'communityEventForm':
+      return (
+        <AuthRequired>
+          <CommunityEventFormPage />
+        </AuthRequired>
+      )
+    case 'communityFinspoForm':
+      return (
+        <AuthRequired>
+          <CommunityFinspoFormPage />
+        </AuthRequired>
+      )
+    case 'communityFinspoDetail':
+      return <CommunityFinspoDetailPage />
+    case 'saved':
+      return (
+        <AuthRequired>
+          <SavedPage />
+        </AuthRequired>
+      )
+    case 'profile':
+      return <ProfilePage />
     case 'inbox':
       return (
         <AuthRequired>
@@ -93,16 +143,10 @@ function App() {
           <WalletPage />
         </AuthRequired>
       )
-    case 'sellerDashboard':
+    case 'manageShop':
       return (
         <AuthRequired>
           <SellerDashboardPage />
-        </AuthRequired>
-      )
-    case 'buyerDashboard':
-      return (
-        <AuthRequired>
-          <BuyerDashboardPage />
         </AuthRequired>
       )
     case 'home':

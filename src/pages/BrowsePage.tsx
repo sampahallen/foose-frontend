@@ -1,4 +1,5 @@
-import { AppShell, EmptyState, ErrorState, FilterPanel, LoadingState, ProductCard } from '../components'
+import { useState } from 'react'
+import { AppShell, CategoryStrip, EmptyState, ErrorState, FilterPanel, Icon, LoadingState, ProductCard } from '../components'
 import { useApiResource } from '../hooks/useApiResource'
 import type { PaginatedListings } from '../types/api'
 
@@ -12,14 +13,24 @@ function searchPath() {
 export function BrowsePage() {
   const query = new URLSearchParams(window.location.search)
   const listings = useApiResource<PaginatedListings>(searchPath())
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   return (
     <AppShell active="browse" searchPlaceholder="Search curated thrift...">
+      <CategoryStrip query={query} />
       <div className="browse-layout">
-        <FilterPanel query={query} />
+        <div className={`filter-drawer ${filtersOpen ? 'open' : ''}`}>
+          <FilterPanel query={query} />
+        </div>
+        {filtersOpen && <button className="filter-backdrop" aria-label="Close filters" onClick={() => setFiltersOpen(false)} type="button" />}
         <section className="browse-results">
           <div className="browse-top">
-            <strong>{listings.data?.total ?? 0} items found</strong>
+            <div className="browse-count">
+              <button className="mobile-filter-button" onClick={() => setFiltersOpen(true)} type="button">
+                <Icon name="filter" /> Filters
+              </button>
+              <strong>{listings.data?.total ?? 0} items found</strong>
+            </div>
             <label>
               Sort by
               <select defaultValue={query.get('sort') || 'newest'} onChange={(event) => {
@@ -36,7 +47,7 @@ export function BrowsePage() {
           {listings.loading && <LoadingState label="Loading marketplace..." />}
           {listings.error && <ErrorState message={listings.error} retry={listings.refetch} />}
           {!listings.loading && !listings.error && !listings.data?.results.length && (
-            <EmptyState body="No API listings match this search yet." title="No listings found" />
+            <EmptyState body="Try different filters or check back soon for new listings." title="No listings found" />
           )}
           {!!listings.data?.results.length && (
             <div className="masonry">

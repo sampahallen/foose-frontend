@@ -1,4 +1,4 @@
-import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, Icon, LoadingState } from '../components'
+import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, FavoriteButton, Icon, LightboxImage, LoadingState } from '../components'
 import { useApiResource } from '../hooks/useApiResource'
 import { useCart } from '../hooks/useCart'
 import type { Listing } from '../types/api'
@@ -8,6 +8,13 @@ function currentListingId() {
   return decodeURIComponent(window.location.pathname.replace(/^\/listing\/?/, '')).trim()
 }
 
+function shopOwnerId(owner: unknown) {
+  if (!owner) return ''
+  if (typeof owner === 'string') return owner
+  if (typeof owner === 'object' && '_id' in owner && typeof owner._id === 'string') return owner._id
+  return ''
+}
+
 export function RetailDetailPage() {
   const listingId = currentListingId()
   const listingResource = useApiResource<{ listing: Listing }>(listingId ? `/listings/${listingId}` : null)
@@ -15,6 +22,10 @@ export function RetailDetailPage() {
   const listing = listingResource.data?.listing
   const shop = listing ? getShop(listing) : undefined
   const mainImage = listing ? getListingImage(listing) : undefined
+  const sellerId = shopOwnerId(shop?.ownerId)
+  const messageSellerHref = sellerId
+    ? `/inbox?receiverId=${encodeURIComponent(sellerId)}&listingId=${encodeURIComponent(listingId)}`
+    : '/inbox'
 
   function handleAddToCart() {
     if (!listing) return
@@ -27,19 +38,24 @@ export function RetailDetailPage() {
       <a className="back-link" href="/browse">
         <Icon name="arrow" /> Back to Browse
       </a>
-      {!listingId && <EmptyState body="Open a listing from the marketplace to see its API details." title="Listing required" />}
+      {!listingId && <EmptyState body="Open a listing from the marketplace to see full details." title="Listing required" />}
       {listingResource.loading && <LoadingState label="Loading listing..." />}
       {listingResource.error && <ErrorState message={listingResource.error} retry={listingResource.refetch} />}
       {listing && (
         <div className="detail-grid">
           <section className="gallery">
             <div className="main-product-image image-frame">
-              {mainImage ? <img alt={listing.title} src={mainImage} /> : <span className="image-placeholder">No image</span>}
+              {mainImage ? <LightboxImage alt={listing.title} src={mainImage} /> : <span className="image-placeholder">No image</span>}
             </div>
             {!!listing.images?.length && (
               <div className="thumb-row">
                 {listing.images.map((image, index) => (
-                  <img alt={`${listing.title} thumbnail ${index + 1}`} className={index === 0 ? 'selected' : ''} key={image} src={image} />
+                  <LightboxImage
+                    alt={`${listing.title} thumbnail ${index + 1}`}
+                    className={index === 0 ? 'selected' : ''}
+                    key={image}
+                    src={image}
+                  />
                 ))}
               </div>
             )}
@@ -90,10 +106,18 @@ export function RetailDetailPage() {
                 </tbody>
               </table>
             )}
-            <button className="button button-primary full" disabled={listing.status !== 'active'} onClick={handleAddToCart} type="button">
-              Add to cart
-            </button>
-            <ButtonLink to="/inbox" className="full" variant="secondary">
+            <div className="detail-actions">
+              <button className="button button-primary full" disabled={listing.status !== 'active'} onClick={handleAddToCart} type="button">
+                Add to cart
+              </button>
+              <FavoriteButton
+                className="button button-secondary favorite-button"
+                showText
+                targetId={listing._id}
+                targetType="listing"
+              />
+            </div>
+            <ButtonLink to={messageSellerHref} className="full" variant="secondary">
               Message seller
             </ButtonLink>
             <div className="info-card">

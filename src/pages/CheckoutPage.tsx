@@ -1,17 +1,22 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { AppShell, EmptyState, ErrorState, Icon, OrderSummary, StepIndicator } from '../components'
-import { apiPost } from '../lib/api'
 import { useCart } from '../hooks/useCart'
+import { apiPost } from '../lib/api'
 import type { Order } from '../types/api'
+import { getErrorMessage } from '../utils/errorMessage'
 
-const deliveryFee = 2500
+const FIXED_DELIVERY_FEE = 1500
 
 export function CheckoutPage() {
   const cart = useCart()
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [region, setRegion] = useState('Greater Accra')
+  const [method, setMethod] = useState<'pickup' | 'delivery'>('delivery')
+  const [paymentMethod, setPaymentMethod] = useState<'paystack_mock' | 'cash_on_pickup'>('paystack_mock')
+  const deliveryFeeDisplay = method === 'pickup' ? 0 : FIXED_DELIVERY_FEE
 
-  async function submitOrder(event: React.FormEvent<HTMLFormElement>) {
+  async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitting(true)
     setError('')
@@ -19,24 +24,28 @@ export function CheckoutPage() {
     const formData = new FormData(event.currentTarget)
 
     try {
-      const data = await apiPost<{ order: Order }>('/orders', {
+      const resolvedPaymentMethod = method === 'delivery' ? 'paystack_mock' : paymentMethod
+      const data = await apiPost<{ order: Order; orders?: Order[] }>('/orders', {
         delivery: {
           address: {
             city: String(formData.get('city') || ''),
             region: String(formData.get('region') || ''),
             street: String(formData.get('street') || ''),
           },
-          method: String(formData.get('method') || 'delivery'),
+          method,
         },
         items: cart.items.map((item) => ({
           listingId: item.listingId,
-          quantity: item.quantity,
+          quantity: item.type === 'wholesale' ? item.quantity : 1,
         })),
+        mockPayment: resolvedPaymentMethod !== 'cash_on_pickup',
+        paymentMethod: resolvedPaymentMethod,
       })
       cart.clearCart()
-      window.location.href = `/order-confirmed?orderId=${data.order._id}`
+      const orderIds = (data.orders?.length ? data.orders : [data.order]).map((order) => order._id).join(',')
+      window.location.href = `/order-confirmed?orderIds=${encodeURIComponent(orderIds)}`
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to place order')
+      setError(getErrorMessage(requestError, 'Unable to place order'))
     } finally {
       setSubmitting(false)
     }
@@ -45,7 +54,7 @@ export function CheckoutPage() {
   return (
     <AppShell>
       {!cart.items.length && (
-        <EmptyState body="Checkout starts empty until a logged-in buyer adds real listings to the cart." title="No items to checkout" />
+        <EmptyState body="Add items from the marketplace, then return here to complete your purchase." title="No items to checkout" />
       )}
       {!!cart.items.length && (
         <form className="checkout-layout" onSubmit={(event) => void submitOrder(event)}>
@@ -54,40 +63,102 @@ export function CheckoutPage() {
             <div className="checkout-card">
               <h1>How do you want your find?</h1>
               <div className="delivery-toggle">
-                <label className="active">
-                  <input defaultChecked name="method" type="radio" value="delivery" />
+                <label className={method === 'delivery' ? 'active' : ''}>
+                  <input
+                    checked={method === 'delivery'}
+                    name="method"
+                    onChange={() => {
+                      setMethod('delivery')
+                      setPaymentMethod('paystack_mock')
+                    }}
+                    type="radio"
+                    value="delivery"
+                  />
                   <Icon name="truck" /> Standard Delivery
                 </label>
-                <label>
-                  <input name="method" type="radio" value="pickup" />
-                  <Icon name="store" /> Pickup Points
+                <label className={method === 'pickup' ? 'active' : ''}>
+                  <input
+                    checked={method === 'pickup'}
+                    name="method"
+                    onChange={() => setMethod('pickup')}
+                    type="radio"
+                    value="pickup"
+                  />
+                  <Icon name="store" /> Pickup
                 </label>
               </div>
               <div className="form-grid">
                 <label>
                   Region
-                  <input name="region" placeholder="Greater Accra" required />
+                  <input
+                    name="region"
+                    onChange={(event) => setRegion(event.target.value)}
+                    placeholder="Greater Accra"
+                    required
+                    value={region}
+                  />
                 </label>
                 <label>
                   City
-                  <input name="city" placeholder="e.g. East Legon" />
+                  <input name="city" placeholder={method === 'pickup' ? 'Preferred pickup area' : 'e.g. East Legon'} />
                 </label>
                 <label className="wide">
-                  Street Address
-                  <input name="street" placeholder="Digital Avenue, House No. 42" />
+                  {method === 'pickup' ? 'Pickup note' : 'Street address'}
+                  <input name="street" placeholder={method === 'pickup' ? 'Preferred pickup point or note' : 'Digital Avenue, House No. 42'} />
                 </label>
+              </div>
+              <div className="payment-method-card">
+                <h2>Payment</h2>
+                <label className={paymentMethod === 'paystack_mock' ? 'active' : ''}>
+                  <input
+                    checked={paymentMethod === 'paystack_mock'}
+                    name="paymentMethod"
+                    onChange={() => setPaymentMethod('paystack_mock')}
+                    type="radio"
+                    value="paystack_mock"
+                  />
+                  <span>
+                    <strong>Pay online</strong>
+                    <small>Mock Paystack success for now. Funds are held in escrow.</small>
+                  </span>
+                </label>
+                {method === 'pickup' && (
+                  <label className={paymentMethod === 'cash_on_pickup' ? 'active' : ''}>
+                    <input
+                      checked={paymentMethod === 'cash_on_pickup'}
+                      name="paymentMethod"
+                      onChange={() => setPaymentMethod('cash_on_pickup')}
+                      type="radio"
+                      value="cash_on_pickup"
+                    />
+                    <span>
+                      <strong>Cash on pickup</strong>
+                      <small>No escrow is held for cash pickup until Paystack pickup payments are connected.</small>
+                    </span>
+                  </label>
+                )}
               </div>
               <div className="info-card">
                 <Icon name="info" />
                 <div>
-                  <strong>Estimated Delivery Fee</strong>
-                  <p>The API recalculates the official delivery fee when the order is created.</p>
+                  <strong>Delivery fee</strong>
+                  <p>
+                    {method === 'pickup'
+                      ? 'No delivery fee for pickup orders.'
+                      : 'Fixed at GHS 15.00 while the delivery algorithm is being built.'}
+                  </p>
                 </div>
               </div>
               {error && <ErrorState message={error} />}
             </div>
           </section>
-          <OrderSummary action={submitting ? 'Placing order...' : 'Place order'} deliveryFee={deliveryFee} items={cart.items} />
+          <OrderSummary
+            action={submitting ? 'Placing order...' : paymentMethod === 'cash_on_pickup' ? 'Place pickup order' : 'Mock Paystack payment'}
+            deliveryFee={deliveryFeeDisplay}
+            disabled={submitting}
+            items={cart.items}
+            submit
+          />
         </form>
       )}
     </AppShell>

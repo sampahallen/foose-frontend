@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiGet } from '../lib/api'
+import { getErrorMessage } from '../utils/errorMessage'
 
 type ResourceState<T> = {
   data: T | null
@@ -14,28 +15,46 @@ export function useApiResource<T>(path: string | null, enabled = true): Resource
   const [loading, setLoading] = useState(Boolean(path && enabled))
 
   const refetch = useCallback(async () => {
-    if (!path || !enabled) {
-      setLoading(false)
-      return
-    }
-
+    if (!path || !enabled) return
     setLoading(true)
     setError('')
-
     try {
       setData(await apiGet<T>(path))
     } catch (requestError) {
       setData(null)
-      setError(requestError instanceof Error ? requestError.message : 'Unable to load data')
+      setError(getErrorMessage(requestError, 'Unable to load data'))
     } finally {
       setLoading(false)
     }
   }, [enabled, path])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void refetch(), 0)
-    return () => window.clearTimeout(timer)
-  }, [refetch])
+    if (!path || !enabled) {
+      queueMicrotask(() => {
+        setLoading(false)
+      })
+      return
+    }
+
+    const ac = new AbortController()
+    queueMicrotask(() => {
+      setLoading(true)
+      setError('')
+    })
+
+    void apiGet<T>(path, { signal: ac.signal })
+      .then((result) => setData(result))
+      .catch((requestError: unknown) => {
+        if (requestError instanceof Error && requestError.name === 'AbortError') return
+        setData(null)
+        setError(getErrorMessage(requestError, 'Unable to load data'))
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setLoading(false)
+      })
+
+    return () => ac.abort()
+  }, [path, enabled])
 
   return { data, error, loading, refetch }
 }

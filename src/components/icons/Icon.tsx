@@ -105,9 +105,9 @@ const icons = {
   ),
   menu: (
     <>
-      <path d="M12 5h.01" />
-      <path d="M12 12h.01" />
-      <path d="M12 19h.01" />
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
     </>
   ),
   minus: <path d="M5 12h14" />,

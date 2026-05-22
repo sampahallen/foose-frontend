@@ -38,6 +38,7 @@ export type User = {
     city?: string
   }
   kycId?: KycRecord | string | null
+  following?: string[]
 }
 
 export type Shop = {
@@ -52,6 +53,14 @@ export type Shop = {
   isLive?: boolean
   rating?: number
   totalReviews?: number
+  payoutMethod?: {
+    type?: 'mobile_money' | 'bank_transfer'
+    accountName?: string
+    provider?: string
+    accountNumber?: string
+    bankName?: string
+    branch?: string
+  }
 }
 
 export type Listing = {
@@ -63,7 +72,7 @@ export type Listing = {
   brand?: string
   size?: string
   gender?: 'men' | 'women' | 'unisex' | 'kids'
-  condition?: 'new' | 'used' | 'bale'
+  condition?: 'new' | 'used'
   type: 'retail' | 'wholesale'
   price: number
   currency?: string
@@ -75,6 +84,7 @@ export type Listing = {
     pricePerUnit?: number
   }>
   images?: string[]
+  promotionTags?: string[]
   status?: 'active' | 'sold' | 'draft' | 'removed'
   views?: number
   createdAt?: string
@@ -91,9 +101,22 @@ export type Order = {
     price: number
     quantity: number
   }>
+  subtotalAmount?: number
+  deliveryFee?: number
   totalAmount: number
   currency?: string
   status: 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'disputed' | 'cancelled' | 'refunded'
+  paymentMethod?: 'paystack_mock' | 'paystack' | 'cash_on_pickup'
+  paymentStatus?: 'unpaid' | 'paid' | 'cash_on_pickup' | 'refunded'
+  paymentRef?: string
+  escrowStatus?: 'not_held' | 'held' | 'released' | 'refunded'
+  sellerAction?: 'pending' | 'accepted' | 'shipped' | 'pickup_ready'
+  sellerActionAt?: string
+  sellerActionDeadline?: string
+  sellerNote?: string
+  autoReleaseAt?: string
+  releasedAt?: string
+  buyerConfirmedAt?: string
   delivery?: {
     method?: 'pickup' | 'delivery'
     fee?: number
@@ -114,6 +137,8 @@ export type KycRecord = {
   idType?: 'Ghana Card' | 'Passport' | 'Driving License'
   idNo?: string
   dob?: string
+  phone?: string
+  phoneVerified?: boolean
   idImgUrl?: string
   selfieImgUrl?: string
   status: 'not_submitted' | 'pending' | 'approved' | 'rejected'
@@ -121,15 +146,18 @@ export type KycRecord = {
   submissionCount?: number
   submittedAt?: string
   reviewedAt?: string
+  reviewedBy?: User | string
 }
 
 export type Event = {
   _id: string
+  organizerId?: User | string
   title: string
   description?: string
   date: string
   location?: string
   coverImage?: string
+  promotionTags?: string[]
   type: 'pop-up' | 'fair' | 'online'
   attendees?: string[]
   status?: 'upcoming' | 'ongoing' | 'past'
@@ -143,6 +171,63 @@ export type GalleryPost = {
   likes?: string[]
   userId?: User | string
   createdAt?: string
+}
+
+export type FavoriteCollections = {
+  ids: {
+    events: string[]
+    finspos: string[]
+    listings: string[]
+  }
+  events: Event[]
+  finspos: GalleryPost[]
+  listings: Listing[]
+}
+
+export type Notification = {
+  _id: string
+  userId?: User | string
+  type: 'order' | 'chat' | 'review' | 'kyc' | 'system'
+  title: string
+  body?: string
+  link?: string
+  isRead?: boolean
+  createdAt?: string
+}
+
+export type PopularSearch = {
+  count: number
+  query: string
+  normalizedQuery: string
+}
+
+export type WeeklyTopSeller = Shop & {
+  completedOrders: number
+  revenue: number
+}
+
+export type ChatConversation = {
+  conversationId: string
+  latestMessage: {
+    _id: string
+    attachments?: ChatAttachment[]
+    content: string
+    createdAt?: string
+    isRead?: boolean
+    senderId?: User | string
+    receiverId?: User | string
+    listingId?: Listing | string
+  }
+  unreadCount: number
+  participant?: User | string
+  listing?: Listing | string
+}
+
+export type ChatAttachment = {
+  url: string
+  type: 'image' | 'video'
+  mimetype?: string
+  originalname?: string
 }
 
 export type AuthPayload = {

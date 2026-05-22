@@ -22,8 +22,8 @@ export function AdminDisputesPage() {
       <section className="admin-page">
         <div className="admin-title">
           <div>
-            <h1>Dispute Center</h1>
-            <p>Disputed orders loaded from the admin API.</p>
+            <h1>Dispute center</h1>
+            <p>Open disputed orders from the admin API.</p>
           </div>
         </div>
         <div className="stats-row">

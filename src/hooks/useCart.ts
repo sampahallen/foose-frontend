@@ -1,8 +1,7 @@
 import { useCallback, useState } from 'react'
+import { getCartStorageKey } from '../config/env'
 import type { Listing } from '../types/api'
 import { getListingImage, getShop, getShopName } from '../utils/format'
-
-const CART_STORAGE_KEY = 'foose.cart'
 
 export type CartItem = {
   listingId: string
@@ -10,25 +9,31 @@ export type CartItem = {
   price: number
   currency: string
   quantity: number
+  type?: 'retail' | 'wholesale'
+  bulkMinQty?: number
   image?: string
   shopId?: string
   shopName: string
 }
 
+function storageKey() {
+  return getCartStorageKey()
+}
+
 function readCart() {
-  const rawCart = window.localStorage.getItem(CART_STORAGE_KEY)
+  const rawCart = window.localStorage.getItem(storageKey())
   if (!rawCart) return []
 
   try {
     return JSON.parse(rawCart) as CartItem[]
   } catch {
-    window.localStorage.removeItem(CART_STORAGE_KEY)
+    window.localStorage.removeItem(storageKey())
     return []
   }
 }
 
 function writeCart(items: CartItem[]) {
-  window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items))
+  window.localStorage.setItem(storageKey(), JSON.stringify(items))
 }
 
 export function useCart() {
@@ -42,21 +47,27 @@ export function useCart() {
   const addListing = useCallback(
     (listing: Listing, quantity = 1) => {
       const shop = getShop(listing)
+      const listingType = listing.type || 'retail'
+      const nextQuantity = listingType === 'retail' ? 1 : Math.max(quantity, listing.bulkMinQty || 1)
       const nextItem: CartItem = {
+        bulkMinQty: listing.bulkMinQty,
         currency: listing.currency || 'GHS',
         image: getListingImage(listing),
         listingId: listing._id,
         price: listing.price,
-        quantity,
+        quantity: nextQuantity,
         shopId: shop?._id,
         shopName: getShopName(listing),
         title: listing.title,
+        type: listingType,
       }
       const currentItems = readCart()
       const existing = currentItems.find((item) => item.listingId === listing._id)
       const nextItems = existing
         ? currentItems.map((item) =>
-            item.listingId === listing._id ? { ...item, quantity: item.quantity + quantity } : item,
+            item.listingId === listing._id
+              ? { ...item, quantity: listingType === 'retail' ? 1 : item.quantity + nextQuantity }
+              : item,
           )
         : [...currentItems, nextItem]
 
@@ -69,7 +80,11 @@ export function useCart() {
     (listingId: string, quantity: number) => {
       commit(
         readCart()
-          .map((item) => (item.listingId === listingId ? { ...item, quantity: Math.max(quantity, 1) } : item))
+          .map((item) =>
+            item.listingId === listingId
+              ? { ...item, quantity: item.type === 'wholesale' ? Math.max(quantity, item.bulkMinQty || 1) : 1 }
+              : item,
+          )
           .filter((item) => item.quantity > 0),
       )
     },

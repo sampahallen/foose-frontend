@@ -38,7 +38,7 @@ export function BuyerDashboardPage() {
         {!orders.loading && !orders.error && !orders.data?.orders.length && (
           <EmptyState
             action={<ButtonLink to="/browse">Browse listings</ButtonLink>}
-            body="Orders placed through the API will appear here."
+            body="Orders you place will appear here."
             title="No active orders"
           />
         )}
