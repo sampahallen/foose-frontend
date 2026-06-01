@@ -2,9 +2,10 @@ import { AppShell, Badge, EmptyState, ErrorState, FavoriteButton, Icon, Lightbox
 import { useApiResource } from '../hooks/useApiResource'
 import type { Event } from '../types/api'
 import { formatDate } from '../utils/format'
+import { getCurrentAppPathname } from '../utils/navigation'
 
 function eventIdFromPath() {
-  const match = window.location.pathname.match(/^\/community\/events\/([^/]+)/)
+  const match = getCurrentAppPathname().match(/^\/community\/events\/([^/]+)/)
   return match ? decodeURIComponent(match[1]).trim() : ''
 }
 

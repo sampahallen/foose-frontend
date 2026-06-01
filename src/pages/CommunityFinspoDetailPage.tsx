@@ -3,10 +3,10 @@ import { AppShell, EmptyState, ErrorState, FavoriteButton, Icon, LightboxImage, 
 import { useApiResource } from '../hooks/useApiResource'
 import type { GalleryPost } from '../types/api'
 import { formatDate } from '../utils/format'
-import { cacheFinspoPreview, navigateTo, readFinspoPreview } from '../utils/navigation'
+import { cacheFinspoPreview, getCurrentAppPathname, navigateTo, readFinspoPreview, withBasePath } from '../utils/navigation'
 
 function finspoIdFromPath() {
-  const match = window.location.pathname.match(/^\/community\/finspo\/([^/]+)/)
+  const match = getCurrentAppPathname().match(/^\/community\/finspo\/([^/]+)/)
   return match ? decodeURIComponent(match[1]).trim() : ''
 }
 
@@ -32,7 +32,7 @@ function renderImageTile(post: GalleryPost) {
       <a
         aria-label={post.caption || `Finspo by ${authorName(post)}`}
         className="finspo-image finspo-tile-link"
-        href={`/community/finspo/${post._id}`}
+        href={withBasePath(`/community/finspo/${post._id}`)}
         onClick={(event) => openFinspo(event, post)}
       >
         <img alt="" src={post.imageUrl} />

@@ -5,6 +5,7 @@ import { apiPut } from '../lib/api'
 import type { KycRecord, User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDateTime, initials } from '../utils/format'
+import { getCurrentAppPathname } from '../utils/navigation'
 
 type KycDetail = KycRecord & {
   _id: string
@@ -19,7 +20,7 @@ const STATUS_TONE = {
 } as const
 
 function currentKycId() {
-  const match = window.location.pathname.match(/^\/admin\/kyc\/([^/]+)/)
+  const match = getCurrentAppPathname().match(/^\/admin\/kyc\/([^/]+)/)
   return match ? decodeURIComponent(match[1]).trim() : ''
 }
 

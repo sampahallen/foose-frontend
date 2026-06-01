@@ -4,12 +4,12 @@ import { apiPost, apiPut } from '../lib/api'
 import { useApiResource } from '../hooks/useApiResource'
 import type { Event } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
-import { navigateTo } from '../utils/navigation'
+import { getCurrentAppPathname, navigateTo } from '../utils/navigation'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 
 function editEventId() {
-  const match = window.location.pathname.match(/^\/community\/events\/([^/]+)\/edit/)
+  const match = getCurrentAppPathname().match(/^\/community\/events\/([^/]+)\/edit/)
   return match ? decodeURIComponent(match[1]).trim() : ''
 }
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { withBasePath } from '../../utils/navigation'
 
 export function ButtonLink({
   children,
@@ -12,7 +13,7 @@ export function ButtonLink({
   className?: string
 }) {
   return (
-    <a className={`button button-${variant} ${className}`} href={to}>
+    <a className={`button button-${variant} ${className}`} href={withBasePath(to)}>
       {children}
     </a>
   )

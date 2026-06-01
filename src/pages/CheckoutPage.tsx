@@ -4,9 +4,19 @@ import { useCart } from '../hooks/useCart'
 import { apiPost } from '../lib/api'
 import type { Order } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
-import { navigateTo } from '../utils/navigation'
+import { navigateTo, withBasePath } from '../utils/navigation'
 
 const FIXED_DELIVERY_FEE = 1500
+
+type PlaceOrderResponse = {
+  order: Order
+  orders?: Order[]
+  payment?: {
+    authorizationUrl?: string
+    reference?: string
+    status?: string
+  }
+}
 
 export function CheckoutPage() {
   const cart = useCart()
@@ -14,7 +24,7 @@ export function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [region, setRegion] = useState('Greater Accra')
   const [method, setMethod] = useState<'pickup' | 'delivery'>('delivery')
-  const [paymentMethod, setPaymentMethod] = useState<'paystack_mock' | 'cash_on_pickup'>('paystack_mock')
+  const [paymentMethod, setPaymentMethod] = useState<'cash_on_pickup' | 'paystack'>('paystack')
   const deliveryFeeDisplay = method === 'pickup' ? 0 : FIXED_DELIVERY_FEE
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
@@ -25,8 +35,9 @@ export function CheckoutPage() {
     const formData = new FormData(event.currentTarget)
 
     try {
-      const resolvedPaymentMethod = method === 'delivery' ? 'paystack_mock' : paymentMethod
-      const data = await apiPost<{ order: Order; orders?: Order[] }>('/orders', {
+      const resolvedPaymentMethod = method === 'delivery' ? 'paystack' : paymentMethod
+      const data = await apiPost<PlaceOrderResponse>('/orders', {
+        callbackUrl: `${window.location.origin}${withBasePath('/order-confirmed')}`,
         delivery: {
           address: {
             city: String(formData.get('city') || ''),
@@ -39,9 +50,14 @@ export function CheckoutPage() {
           listingId: item.listingId,
           quantity: item.type === 'wholesale' ? item.quantity : 1,
         })),
-        mockPayment: resolvedPaymentMethod !== 'cash_on_pickup',
         paymentMethod: resolvedPaymentMethod,
       })
+
+      if (data.payment?.authorizationUrl) {
+        window.location.assign(data.payment.authorizationUrl)
+        return
+      }
+
       cart.clearCart()
       const orderIds = (data.orders?.length ? data.orders : [data.order]).map((order) => order._id).join(',')
       navigateTo(`/order-confirmed?orderIds=${encodeURIComponent(orderIds)}`)
@@ -70,7 +86,7 @@ export function CheckoutPage() {
                     name="method"
                     onChange={() => {
                       setMethod('delivery')
-                      setPaymentMethod('paystack_mock')
+                      setPaymentMethod('paystack')
                     }}
                     type="radio"
                     value="delivery"
@@ -110,17 +126,17 @@ export function CheckoutPage() {
               </div>
               <div className="payment-method-card">
                 <h2>Payment</h2>
-                <label className={paymentMethod === 'paystack_mock' ? 'active' : ''}>
+                <label className={paymentMethod === 'paystack' ? 'active' : ''}>
                   <input
-                    checked={paymentMethod === 'paystack_mock'}
+                    checked={paymentMethod === 'paystack'}
                     name="paymentMethod"
-                    onChange={() => setPaymentMethod('paystack_mock')}
+                    onChange={() => setPaymentMethod('paystack')}
                     type="radio"
-                    value="paystack_mock"
+                    value="paystack"
                   />
                   <span>
-                    <strong>Pay online</strong>
-                    <small>Mock Paystack success for now. Funds are held in escrow.</small>
+                    <strong>Pay online with Paystack</strong>
+                    <small>You will be redirected to Paystack. Funds are held in escrow after payment succeeds.</small>
                   </span>
                 </label>
                 {method === 'pickup' && (
@@ -134,7 +150,7 @@ export function CheckoutPage() {
                     />
                     <span>
                       <strong>Cash on pickup</strong>
-                      <small>No escrow is held for cash pickup until Paystack pickup payments are connected.</small>
+                      <small>No escrow is held for cash pickup.</small>
                     </span>
                   </label>
                 )}
@@ -154,7 +170,7 @@ export function CheckoutPage() {
             </div>
           </section>
           <OrderSummary
-            action={submitting ? 'Placing order...' : paymentMethod === 'cash_on_pickup' ? 'Place pickup order' : 'Mock Paystack payment'}
+            action={submitting ? 'Preparing checkout...' : paymentMethod === 'cash_on_pickup' ? 'Place pickup order' : 'Pay with Paystack'}
             deliveryFee={deliveryFeeDisplay}
             disabled={submitting}
             items={cart.items}

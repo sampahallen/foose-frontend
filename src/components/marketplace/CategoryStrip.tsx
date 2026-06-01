@@ -1,4 +1,5 @@
 import { LISTING_CATEGORIES } from '../../utils/listingTaxonomy'
+import { withBasePath } from '../../utils/navigation'
 
 export function CategoryStrip({
   basePath = '/browse',
@@ -17,7 +18,7 @@ export function CategoryStrip({
     nextQuery.set('page', '1')
 
     const queryString = nextQuery.toString()
-    return queryString ? `${basePath}?${queryString}` : basePath
+    return withBasePath(queryString ? `${basePath}?${queryString}` : basePath)
   }
 
   const activeCategory = query.get('category') || ''

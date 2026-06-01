@@ -1,12 +1,15 @@
+import { getCurrentAppPathname, stripBasePath, withBasePath } from './navigation'
+
 export function sanitizeRedirect(value?: string | null) {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return '/'
-  if (value.startsWith('/login') || value.startsWith('/register')) return '/'
-  return value
+  const target = stripBasePath(value)
+  if (target.startsWith('/login') || target.startsWith('/register')) return '/'
+  return target
 }
 
 export function currentRedirectTarget() {
   if (typeof window === 'undefined') return '/'
-  const target = `${window.location.pathname}${window.location.search}`
+  const target = `${getCurrentAppPathname()}${window.location.search}`
   return sanitizeRedirect(target)
 }
 
@@ -41,5 +44,5 @@ export function closeTargetForAuthModal(redirect = redirectFromSearch()) {
 }
 
 export function authHref(path: '/login' | '/register' = '/register', redirect = currentRedirectTarget()) {
-  return `${path}?redirect=${encodeURIComponent(sanitizeRedirect(redirect))}`
+  return withBasePath(`${path}?redirect=${encodeURIComponent(sanitizeRedirect(redirect))}`)
 }

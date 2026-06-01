@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { getAppName } from '../../config/env'
 import { useAuth } from '../../hooks/useAuth'
 import { initials } from '../../utils/format'
+import { withBasePath } from '../../utils/navigation'
 import { Icon, type IconName } from '../icons/Icon'
 
 const NAV: Array<{ key: 'overview' | 'kyc' | 'disputes'; label: string; href: string; icon: IconName }> = [
@@ -23,7 +24,7 @@ export function AdminShell({ section, children }: { section: 'overview' | 'kyc' 
         </div>
         <nav>
           {NAV.map((item) => (
-            <a className={section === item.key ? 'active' : ''} href={item.href} key={item.key}>
+            <a className={section === item.key ? 'active' : ''} href={withBasePath(item.href)} key={item.key}>
               <Icon name={item.icon} /> {item.label}
             </a>
           ))}
@@ -32,7 +33,7 @@ export function AdminShell({ section, children }: { section: 'overview' | 'kyc' 
           Generate Report
         </button>
         <footer>
-          <a href="/admin">
+          <a href={withBasePath('/admin')}>
             <Icon name="shield" /> Security
           </a>
           <button className="admin-footer-action" onClick={() => void logout()} type="button">

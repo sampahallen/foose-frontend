@@ -7,7 +7,7 @@ import { apiPost, apiPut } from '../lib/api'
 import type { ChatAttachment, ChatConversation, Listing, Notification, User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDateTime, getListingImage, initials } from '../utils/format'
-import { navigateTo } from '../utils/navigation'
+import { navigateTo, withBasePath } from '../utils/navigation'
 
 type ChatMessage = {
   _id: string
@@ -237,7 +237,7 @@ export function InboxPage() {
                 return (
                   <a
                     className={`conversation ${active ? 'active' : ''}`}
-                    href={`/inbox?conversationId=${encodeURIComponent(conversation.conversationId)}`}
+                    href={withBasePath(`/inbox?conversationId=${encodeURIComponent(conversation.conversationId)}`)}
                     key={conversation.conversationId}
                   >
                     {image ? <img alt="" src={image} /> : <span className="conversation-avatar">{initials(displayUser(participant))}</span>}

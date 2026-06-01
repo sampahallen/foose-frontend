@@ -3,7 +3,7 @@ import { useApiResource } from '../hooks/useApiResource'
 import type { FavoriteCollections, GalleryPost } from '../types/api'
 import { formatDate } from '../utils/format'
 import { Icon } from '../components/icons/Icon'
-import { cacheFinspoPreview, navigateTo } from '../utils/navigation'
+import { cacheFinspoPreview, navigateTo, withBasePath } from '../utils/navigation'
 import type { MouseEvent } from 'react'
 
 type SavedTab = 'events' | 'finspos' | 'items'
@@ -121,7 +121,7 @@ export function SavedPage() {
                   <a
                     aria-label={post.caption || `Finspo by ${authorName(post)}`}
                     className="finspo-image finspo-tile-link"
-                    href={`/community/finspo/${post._id}`}
+                    href={withBasePath(`/community/finspo/${post._id}`)}
                     onClick={(event) => openFinspo(event, post)}
                   >
                     <img alt="" src={post.imageUrl} />

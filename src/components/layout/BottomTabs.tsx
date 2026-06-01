@@ -1,22 +1,23 @@
 import { useAuth } from '../../hooks/useAuth'
 import { authHref } from '../../utils/authRedirect'
+import { withBasePath } from '../../utils/navigation'
 import { Icon } from '../icons/Icon'
 
 export function BottomTabs({ active }: { active?: 'home' | 'browse' | 'community' | 'profile' | 'saved' }) {
   const { status, user } = useAuth()
-  const guardedHref = (target: string) => (user || status === 'checking' ? target : authHref('/register', target))
+  const guardedHref = (target: string) => (user || status === 'checking' ? withBasePath(target) : authHref('/register', target))
 
   return (
     <nav className="bottom-tabs" aria-label="Mobile navigation">
-      <a className={active === 'home' ? 'active' : ''} href="/">
+      <a className={active === 'home' ? 'active' : ''} href={withBasePath('/')}>
         <Icon name="store" />
         Home
       </a>
-      <a className={active === 'browse' ? 'active' : ''} href="/browse">
+      <a className={active === 'browse' ? 'active' : ''} href={withBasePath('/browse')}>
         <Icon name="search" />
         Browse
       </a>
-      <a className={active === 'community' ? 'active' : ''} href="/community">
+      <a className={active === 'community' ? 'active' : ''} href={withBasePath('/community')}>
         <Icon name="grid" />
         Community
       </a>

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { stripBasePath, withBasePath } from '../utils/navigation'
 
 type CurrentRoute = {
   pathname: string
@@ -19,10 +20,11 @@ function subscribe(onStoreChange: () => void) {
 
     const url = new URL(anchor.href, window.location.href)
     if (url.origin !== window.location.origin) return
-    if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) return
+    const targetUrl = new URL(withBasePath(`${url.pathname}${url.search}${url.hash}`), window.location.origin)
+    if (targetUrl.pathname === window.location.pathname && targetUrl.search === window.location.search && targetUrl.hash) return
 
     event.preventDefault()
-    window.history.pushState(null, '', `${url.pathname}${url.search}${url.hash}`)
+    window.history.pushState(null, '', `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`)
     window.scrollTo({ top: 0 })
     onStoreChange()
   }
@@ -36,7 +38,7 @@ function subscribe(onStoreChange: () => void) {
 }
 
 function getSnapshot() {
-  return window.location.pathname + window.location.search
+  return stripBasePath(window.location.pathname) + window.location.search
 }
 
 function getServerSnapshot() {

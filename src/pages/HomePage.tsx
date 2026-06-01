@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import type { Event, PaginatedListings, PopularSearch, WeeklyTopSeller } from '../types/api'
 import { formatMoney, initials } from '../utils/format'
+import { withBasePath } from '../utils/navigation'
 
 export function HomePage() {
   const { user } = useAuth()
@@ -19,7 +20,7 @@ export function HomePage() {
         <div className="hero-content">
           <h1>Thrift smarter.</h1>
           <p>Ghana's digital hub for curated second-hand street style. Authenticity verified, speed guaranteed.</p>
-          <form action="/browse" className="hero-search home-hero-search" method="get">
+          <form action={withBasePath('/browse')} className="hero-search home-hero-search" method="get">
             <Icon name="search" />
             <input aria-label="Search Foose" name="q" placeholder="Search jackets, Adidas, denim, bales..." />
             <button type="submit">Search</button>
@@ -112,7 +113,7 @@ export function HomePage() {
             {!!topSellers.data?.sellers.length && (
               <div className="top-seller-list">
                 {topSellers.data.sellers.map((seller, index) => (
-                  <a className="top-seller-row" href={`/shops/${seller.slug}`} key={seller._id}>
+                  <a className="top-seller-row" href={withBasePath(`/shops/${seller.slug}`)} key={seller._id}>
                     <span className="seller-rank">{index + 1}</span>
                     {seller.logoUrl ? <img alt="" src={seller.logoUrl} /> : <span className="seller-avatar">{initials(seller.shopName)}</span>}
                     <span>
@@ -144,7 +145,7 @@ export function HomePage() {
             {!!popularSearches.data?.searches.length && (
               <div className="popular-searches">
                 {popularSearches.data.searches.map((search) => (
-                  <a href={`/browse?q=${encodeURIComponent(search.query)}`} key={search.normalizedQuery}>
+                  <a href={withBasePath(`/browse?q=${encodeURIComponent(search.query)}`)} key={search.normalizedQuery}>
                     <span>{search.query}</span>
                     <small>{search.count}</small>
                   </a>

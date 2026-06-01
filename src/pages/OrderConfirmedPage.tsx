@@ -1,12 +1,15 @@
+import { useEffect, useMemo } from 'react'
 import { AppShell, ButtonLink, EmptyState, ErrorState, Icon, LoadingState } from '../components'
+import { useCart } from '../hooks/useCart'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiPut } from '../lib/api'
 import type { Order } from '../types/api'
 import { formatMoney } from '../utils/format'
+import { getCurrentAppPathname } from '../utils/navigation'
 
 function orderIds() {
   const params = new URLSearchParams(window.location.search)
-  const orderPathMatch = window.location.pathname.match(/^\/orders\/([^/]+)/)
+  const orderPathMatch = getCurrentAppPathname().match(/^\/orders\/([^/]+)/)
   if (orderPathMatch?.[1]) return [decodeURIComponent(orderPathMatch[1])]
 
   const ids = params.get('orderIds') || params.get('orderId') || ''
@@ -16,11 +19,26 @@ function orderIds() {
     .filter(Boolean)
 }
 
+function paymentReference() {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('reference') || params.get('trxref') || ''
+}
+
 export function OrderConfirmedPage() {
   const ids = orderIds()
-  const orders = useApiResource<{ orders: Order[] }>(
-    ids.length ? `/orders?ids=${encodeURIComponent(ids.join(','))}` : null,
-    Boolean(ids.length),
+  const reference = paymentReference()
+  const { clearCart } = useCart()
+  const orders = useApiResource<{ order?: Order; orders?: Order[] }>(
+    reference
+      ? `/payments/verify/${encodeURIComponent(reference)}`
+      : ids.length
+        ? `/orders?ids=${encodeURIComponent(ids.join(','))}`
+        : null,
+    Boolean(reference || ids.length),
+  )
+  const displayedOrders = useMemo(
+    () => orders.data?.orders || (orders.data?.order ? [orders.data.order] : []),
+    [orders.data],
   )
 
   async function confirmReceived(id: string) {
@@ -28,13 +46,19 @@ export function OrderConfirmedPage() {
     await orders.refetch()
   }
 
-  const firstOrder = orders.data?.orders[0]
-  const total = orders.data?.orders.reduce((sum, order) => sum + order.totalAmount, 0) || 0
+  useEffect(() => {
+    if (displayedOrders.length && displayedOrders.some((order) => order.paymentStatus === 'paid' || order.paymentStatus === 'cash_on_pickup')) {
+      clearCart()
+    }
+  }, [clearCart, displayedOrders])
+
+  const firstOrder = displayedOrders[0]
+  const total = displayedOrders.reduce((sum, order) => sum + order.totalAmount, 0)
 
   return (
     <AppShell flush>
       <section className="confirmation-page">
-        {!ids.length && (
+        {!ids.length && !reference && (
           <EmptyState
             action={<ButtonLink to="/browse">Continue shopping</ButtonLink>}
             body="Open this page from checkout with a valid order link."
@@ -43,7 +67,7 @@ export function OrderConfirmedPage() {
         )}
         {orders.loading && <LoadingState label="Loading order..." />}
         {orders.error && <ErrorState message={orders.error} retry={orders.refetch} />}
-        {!!orders.data?.orders.length && (
+        {!!displayedOrders.length && (
           <div className="confirmation-card">
             <div className="success-icon">
               <Icon name="check" size={56} />
@@ -52,17 +76,17 @@ export function OrderConfirmedPage() {
             <p>
               {firstOrder?.paymentStatus === 'cash_on_pickup'
                 ? 'Your pickup request was sent to the seller.'
-                : 'Mock payment succeeded. Funds are held in escrow until delivery is confirmed.'}
+                : 'Payment confirmed. Funds are held in escrow until delivery is confirmed.'}
             </p>
             <div className="order-number">
               <div>
                 <span>Order records</span>
-                <strong>{orders.data.orders.map((order) => `#${order._id.slice(-6)}`).join(', ')}</strong>
+                <strong>{displayedOrders.map((order) => `#${order._id.slice(-6)}`).join(', ')}</strong>
               </div>
               <b>{formatMoney(total, firstOrder?.currency)}</b>
             </div>
             <div className="order-confirm-list">
-              {orders.data.orders.map((order) => (
+              {displayedOrders.map((order) => (
                 <article key={order._id}>
                   <div>
                     <strong>{order.items[0]?.title || 'Order item'}</strong>

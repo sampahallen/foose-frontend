@@ -1,5 +1,6 @@
 import type { Listing } from '../../types/api'
 import { formatMoney, getListingImage, getShopName, listingMeta } from '../../utils/format'
+import { withBasePath } from '../../utils/navigation'
 import { Badge } from '../ui/Badge'
 import { FavoriteButton } from '../ui/FavoriteButton'
 
@@ -31,7 +32,7 @@ export function ProductCard({ listing }: { listing: Listing }) {
 
   return (
     <article className="product-card product-card-tall">
-      <a className="product-card-link" href={`/listing/${listing._id}`}>
+      <a className="product-card-link" href={withBasePath(`/listing/${listing._id}`)}>
         {content}
       </a>
       <FavoriteButton className="floating-round favorite-button" targetId={listing._id} targetType="listing" />

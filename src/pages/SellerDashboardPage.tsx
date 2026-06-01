@@ -6,6 +6,7 @@ import { apiDelete, apiPut } from '../lib/api'
 import type { Listing, Order, Shop } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDateTime, formatMoney, getListingImage } from '../utils/format'
+import { withBasePath } from '../utils/navigation'
 
 function buyerName(order: Order) {
   if (typeof order.buyerId !== 'object') return 'Buyer'
@@ -101,7 +102,7 @@ export function SellerDashboardPage() {
         <div>
           <h1>{shop.data?.shop.shopName || 'Manage shop'}</h1>
           <p>Orders, listings, inventory controls, and shop actions.</p>
-          {shop.data?.shop.slug && <a href={`/shops/${shop.data.shop.slug}`}>View public shop</a>}
+          {shop.data?.shop.slug && <a href={withBasePath(`/shops/${shop.data.shop.slug}`)}>View public shop</a>}
         </div>
         <div className="button-row">
           <ButtonLink to="/listings/new">Add Listing</ButtonLink>
@@ -240,10 +241,10 @@ export function SellerDashboardPage() {
                       </small>
                     </div>
                     <div className="table-actions">
-                      <a className="button button-secondary" href={`/listing/${listing._id}`}>
+                      <a className="button button-secondary" href={withBasePath(`/listing/${listing._id}`)}>
                         View
                       </a>
-                      <a className="button button-primary" href={`/listings/${listing._id}/edit`}>
+                      <a className="button button-primary" href={withBasePath(`/listings/${listing._id}/edit`)}>
                         Edit
                       </a>
                       <button className="button button-secondary" disabled={deletingId === listing._id} onClick={() => void deleteListing(listing._id)} type="button">

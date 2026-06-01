@@ -5,7 +5,7 @@ import { useApiResource } from '../hooks/useApiResource'
 import type { KycRecord, User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDateTime, initials } from '../utils/format'
-import { navigateTo } from '../utils/navigation'
+import { navigateTo, withBasePath } from '../utils/navigation'
 
 type PendingKyc = KycRecord & {
   _id: string
@@ -106,7 +106,7 @@ export function AdminKycPage() {
                   </td>
                   <td onClick={(event) => event.stopPropagation()}>
                     <div className="table-actions">
-                      <a className="button button-secondary" href={`/admin/kyc/${record._id}`}>
+                      <a className="button button-secondary" href={withBasePath(`/admin/kyc/${record._id}`)}>
                         View details
                       </a>
                       <button className="button button-primary" disabled={busyId === `approve:${record._id}`} onClick={() => void approve(record._id)} type="button">

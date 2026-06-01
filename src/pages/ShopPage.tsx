@@ -2,9 +2,10 @@ import { AppShell, Badge, EmptyState, ErrorState, Icon, LoadingState, ProductCar
 import { useApiResource } from '../hooks/useApiResource'
 import type { Listing, Shop } from '../types/api'
 import { initials } from '../utils/format'
+import { getCurrentAppPathname } from '../utils/navigation'
 
 function currentShopSlug() {
-  return decodeURIComponent(window.location.pathname.replace(/^\/shops\/?/, '')).trim()
+  return decodeURIComponent(getCurrentAppPathname().replace(/^\/shops\/?/, '')).trim()
 }
 
 export function ShopPage() {

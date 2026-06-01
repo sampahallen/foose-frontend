@@ -3,7 +3,7 @@ import { getAppName } from '../../config/env'
 import { useAuth } from '../../hooks/useAuth'
 import { authHref, currentRedirectTarget } from '../../utils/authRedirect'
 import { initials } from '../../utils/format'
-import { navigateTo } from '../../utils/navigation'
+import { navigateTo, withBasePath } from '../../utils/navigation'
 import { Icon } from '../icons/Icon'
 import whiteLogo from '../../assets/foose-logo-white.png'
 
@@ -54,7 +54,7 @@ export function TopNav({
     <>
       <header className="top-nav">
         <div className="nav-inner">
-          <a aria-label={`${brand} home`} className="brand-logo" href="/">
+          <a aria-label={`${brand} home`} className="brand-logo" href={withBasePath('/')}>
             <img src={whiteLogo} alt="" />
           </a>
           <button
@@ -67,13 +67,13 @@ export function TopNav({
             <Icon name="menu" />
           </button>
           <nav className="nav-links" aria-label="Primary navigation">
-            <a className={active === 'home' ? 'active' : ''} href="/">
+            <a className={active === 'home' ? 'active' : ''} href={withBasePath('/')}>
               Home
             </a>
-            <a className={active === 'browse' ? 'active' : ''} href="/browse">
+            <a className={active === 'browse' ? 'active' : ''} href={withBasePath('/browse')}>
               Browse
             </a>
-            <a className={active === 'community' ? 'active' : ''} href="/community">
+            <a className={active === 'community' ? 'active' : ''} href={withBasePath('/community')}>
               Community
             </a>
           </nav>
@@ -82,18 +82,18 @@ export function TopNav({
               <Icon name="search" />
               <input aria-label="Search" name="q" placeholder={placeholder} />
             </label>
-            <a aria-label="Saved" className={`icon-button nav-icon ${active === 'saved' ? 'active' : ''}`} href="/saved">
+            <a aria-label="Saved" className={`icon-button nav-icon ${active === 'saved' ? 'active' : ''}`} href={withBasePath('/saved')}>
               <Icon name="heart" />
             </a>
-            <a aria-label="Cart" className="icon-button nav-icon" href="/cart">
+            <a aria-label="Cart" className="icon-button nav-icon" href={withBasePath('/cart')}>
               <Icon name="cart" />
             </a>
             {user ? (
               <>
-                <a aria-label="Inbox" className="icon-button nav-icon" href="/inbox">
+                <a aria-label="Inbox" className="icon-button nav-icon" href={withBasePath('/inbox')}>
                   <Icon name="mail" />
                 </a>
-                <a className={`avatar-link ${active === 'profile' ? 'active' : ''}`} href="/profile">
+                <a className={`avatar-link ${active === 'profile' ? 'active' : ''}`} href={withBasePath('/profile')}>
                   {user.profilePhoto ? <img alt="" src={user.profilePhoto} /> : <span aria-hidden>{initials(user.name)}</span>}
                 </a>
                 <button className="nav-logout" onClick={handleLogout} type="button">
@@ -121,13 +121,13 @@ export function TopNav({
       )}
       {menuOpen && (
         <nav className={`mobile-nav-panel ${drawerReady ? 'open' : ''} max-lg:!flex lg:!hidden`} aria-label="Mobile navigation menu">
-          <a className={active === 'home' ? 'active' : ''} href="/" onClick={closeMenu}>
+          <a className={active === 'home' ? 'active' : ''} href={withBasePath('/')} onClick={closeMenu}>
             Home
           </a>
-          <a className={active === 'browse' ? 'active' : ''} href="/browse" onClick={closeMenu}>
+          <a className={active === 'browse' ? 'active' : ''} href={withBasePath('/browse')} onClick={closeMenu}>
             Browse
           </a>
-          <a className={active === 'community' ? 'active' : ''} href="/community" onClick={closeMenu}>
+          <a className={active === 'community' ? 'active' : ''} href={withBasePath('/community')} onClick={closeMenu}>
             Community
           </a>
           {user ? (

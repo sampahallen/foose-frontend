@@ -1,4 +1,5 @@
 import blueLogo from '../../assets/foose-logo-blue.png'
+import { withBasePath } from '../../utils/navigation'
 
 export function Footer() {
   const brand = blueLogo;
@@ -17,7 +18,7 @@ export function Footer() {
         <nav key={title as string}>
           <h4>{title}</h4>
           {(links as string[]).map((link) => (
-            <a href="/browse" key={link}>
+            <a href={withBasePath('/browse')} key={link}>
               {link}
             </a>
           ))}

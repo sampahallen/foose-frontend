@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Event } from '../../types/api'
 import { formatDate } from '../../utils/format'
+import { withBasePath } from '../../utils/navigation'
 import { Badge } from '../ui/Badge'
 
 export function PromotedEventCarousel({ events }: { events: Event[] }) {
@@ -20,7 +21,7 @@ export function PromotedEventCarousel({ events }: { events: Event[] }) {
 
   return (
     <div className="promoted-event-carousel">
-      <a className="promoted-event-slide" href={`/community/events/${activeEvent._id}`}>
+      <a className="promoted-event-slide" href={withBasePath(`/community/events/${activeEvent._id}`)}>
         {activeEvent.coverImage && <img alt="" src={activeEvent.coverImage} />}
         <div className="promoted-event-copy">
           <Badge tone="accent">Promoted event</Badge>

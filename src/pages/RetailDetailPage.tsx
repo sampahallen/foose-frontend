@@ -3,10 +3,10 @@ import { useApiResource } from '../hooks/useApiResource'
 import { useCart } from '../hooks/useCart'
 import type { Listing } from '../types/api'
 import { formatMoney, getListingImage, getShop, getShopName, listingMeta } from '../utils/format'
-import { navigateTo } from '../utils/navigation'
+import { getCurrentAppPathname, navigateTo, withBasePath } from '../utils/navigation'
 
 function currentListingId() {
-  return decodeURIComponent(window.location.pathname.replace(/^\/listing\/?/, '')).trim()
+  return decodeURIComponent(getCurrentAppPathname().replace(/^\/listing\/?/, '')).trim()
 }
 
 function shopOwnerId(owner: unknown) {
@@ -68,7 +68,7 @@ export function RetailDetailPage() {
             </div>
             <h1>{listing.title}</h1>
             <div className="seller-rating">
-              {shop?.slug ? <a href={`/shops/${shop.slug}`}>{getShopName(listing)}</a> : <span>{getShopName(listing)}</span>}
+              {shop?.slug ? <a href={withBasePath(`/shops/${shop.slug}`)}>{getShopName(listing)}</a> : <span>{getShopName(listing)}</span>}
               {shop?.rating !== undefined && <span>{shop.rating.toFixed(1)} ({shop.totalReviews || 0} reviews)</span>}
             </div>
             <p className="detail-price">

@@ -6,7 +6,7 @@ import { apiPost, apiPut } from '../lib/api'
 import type { Listing } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { LISTING_BRANDS, LISTING_CATEGORIES, LISTING_CONDITIONS, sizePlaceholderForCategory } from '../utils/listingTaxonomy'
-import { navigateTo } from '../utils/navigation'
+import { getCurrentAppPathname, navigateTo } from '../utils/navigation'
 
 function readFormText(formData: FormData, name: string) {
   return String(formData.get(name) || '').trim()
@@ -26,7 +26,7 @@ function appendText(formData: FormData, name: string, value: string | number | u
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 
 function currentEditId() {
-  const match = window.location.pathname.match(/^\/listings\/([^/]+)\/edit/)
+  const match = getCurrentAppPathname().match(/^\/listings\/([^/]+)\/edit/)
   return match ? decodeURIComponent(match[1]).trim() : ''
 }
 

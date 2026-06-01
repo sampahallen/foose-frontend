@@ -1,4 +1,5 @@
 import { LISTING_BRANDS, LISTING_CATEGORIES, LISTING_CONDITIONS } from '../../utils/listingTaxonomy'
+import { withBasePath } from '../../utils/navigation'
 
 export function FilterPanel({
   actionPath = '/browse',
@@ -8,7 +9,7 @@ export function FilterPanel({
   query?: URLSearchParams
 }) {
   return (
-    <form action={actionPath} className="filter-panel" method="get">
+    <form action={withBasePath(actionPath)} className="filter-panel" method="get">
       <h2>Filters</h2>
       <fieldset>
         <legend>Listing type</legend>
@@ -62,7 +63,7 @@ export function FilterPanel({
       <button className="button button-primary" type="submit">
         Apply Filters
       </button>
-      <a className="button button-secondary" href={actionPath}>
+      <a className="button button-secondary" href={withBasePath(actionPath)}>
         Clear All
       </a>
     </form>

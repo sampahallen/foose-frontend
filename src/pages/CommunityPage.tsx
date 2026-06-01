@@ -7,7 +7,7 @@ import type { Event, GalleryPost } from '../types/api'
 import { authHref } from '../utils/authRedirect'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDate } from '../utils/format'
-import { cacheFinspoPreview, navigateTo } from '../utils/navigation'
+import { cacheFinspoPreview, navigateTo, withBasePath } from '../utils/navigation'
 
 type CommunityMainTab = 'events' | 'finspo'
 type EventScope = 'mine' | 'public'
@@ -144,7 +144,7 @@ export function CommunityPage() {
           </p>
           {owned ? (
             <div className="table-actions">
-              <a className="button button-secondary" href={`/community/events/${event._id}/edit`}>
+              <a className="button button-secondary" href={withBasePath(`/community/events/${event._id}/edit`)}>
                 Edit
               </a>
               {isPromotedEvent(event) ? (
@@ -160,7 +160,7 @@ export function CommunityPage() {
             </div>
           ) : (
             <div className="table-actions">
-              <a className="button button-secondary" href={`/community/events/${event._id}`}>
+              <a className="button button-secondary" href={withBasePath(`/community/events/${event._id}`)}>
                 View event
               </a>
               <FavoriteButton className="button button-secondary favorite-button" showText targetId={event._id} targetType="event" />
@@ -177,7 +177,7 @@ export function CommunityPage() {
         <a
           aria-label={post.caption || `Finspo by ${finspoAuthor(post)}`}
           className="finspo-image finspo-tile-link"
-          href={`/community/finspo/${post._id}`}
+          href={withBasePath(`/community/finspo/${post._id}`)}
           onClick={(event) => openFinspo(event, post)}
         >
           <img alt="" src={post.imageUrl} />
@@ -190,7 +190,7 @@ export function CommunityPage() {
         )}
         {owned && (
           <div className="finspo-tile-actions">
-            <a className="button button-secondary" href={`/community/finspo/${post._id}/edit`}>
+            <a className="button button-secondary" href={withBasePath(`/community/finspo/${post._id}/edit`)}>
               Edit
             </a>
             <button className="button button-secondary" onClick={() => void deleteGalleryPost(post._id)} type="button">

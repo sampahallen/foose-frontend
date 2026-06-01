@@ -1,5 +1,31 @@
+export function getAppBasePath() {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+  return base === '' || base === '/' ? '' : base
+}
+
+export function stripBasePath(pathname: string) {
+  const base = getAppBasePath()
+  if (!base) return pathname || '/'
+  if (pathname === base) return '/'
+  if (pathname.startsWith(`${base}/`)) return pathname.slice(base.length) || '/'
+  return pathname || '/'
+}
+
+export function getCurrentAppPathname() {
+  if (typeof window === 'undefined') return '/'
+  return stripBasePath(window.location.pathname)
+}
+
+export function withBasePath(path: string) {
+  const base = getAppBasePath()
+  if (!base || !path || path.startsWith('#') || /^[a-z][a-z0-9+.-]*:/i.test(path)) return path
+  if (path === base || path.startsWith(`${base}/`)) return path
+  if (path === '/') return `${base}/`
+  return path.startsWith('/') ? `${base}${path}` : `${base}/${path}`
+}
+
 export function navigateTo(path: string) {
-  window.history.pushState(null, '', path)
+  window.history.pushState(null, '', withBasePath(path))
   window.dispatchEvent(new PopStateEvent('popstate'))
   window.scrollTo({ top: 0 })
 }

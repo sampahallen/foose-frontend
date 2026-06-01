@@ -7,7 +7,7 @@ import type { Event, GalleryPost, Listing, Order, Shop, User } from '../types/ap
 import { authHref } from '../utils/authRedirect'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDate, formatMoney, initials } from '../utils/format'
-import { navigateTo } from '../utils/navigation'
+import { getCurrentAppPathname, navigateTo } from '../utils/navigation'
 
 type ProfilePayload = {
   user: User
@@ -22,7 +22,7 @@ type ProfilePayload = {
 }
 
 function profileUsername() {
-  return decodeURIComponent(window.location.pathname.replace(/^\/profile\/?/, '')).trim()
+  return decodeURIComponent(getCurrentAppPathname().replace(/^\/profile\/?/, '')).trim()
 }
 
 export function ProfilePage() {
