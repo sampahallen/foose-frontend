@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { apiDelete, apiGet, apiPost } from '../../lib/api'
 import { authHref } from '../../utils/authRedirect'
 import { getErrorMessage } from '../../utils/errorMessage'
+import { navigateTo } from '../../utils/navigation'
 import { Icon } from '../icons/Icon'
 
 type FavoriteTarget = 'event' | 'finspo' | 'listing'
@@ -69,7 +70,7 @@ export function FavoriteButton({
     if (!user && status === 'checking') return
 
     if (!user) {
-      window.location.assign(authHref('/register'))
+      navigateTo(authHref('/register'))
       return
     }
 

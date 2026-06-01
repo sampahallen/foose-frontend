@@ -35,7 +35,7 @@ export function SavedPage() {
   const data = favorites.data
 
   function setTab(tab: SavedTab) {
-    window.location.href = `/saved?tab=${tab}`
+    navigateTo(`/saved?tab=${tab}`)
   }
 
   return (

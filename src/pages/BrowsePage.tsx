@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AppShell, CategoryStrip, EmptyState, ErrorState, FilterPanel, Icon, LoadingState, ProductCard } from '../components'
 import { useApiResource } from '../hooks/useApiResource'
 import type { PaginatedListings } from '../types/api'
+import { navigateTo } from '../utils/navigation'
 
 function searchPath() {
   const query = new URLSearchParams(window.location.search)
@@ -35,7 +36,7 @@ export function BrowsePage() {
               Sort by
               <select defaultValue={query.get('sort') || 'newest'} onChange={(event) => {
                 query.set('sort', event.target.value)
-                window.location.href = `/browse?${query.toString()}`
+                navigateTo(`/browse?${query.toString()}`)
               }}>
                 <option value="newest">Newest first</option>
                 <option value="price_desc">Price high to low</option>

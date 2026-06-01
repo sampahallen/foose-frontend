@@ -7,6 +7,7 @@ import { apiPost, apiPut } from '../lib/api'
 import type { ChatAttachment, ChatConversation, Listing, Notification, User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDateTime, getListingImage, initials } from '../utils/format'
+import { navigateTo } from '../utils/navigation'
 
 type ChatMessage = {
   _id: string
@@ -195,7 +196,7 @@ export function InboxPage() {
       if (params.conversationId) {
         await refetchMessages()
       } else {
-        window.location.assign(`/inbox?conversationId=${encodeURIComponent(result.conversationId)}`)
+        navigateTo(`/inbox?conversationId=${encodeURIComponent(result.conversationId)}`)
       }
     } catch (err) {
       setSendError(getErrorMessage(err, 'Could not send message'))

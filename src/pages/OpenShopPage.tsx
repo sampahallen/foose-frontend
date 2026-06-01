@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { apiPost } from '../lib/api'
 import type { Shop } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
+import { navigateTo } from '../utils/navigation'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 
@@ -47,7 +48,7 @@ export function OpenShopPage() {
     try {
       const data = await apiPost<{ shop: Shop }>('/digishops', formData)
       await refreshUser()
-      window.location.assign(`/manage-shop?shop=${data.shop.slug}`)
+      navigateTo(`/manage-shop?shop=${data.shop.slug}`)
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to create shop'))
     } finally {

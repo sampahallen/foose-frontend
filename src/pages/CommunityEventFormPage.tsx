@@ -4,6 +4,7 @@ import { apiPost, apiPut } from '../lib/api'
 import { useApiResource } from '../hooks/useApiResource'
 import type { Event } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
+import { navigateTo } from '../utils/navigation'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 
@@ -46,7 +47,7 @@ export function CommunityEventFormPage() {
       } else {
         await apiPost('/community/events', payload)
       }
-      window.location.assign('/community?tab=events&scope=mine')
+      navigateTo('/community?tab=events&scope=mine')
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Could not save event'))
     } finally {

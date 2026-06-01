@@ -3,6 +3,7 @@ import { getAppName } from '../../config/env'
 import { useAuth } from '../../hooks/useAuth'
 import { authHref, currentRedirectTarget } from '../../utils/authRedirect'
 import { initials } from '../../utils/format'
+import { navigateTo } from '../../utils/navigation'
 import { Icon } from '../icons/Icon'
 import whiteLogo from '../../assets/foose-logo-white.png'
 
@@ -31,7 +32,7 @@ export function TopNav({
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const query = String(formData.get('q') || '').trim()
-    window.location.href = query ? `/browse?q=${encodeURIComponent(query)}` : '/browse'
+    navigateTo(query ? `/browse?q=${encodeURIComponent(query)}` : '/browse')
   }
 
   function openMenu() {

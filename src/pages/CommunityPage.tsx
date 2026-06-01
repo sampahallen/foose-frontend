@@ -80,7 +80,7 @@ export function CommunityPage() {
 
   function requireLogin() {
     if (status === 'checking') return
-    window.location.assign(authHref('/register'))
+    navigateTo(authHref('/register'))
   }
 
   function addEventHref() {

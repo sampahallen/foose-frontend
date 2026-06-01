@@ -4,6 +4,7 @@ import { useCart } from '../hooks/useCart'
 import { apiPost } from '../lib/api'
 import type { Order } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
+import { navigateTo } from '../utils/navigation'
 
 const FIXED_DELIVERY_FEE = 1500
 
@@ -43,7 +44,7 @@ export function CheckoutPage() {
       })
       cart.clearCart()
       const orderIds = (data.orders?.length ? data.orders : [data.order]).map((order) => order._id).join(',')
-      window.location.href = `/order-confirmed?orderIds=${encodeURIComponent(orderIds)}`
+      navigateTo(`/order-confirmed?orderIds=${encodeURIComponent(orderIds)}`)
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to place order'))
     } finally {

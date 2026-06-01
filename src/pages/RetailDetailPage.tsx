@@ -3,6 +3,7 @@ import { useApiResource } from '../hooks/useApiResource'
 import { useCart } from '../hooks/useCart'
 import type { Listing } from '../types/api'
 import { formatMoney, getListingImage, getShop, getShopName, listingMeta } from '../utils/format'
+import { navigateTo } from '../utils/navigation'
 
 function currentListingId() {
   return decodeURIComponent(window.location.pathname.replace(/^\/listing\/?/, '')).trim()
@@ -30,7 +31,7 @@ export function RetailDetailPage() {
   function handleAddToCart() {
     if (!listing) return
     addListing(listing)
-    window.location.href = '/cart'
+    navigateTo('/cart')
   }
 
   return (

@@ -3,6 +3,7 @@ import { AppShell, ButtonLink, ErrorState } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { authHref, closeTargetForAuthModal, redirectFromSearch } from '../utils/authRedirect'
 import { getErrorMessage } from '../utils/errorMessage'
+import { navigateTo } from '../utils/navigation'
 
 export function RegisterPage() {
   const { register } = useAuth()
@@ -29,7 +30,7 @@ export function RegisterPage() {
         phone: String(formData.get('phone') || ''),
         username: String(formData.get('username') || ''),
       })
-      window.location.assign(redirectTarget)
+      navigateTo(redirectTarget)
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to register'))
     } finally {

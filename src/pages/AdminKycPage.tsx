@@ -5,6 +5,7 @@ import { useApiResource } from '../hooks/useApiResource'
 import type { KycRecord, User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDateTime, initials } from '../utils/format'
+import { navigateTo } from '../utils/navigation'
 
 type PendingKyc = KycRecord & {
   _id: string
@@ -45,7 +46,7 @@ export function AdminKycPage() {
   }
 
   function openRecord(id: string) {
-    window.location.assign(`/admin/kyc/${id}`)
+    navigateTo(`/admin/kyc/${id}`)
   }
 
   return (

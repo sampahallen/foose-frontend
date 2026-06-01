@@ -3,6 +3,7 @@ import { AppShell, ButtonLink, ErrorState } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { authHref, closeTargetForAuthModal, redirectFromSearch } from '../utils/authRedirect'
 import { getErrorMessage } from '../utils/errorMessage'
+import { navigateTo } from '../utils/navigation'
 
 export function LoginPage() {
   const { login, user } = useAuth()
@@ -22,7 +23,7 @@ export function LoginPage() {
         identifier: String(formData.get('identifier') || ''),
         password: String(formData.get('password') || ''),
       })
-      window.location.assign(redirectTarget)
+      navigateTo(redirectTarget)
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to log in'))
     } finally {

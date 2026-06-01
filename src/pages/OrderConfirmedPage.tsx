@@ -6,6 +6,9 @@ import { formatMoney } from '../utils/format'
 
 function orderIds() {
   const params = new URLSearchParams(window.location.search)
+  const orderPathMatch = window.location.pathname.match(/^\/orders\/([^/]+)/)
+  if (orderPathMatch?.[1]) return [decodeURIComponent(orderPathMatch[1])]
+
   const ids = params.get('orderIds') || params.get('orderId') || ''
   return ids
     .split(',')

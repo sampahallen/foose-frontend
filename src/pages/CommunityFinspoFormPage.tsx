@@ -4,6 +4,7 @@ import { useApiResource } from '../hooks/useApiResource'
 import { apiPost, apiPut } from '../lib/api'
 import type { GalleryPost } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
+import { navigateTo } from '../utils/navigation'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 
@@ -47,7 +48,7 @@ export function CommunityFinspoFormPage() {
       } else {
         await apiPost('/community/gallery', payload)
       }
-      window.location.assign('/community?tab=finspo&scope=mine')
+      navigateTo('/community?tab=finspo&scope=mine')
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Could not save Finspo'))
     } finally {

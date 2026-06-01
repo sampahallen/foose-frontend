@@ -6,6 +6,7 @@ import { apiPost, apiPut } from '../lib/api'
 import type { Listing } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { LISTING_BRANDS, LISTING_CATEGORIES, LISTING_CONDITIONS, sizePlaceholderForCategory } from '../utils/listingTaxonomy'
+import { navigateTo } from '../utils/navigation'
 
 function readFormText(formData: FormData, name: string) {
   return String(formData.get(name) || '').trim()
@@ -124,7 +125,7 @@ export function NewListingPage() {
       const data = editId
         ? await apiPut<{ listing: Listing }>(`/listings/${editId}`, uploadData)
         : await apiPost<{ listing: Listing }>('/listings', uploadData)
-      window.location.assign(requestedStatus === 'draft' ? '/manage-shop' : `/listing/${data.listing._id}`)
+      navigateTo(requestedStatus === 'draft' ? '/manage-shop' : `/listing/${data.listing._id}`)
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to save listing'))
     } finally {

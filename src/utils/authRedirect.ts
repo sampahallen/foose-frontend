@@ -27,6 +27,7 @@ export function closeTargetForAuthModal(redirect = redirectFromSearch()) {
     '/manage-shop',
     '/open-shop',
     '/order-confirmed',
+    '/orders',
     '/saved',
     '/wallet',
   ]

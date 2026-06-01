@@ -7,6 +7,7 @@ import type { Event, GalleryPost, Listing, Order, Shop, User } from '../types/ap
 import { authHref } from '../utils/authRedirect'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDate, formatMoney, initials } from '../utils/format'
+import { navigateTo } from '../utils/navigation'
 
 type ProfilePayload = {
   user: User
@@ -41,13 +42,13 @@ export function ProfilePage() {
   const shouldRedirectToAuth = !username && status === 'guest' && !user
 
   useEffect(() => {
-    if (shouldRedirectToAuth) window.location.replace(authHref('/register', '/profile'))
+    if (shouldRedirectToAuth) navigateTo(authHref('/register', '/profile'))
   }, [shouldRedirectToAuth])
 
   async function toggleFollow() {
     if (!data) return
     if (!user) {
-      window.location.assign(authHref('/register'))
+      navigateTo(authHref('/register'))
       return
     }
 
