@@ -10,8 +10,8 @@ export function AdminOverviewPage() {
 
   return (
     <AdminShell section="overview">
-      <section className="admin-page">
-        <div className="admin-title">
+      <section className="admin-page p-4 md:p-6 lg:p-8">
+        <div className="admin-title mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
           <div>
             <h1>Marketplace health</h1>
             <p>Live metrics for {brand}.</p>
@@ -21,7 +21,7 @@ export function AdminOverviewPage() {
         {stats.error && <ErrorState message={stats.error} retry={stats.refetch} />}
         {stats.data && (
           <>
-            <div className="stats-row">
+            <div className="stats-row grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard icon="user" label="Users" value={String(stats.data.users)} note="Registered accounts" />
               <StatCard icon="store" label="DigiShops" value={String(stats.data.shops)} note="Created shops" />
               <StatCard icon="box" label="Active listings" value={String(stats.data.listings)} note="Marketplace supply" />

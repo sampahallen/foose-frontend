@@ -16,7 +16,7 @@ export function AppShell({
   return (
     <>
       <TopNav active={active} searchPlaceholder={searchPlaceholder} />
-      <main className={flush ? '' : 'page'}>{children}</main>
+      <main className={flush ? '' : 'page mx-auto w-full max-w-[1280px] px-4 pb-24 pt-8 md:px-6 lg:px-8 max-md:px-3 max-md:pt-5'}>{children}</main>
       <BottomTabs active={active} />
     </>
   )

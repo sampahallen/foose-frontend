@@ -9,7 +9,7 @@ export function FilterPanel({
   query?: URLSearchParams
 }) {
   return (
-    <form action={withBasePath(actionPath)} className="filter-panel" method="get">
+    <form action={withBasePath(actionPath)} className="filter-panel sticky top-24 flex flex-col gap-4 rounded-xl border border-foose-border bg-foose-surface p-4 [&_h2]:font-display [&_h2]:text-xl [&_fieldset]:border-0 [&_fieldset]:p-0 [&_legend]:text-sm [&_legend]:font-semibold [&_legend]:text-foose-text [&_label]:flex [&_label]:items-center [&_label]:gap-2 [&_label]:py-1 [&_label]:text-sm [&_label]:text-foose-muted [&_input[type='range']]:w-full [&_input[type='range']]:accent-accent [&_.button]:w-full" method="get">
       <h2>Filters</h2>
       <fieldset>
         <legend>Listing type</legend>
@@ -60,10 +60,10 @@ export function FilterPanel({
         <legend>Size</legend>
         <input defaultValue={query.get('size') || ''} name="size" placeholder="S, M, XL..." />
       </fieldset>
-      <button className="button button-primary" type="submit">
+      <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" type="submit">
         Apply Filters
       </button>
-      <a className="button button-secondary" href={withBasePath(actionPath)}>
+      <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath(actionPath)}>
         Clear All
       </a>
     </form>

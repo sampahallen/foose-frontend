@@ -1,4 +1,3 @@
-import './App.css'
 import { AuthRequired } from './components'
 import { useCurrentRoute } from './hooks/useCurrentRoute'
 import {
@@ -14,6 +13,7 @@ import {
   CommunityFinspoFormPage,
   CommunityPage,
   EventDetailPage,
+  EventManagementPage,
   HomePage,
   InboxPage,
   KycPage,
@@ -83,6 +83,12 @@ function App() {
       return <CommunityPage />
     case 'eventDetail':
       return <EventDetailPage />
+    case 'eventManage':
+      return (
+        <AuthRequired>
+          <EventManagementPage />
+        </AuthRequired>
+      )
     case 'communityEventForm':
       return (
         <AuthRequired>

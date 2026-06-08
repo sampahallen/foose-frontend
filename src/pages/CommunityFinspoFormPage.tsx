@@ -58,9 +58,9 @@ export function CommunityFinspoFormPage() {
 
   return (
     <AppShell active="community" searchPlaceholder="Search Finspo...">
-      <div className="dashboard-head">
+      <div className="dashboard-head mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
         <div>
-          <a className="back-link" href="/community?tab=finspo&scope=mine">
+          <a className="back-link mb-6 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted hover:text-accent" href="/community?tab=finspo&scope=mine">
             <Icon name="arrow" /> Back to Finspo
           </a>
           <h1>{postId ? 'Edit Finspo' : 'Post Finspo'}</h1>
@@ -72,18 +72,18 @@ export function CommunityFinspoFormPage() {
       {postId && postResource.error && <ErrorState message={postResource.error} retry={postResource.refetch} />}
 
       {(!postId || post) && (
-        <section className="form-card large community-form-page">
+        <section className="form-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3 max-lg:rounded-lg max-lg:p-3 large community-form-page [&_form]:mx-auto [&_form]:w-full [&_form]:max-w-3xl [&_form]:rounded-xl [&_form]:border [&_form]:border-foose-border [&_form]:bg-foose-surface [&_form]:p-5 [&_form]:md:p-8 py-8">
           <form encType="multipart/form-data" onSubmit={(event) => void submitFinspo(event)}>
             {post?.imageUrl && (
-              <div className="current-finspo-image">
+              <div className="current-finspo-image overflow-hidden rounded-lg bg-foose-surface-mid [&_img]:h-full [&_img]:w-full [&_img]:object-cover aspect-[4/3]">
                 <LightboxImage alt={post.caption || 'Current Finspo'} src={post.imageUrl} />
               </div>
             )}
-            <div className="form-grid">
+            <div className="form-grid grid gap-4 sm:grid-cols-2 [&_.wide]:sm:col-span-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3">
               <label className="wide">
                 Image
                 <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="image" required={!postId} />
-                {postId && <span className="muted-copy">Choose a new image only if you want to replace the current post image.</span>}
+                {postId && <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Choose a new image only if you want to replace the current post image.</span>}
               </label>
               <label className="wide">
                 Caption
@@ -97,11 +97,11 @@ export function CommunityFinspoFormPage() {
 
             {error && <ErrorState message={error} />}
 
-            <div className="form-actions">
+            <div className="form-actions flex flex-wrap items-center gap-3">
               <ButtonLink to="/community?tab=finspo&scope=mine" variant="secondary">
                 Cancel
               </ButtonLink>
-              <button className="button button-primary" disabled={submitting} type="submit">
+              <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting} type="submit">
                 {submitting ? 'Saving...' : postId ? 'Save Finspo' : 'Publish Finspo'}
               </button>
             </div>

@@ -14,10 +14,10 @@ export function StatCard({
   danger?: boolean
 }) {
   return (
-    <article className="stat-card">
+    <article className="stat-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5">
       <Icon name={icon} />
       <p>{label}</p>
-      <h3 className={danger ? 'danger-text' : ''}>{value}</h3>
+      <h3 className={danger ? 'danger-text font-semibold text-foose-danger' : ''}>{value}</h3>
       <span>{note}</span>
     </article>
   )

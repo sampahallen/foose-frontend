@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { AppShell, EmptyState, ErrorState, Icon, OrderSummary, StepIndicator } from '../components'
-import { useCart } from '../hooks/useCart'
+import { useCart, type CartItem } from '../hooks/useCart'
 import { apiPost } from '../lib/api'
 import type { Order } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
@@ -16,6 +16,16 @@ type PlaceOrderResponse = {
     reference?: string
     status?: string
   }
+}
+
+function unavailablePopUpItems(items: CartItem[]) {
+  const now = Date.now()
+  return items.filter((item) => {
+    if (!item.sourceEventId || !item.availableFrom) return false
+    const startsAt = new Date(item.availableFrom).getTime()
+    const endsAt = item.availableUntil ? new Date(item.availableUntil).getTime() : Number.POSITIVE_INFINITY
+    return Number.isFinite(startsAt) && (now < startsAt || now > endsAt)
+  })
 }
 
 export function CheckoutPage() {
@@ -35,6 +45,12 @@ export function CheckoutPage() {
     const formData = new FormData(event.currentTarget)
 
     try {
+      const blockedItems = unavailablePopUpItems(cart.items)
+      if (blockedItems.length) {
+        setError(`Checkout opens during the pop-up window for ${blockedItems[0].sourceEventTitle || blockedItems[0].title}.`)
+        return
+      }
+
       const resolvedPaymentMethod = method === 'delivery' ? 'paystack' : paymentMethod
       const data = await apiPost<PlaceOrderResponse>('/orders', {
         callbackUrl: `${window.location.origin}${withBasePath('/order-confirmed')}`,
@@ -74,12 +90,12 @@ export function CheckoutPage() {
         <EmptyState body="Add items from the marketplace, then return here to complete your purchase." title="No items to checkout" />
       )}
       {!!cart.items.length && (
-        <form className="checkout-layout" onSubmit={(event) => void submitOrder(event)}>
+        <form className="checkout-layout grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] max-lg:grid-cols-1" onSubmit={(event) => void submitOrder(event)}>
           <section>
             <StepIndicator />
-            <div className="checkout-card">
+            <div className="checkout-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_h1]:mb-6 [&_h1]:text-3xl [&_h1]:font-bold">
               <h1>How do you want your find?</h1>
-              <div className="delivery-toggle">
+              <div className="delivery-toggle mb-6 grid gap-3 sm:grid-cols-2 [&_button]:flex [&_button]:items-center [&_button]:justify-center [&_button]:gap-3 [&_button]:rounded-lg [&_button]:border [&_button]:border-foose-border [&_button]:bg-foose-surface [&_button]:px-4 [&_button]:py-3 [&_button]:font-semibold [&_label]:flex [&_label]:items-center [&_label]:justify-center [&_label]:gap-3 [&_label]:rounded-lg [&_label]:border [&_label]:border-foose-border [&_label]:bg-foose-surface [&_label]:px-4 [&_label]:py-3 [&_label]:font-semibold [&_button.active]:border-accent [&_button.active]:bg-accent-light [&_button.active]:text-accent [&_label.active]:border-accent [&_label.active]:bg-accent-light [&_label.active]:text-accent">
                 <label className={method === 'delivery' ? 'active' : ''}>
                   <input
                     checked={method === 'delivery'}
@@ -104,7 +120,7 @@ export function CheckoutPage() {
                   <Icon name="store" /> Pickup
                 </label>
               </div>
-              <div className="form-grid">
+              <div className="form-grid grid gap-4 sm:grid-cols-2 [&_.wide]:sm:col-span-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3">
                 <label>
                   Region
                   <input
@@ -124,7 +140,7 @@ export function CheckoutPage() {
                   <input name="street" placeholder={method === 'pickup' ? 'Preferred pickup point or note' : 'Digital Avenue, House No. 42'} />
                 </label>
               </div>
-              <div className="payment-method-card">
+              <div className="payment-method-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_label]:flex [&_label]:items-center [&_label]:justify-center [&_label]:gap-3 [&_label]:rounded-lg [&_label]:border [&_label]:border-foose-border [&_label]:bg-foose-surface [&_label]:px-4 [&_label]:py-3 [&_label]:font-semibold [&_label.active]:border-accent [&_label.active]:bg-accent-light [&_label.active]:text-accent">
                 <h2>Payment</h2>
                 <label className={paymentMethod === 'paystack' ? 'active' : ''}>
                   <input
@@ -155,7 +171,7 @@ export function CheckoutPage() {
                   </label>
                 )}
               </div>
-              <div className="info-card">
+              <div className="info-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5">
                 <Icon name="info" />
                 <div>
                   <strong>Delivery fee</strong>

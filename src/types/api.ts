@@ -85,6 +85,7 @@ export type Listing = {
   }>
   images?: string[]
   promotionTags?: string[]
+  visibility?: 'marketplace' | 'event'
   status?: 'active' | 'sold' | 'draft' | 'removed'
   views?: number
   createdAt?: string
@@ -152,13 +153,19 @@ export type KycRecord = {
 export type Event = {
   _id: string
   organizerId?: User | string
+  shopId?: Shop | string
   title: string
   description?: string
   date: string
+  startTime?: string
+  endTime?: string
+  startsAt?: string
+  endsAt?: string
   location?: string
   coverImage?: string
+  eventListings?: Listing[] | string[]
   promotionTags?: string[]
-  type: 'pop-up' | 'fair' | 'online'
+  type: 'online-pop-up' | 'in-person-pop-up' | 'pop-up' | 'fair' | 'online'
   attendees?: string[]
   status?: 'upcoming' | 'ongoing' | 'past'
 }

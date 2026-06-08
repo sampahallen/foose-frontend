@@ -58,13 +58,13 @@ export function OpenShopPage() {
 
   if (!user?.isKycVerified) {
     return (
-      <div className="flow-page">
-        <header className="flow-top">
+      <div className="flow-page min-h-dvh bg-foose-bg">
+        <header className="flow-top flex h-16 items-center justify-between bg-accent px-4 text-white md:px-8">
           <a href="/">{brand}</a>
           <span>Set up your shop</span>
           <a href="/">Close</a>
         </header>
-        <main className="flow-content narrow">
+        <main className="flow-content mx-auto w-full max-w-5xl px-4 py-8 [&.narrow]:max-w-3xl narrow">
           <EmptyState
             action={<ButtonLink to="/kyc">Complete KYC</ButtonLink>}
             body="The server requires approved KYC before you can open a DigiShop."
@@ -77,14 +77,14 @@ export function OpenShopPage() {
   }
 
   return (
-    <div className="flow-page">
-      <header className="flow-top">
+    <div className="flow-page min-h-dvh bg-foose-bg">
+      <header className="flow-top flex h-16 items-center justify-between bg-accent px-4 text-white md:px-8">
         <a href="/">{brand}</a>
         <span>Set up your shop</span>
         <a href="/">Close</a>
       </header>
-      <main className="flow-content narrow">
-        <section className="form-card large">
+      <main className="flow-content mx-auto w-full max-w-5xl px-4 py-8 [&.narrow]:max-w-3xl narrow">
+        <section className="form-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3 max-lg:rounded-lg max-lg:p-3 large">
           <h1>Basic information</h1>
           <p>Create your DigiShop record, then add listings from your profile.</p>
           <form encType="multipart/form-data" onSubmit={(event) => void createShop(event)}>
@@ -106,8 +106,8 @@ export function OpenShopPage() {
             </label>
             <fieldset className="field-section">
               <legend>Primary funds collection method</legend>
-              <p className="muted-copy">Foose will use this as the default payout destination after escrow releases.</p>
-              <div className="form-grid">
+              <p className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Foose will use this as the default payout destination after escrow releases.</p>
+              <div className="form-grid grid gap-4 sm:grid-cols-2 [&_.wide]:sm:col-span-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3">
                 <label>
                   Method
                   <select defaultValue="mobile_money" name="payoutMethodType">
@@ -140,19 +140,19 @@ export function OpenShopPage() {
             <label>
               Shop logo
               <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="logo" />
-              <span className="muted-copy">Upload a square JPEG, PNG, or WebP image.</span>
+              <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Upload a square JPEG, PNG, or WebP image.</span>
             </label>
             <label>
               Shop banner
               <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="banner" />
-              <span className="muted-copy">Upload a wide JPEG, PNG, or WebP image.</span>
+              <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Upload a wide JPEG, PNG, or WebP image.</span>
             </label>
             {error && <ErrorState message={error} />}
-            <div className="form-actions">
+            <div className="form-actions flex flex-wrap items-center gap-3">
               <ButtonLink to="/" variant="secondary">
                 Cancel
               </ButtonLink>
-              <button className="button button-primary" disabled={submitting} type="submit">
+              <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting} type="submit">
                 {submitting ? 'Creating...' : 'Create DigiShop'} <Icon name="arrow" />
               </button>
             </div>

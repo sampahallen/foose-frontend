@@ -5,8 +5,8 @@ import { useApiResource } from '../hooks/useApiResource'
 import { apiDelete, apiPut } from '../lib/api'
 import type { Event, GalleryPost } from '../types/api'
 import { authHref } from '../utils/authRedirect'
+import { eventHostName, eventTimeLabel, eventTypeLabel, eventWindowHasClosed, isOnlinePopUp } from '../utils/events'
 import { getErrorMessage } from '../utils/errorMessage'
-import { formatDate } from '../utils/format'
 import { cacheFinspoPreview, navigateTo, withBasePath } from '../utils/navigation'
 
 type CommunityMainTab = 'events' | 'finspo'
@@ -26,9 +26,7 @@ function initialCommunityState() {
 }
 
 function isArchivedEvent(event: Event) {
-  const startOfToday = new Date()
-  startOfToday.setHours(0, 0, 0, 0)
-  return event.status === 'past' || new Date(event.date) < startOfToday
+  return eventWindowHasClosed(event)
 }
 
 function isPromotedEvent(event: Event) {
@@ -129,41 +127,45 @@ export function CommunityPage() {
 
   function renderEventCard(event: Event, owned = false) {
     return (
-      <article className="event-card" key={event._id}>
-        <div className="event-image">
-          {event.coverImage ? <img alt="" src={event.coverImage} /> : <span className="image-placeholder">No image</span>}
+      <article className="event-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:leading-tight [&_h2]:md:text-lg [&_p]:text-xs [&_p]:uppercase [&_p]:tracking-wide [&_p]:text-foose-faint overflow-hidden p-0 [&>div:last-child]:flex [&>div:last-child]:flex-col [&>div:last-child]:gap-3 [&>div:last-child]:p-4 [&_.button]:w-full [&_.table-actions_.button]:w-full" key={event._id}>
+        <div className="event-image overflow-hidden rounded-lg bg-foose-surface-mid [&_img]:h-full [&_img]:w-full [&_img]:object-cover aspect-[16/9] rounded-none">
+          {event.coverImage ? <img alt="" src={event.coverImage} /> : <span className="image-placeholder flex min-h-32 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No image</span>}
           <Badge tone={isArchivedEvent(event) ? 'neutral' : event.status === 'ongoing' ? 'warning' : 'accent'}>{event.status || event.type}</Badge>
         </div>
         <div>
           <p>
-            <Icon name="calendar" /> {formatDate(event.date)}
+            <Icon name="calendar" /> {eventTimeLabel(event)}
           </p>
           <h2>{event.title}</h2>
           <p>
-            <Icon name="location" /> {event.location || 'Location pending'}
+            <Icon name="store" /> {eventHostName(event)}
           </p>
+          <p>
+            <Icon name="location" /> {isOnlinePopUp(event) ? 'Hosted on Foose' : event.location || 'Location pending'}
+          </p>
+          <p className="muted-copy text-sm leading-6 text-foose-muted md:text-base">{eventTypeLabel(event)}</p>
           {owned ? (
-            <div className="table-actions">
-              <a className="button button-secondary" href={withBasePath(`/community/events/${event._id}/edit`)}>
-                Edit
+            <div className="table-actions flex flex-wrap items-center gap-3 justify-end">
+              <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath(`/community/events/${event._id}/manage`)}>
+                Manage
               </a>
               {isPromotedEvent(event) ? (
-                <span className="button button-secondary event-promotion-pill">Promoted</span>
+                <span className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent event-promotion-pill pointer-events-none bg-accent-light text-accent">Promoted</span>
               ) : (
-                <button className="button button-secondary" disabled={promotingEventId === event._id} onClick={() => void promoteEvent(event)} type="button">
+                <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" disabled={promotingEventId === event._id} onClick={() => void promoteEvent(event)} type="button">
                   {promotingEventId === event._id ? 'Promoting...' : 'Promote'}
                 </button>
               )}
-              <button className="button button-secondary" onClick={() => void deleteEvent(event._id)} type="button">
+              <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void deleteEvent(event._id)} type="button">
                 Remove
               </button>
             </div>
           ) : (
-            <div className="table-actions">
-              <a className="button button-secondary" href={withBasePath(`/community/events/${event._id}`)}>
+            <div className="table-actions flex flex-wrap items-center gap-3 justify-end">
+              <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath(`/community/events/${event._id}`)}>
                 View event
               </a>
-              <FavoriteButton className="button button-secondary favorite-button" showText targetId={event._id} targetType="event" />
+              <FavoriteButton className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent favorite-button [&.is-active]:bg-foose-danger-bg [&.is-active]:text-foose-danger" showText targetId={event._id} targetType="event" />
             </div>
           )}
         </div>
@@ -173,32 +175,32 @@ export function CommunityPage() {
 
   function renderFinspoTile(post: GalleryPost, owned = false) {
     return (
-      <article className="finspo-tile" key={post._id}>
+      <article className="finspo-tile relative mb-3 break-inside-avoid max-md:mb-2" key={post._id}>
         <a
           aria-label={post.caption || `Finspo by ${finspoAuthor(post)}`}
-          className="finspo-image finspo-tile-link"
+          className="finspo-image block overflow-hidden rounded-none border-0 bg-transparent [&_img]:h-auto [&_img]:w-full [&_img]:object-contain finspo-tile-link"
           href={withBasePath(`/community/finspo/${post._id}`)}
           onClick={(event) => openFinspo(event, post)}
         >
           <img alt="" src={post.imageUrl} />
         </a>
-        {!owned && <FavoriteButton className="floating-round favorite-button" targetId={post._id} targetType="finspo" />}
+        {!owned && <FavoriteButton className="floating-round inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent absolute right-3 top-3 z-10 bg-white/90 shadow favorite-button [&.is-active]:bg-foose-danger-bg [&.is-active]:text-foose-danger" targetId={post._id} targetType="finspo" />}
         {!owned && (
-          <a className="finspo-author-link" href={finspoAuthorHref(post)}>
+          <a className="finspo-author-link mt-2 flex items-center gap-2 text-sm font-semibold text-foose-muted" href={finspoAuthorHref(post)}>
             {finspoAuthor(post)}
           </a>
         )}
         {owned && (
-          <div className="finspo-tile-actions">
-            <a className="button button-secondary" href={withBasePath(`/community/finspo/${post._id}/edit`)}>
+          <div className="finspo-tile-actions mt-2 flex items-center gap-2 text-sm font-semibold text-foose-muted">
+            <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath(`/community/finspo/${post._id}/edit`)}>
               Edit
             </a>
-            <button className="button button-secondary" onClick={() => void deleteGalleryPost(post._id)} type="button">
+            <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void deleteGalleryPost(post._id)} type="button">
               Remove
             </button>
           </div>
         )}
-        <span className="sr-only">
+        <span className="sr-only absolute size-px overflow-hidden whitespace-nowrap">
           {post.caption || 'Untitled Finspo'}
           {!!post.tags?.length && ` ${post.tags.map((tag) => `#${tag}`).join(' ')}`}
         </span>
@@ -208,7 +210,7 @@ export function CommunityPage() {
 
   function renderEventTabs() {
     return (
-      <nav className="section-tabs" aria-label="Event views">
+      <nav className="section-tabs [&_button]:shrink-0 [&_button]:rounded-full [&_button]:border [&_button]:border-foose-border [&_button]:bg-foose-surface-low [&_button]:px-4 [&_button]:py-2 [&_button]:text-sm [&_button]:font-semibold [&_button]:text-foose-muted [&_button]:transition [&_button]:hover:border-accent [&_button]:hover:text-accent [&_button.active]:border-accent [&_button.active]:bg-accent [&_button.active]:text-white flex flex-wrap items-center gap-2" aria-label="Event views">
         <button className={eventScope === 'public' ? 'active' : ''} onClick={() => setEventScope('public')} type="button">
           Public
         </button>
@@ -221,7 +223,7 @@ export function CommunityPage() {
 
   function renderFinspoTabs() {
     return (
-      <nav className="section-tabs" aria-label="Finspo views">
+      <nav className="section-tabs [&_button]:shrink-0 [&_button]:rounded-full [&_button]:border [&_button]:border-foose-border [&_button]:bg-foose-surface-low [&_button]:px-4 [&_button]:py-2 [&_button]:text-sm [&_button]:font-semibold [&_button]:text-foose-muted [&_button]:transition [&_button]:hover:border-accent [&_button]:hover:text-accent [&_button.active]:border-accent [&_button.active]:bg-accent [&_button.active]:text-white flex flex-wrap items-center gap-2" aria-label="Finspo views">
         <button className={finspoScope === 'public' ? 'active' : ''} onClick={() => setFinspoScope('public')} type="button">
           Public
         </button>
@@ -237,14 +239,14 @@ export function CommunityPage() {
 
   function renderEventPanel() {
     return (
-      <section className="community-panel">
+      <section className="community-panel mx-auto w-full max-w-[1280px]">
         {renderEventTabs()}
 
         {eventScope === 'public' && (
           <>
             <SectionHeader
               action={
-                <a className="button button-primary" href={addEventHref()}>
+                <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addEventHref()}>
                   Add event
                 </a>
               }
@@ -254,7 +256,7 @@ export function CommunityPage() {
             {events.loading && <LoadingState label="Loading events..." />}
             {events.error && <ErrorState message={events.error} retry={events.refetch} />}
             {!events.loading && !events.error && !publicEvents.length && <EmptyState body="No community events are published yet." title="No events yet" />}
-            {!!publicEvents.length && <div className="event-grid">{publicEvents.map((event) => renderEventCard(event))}</div>}
+            {!!publicEvents.length && <div className="event-grid grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">{publicEvents.map((event) => renderEventCard(event))}</div>}
           </>
         )}
 
@@ -262,7 +264,7 @@ export function CommunityPage() {
           <>
             <SectionHeader
               action={
-                <a className="button button-primary" href={addEventHref()}>
+                <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addEventHref()}>
                   Add event
                 </a>
               }
@@ -272,11 +274,11 @@ export function CommunityPage() {
             {myEvents.loading && <LoadingState label="Loading your events..." />}
             {myEvents.error && <ErrorState message={myEvents.error} retry={myEvents.refetch} />}
             {!myEvents.loading && !myEvents.error && !ownedEvents.length && <EmptyState body="Create an event to list it here." title="No events listed" />}
-            {!!currentOwnedEvents.length && <div className="event-grid">{currentOwnedEvents.map((event) => renderEventCard(event, true))}</div>}
+            {!!currentOwnedEvents.length && <div className="event-grid grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">{currentOwnedEvents.map((event) => renderEventCard(event, true))}</div>}
             {!!archivedOwnedEvents.length && (
               <section className="archive-section">
                 <SectionHeader title="Archived and out-of-date" eyebrow={`${archivedOwnedEvents.length} older events`} />
-                <div className="event-grid">{archivedOwnedEvents.map((event) => renderEventCard(event, true))}</div>
+                <div className="event-grid grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">{archivedOwnedEvents.map((event) => renderEventCard(event, true))}</div>
               </section>
             )}
           </>
@@ -287,14 +289,14 @@ export function CommunityPage() {
 
   function renderFinspoPanel() {
     return (
-      <section className="community-panel">
+      <section className="community-panel mx-auto w-full max-w-[1280px]">
         {renderFinspoTabs()}
 
         {finspoScope !== 'mine' && (
           <>
             <SectionHeader
               action={
-                <a className="button button-primary" href={addFinspoHref()}>
+                <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addFinspoHref()}>
                   Post Finspo
                 </a>
               }
@@ -306,7 +308,7 @@ export function CommunityPage() {
             {!finspoSource.loading && !finspoSource.error && !finspoItems.length && (
               <EmptyState body={finspoScope === 'following' ? 'Follow members to see their Finspo here.' : 'No Finspo posts are published yet.'} title="No Finspo yet" />
             )}
-            {!!finspoItems.length && <div className="finspo-masonry">{finspoItems.map((post) => renderFinspoTile(post))}</div>}
+            {!!finspoItems.length && <div className="finspo-masonry columns-2 gap-3 md:columns-3 lg:columns-4 max-md:columns-2 max-md:gap-2">{finspoItems.map((post) => renderFinspoTile(post))}</div>}
           </>
         )}
 
@@ -314,7 +316,7 @@ export function CommunityPage() {
           <>
             <SectionHeader
               action={
-                <a className="button button-primary" href={addFinspoHref()}>
+                <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addFinspoHref()}>
                   Post Finspo
                 </a>
               }
@@ -324,7 +326,7 @@ export function CommunityPage() {
             {myGallery.loading && <LoadingState label="Loading your Finspo..." />}
             {myGallery.error && <ErrorState message={myGallery.error} retry={myGallery.refetch} />}
             {!myGallery.loading && !myGallery.error && !finspoItems.length && <EmptyState body="Post your first Finspo to see it here." title="No posts yet" />}
-            {!!finspoItems.length && <div className="finspo-masonry">{finspoItems.map((post) => renderFinspoTile(post, true))}</div>}
+            {!!finspoItems.length && <div className="finspo-masonry columns-2 gap-3 md:columns-3 lg:columns-4 max-md:columns-2 max-md:gap-2">{finspoItems.map((post) => renderFinspoTile(post, true))}</div>}
           </>
         )}
       </section>
@@ -333,13 +335,13 @@ export function CommunityPage() {
 
   return (
     <AppShell active="community">
-      <section className="page-hero community-hero">
+      <section className="page-hero [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base mb-8 rounded-xl border border-foose-border bg-foose-surface p-5 md:p-8 [&.small]:py-6 max-md:[&_h1]:text-2xl community-hero">
         <h1>Community Hub</h1>
         <p>Find local events and browse Finspo from the Foose community.</p>
       </section>
       {actionError && <ErrorState message={actionError} />}
 
-      <nav className="tab-line community-main-tabs" aria-label="Community sections">
+      <nav className="tab-line [&_button]:shrink-0 [&_button]:rounded-full [&_button]:border [&_button]:border-foose-border [&_button]:bg-foose-surface-low [&_button]:px-4 [&_button]:py-2 [&_button]:text-sm [&_button]:font-semibold [&_button]:text-foose-muted [&_button]:transition [&_button]:hover:border-accent [&_button]:hover:text-accent [&_a]:shrink-0 [&_a]:rounded-full [&_a]:border [&_a]:border-foose-border [&_a]:bg-foose-surface-low [&_a]:px-4 [&_a]:py-2 [&_a]:text-sm [&_a]:font-semibold [&_a]:text-foose-muted [&_a]:transition [&_a]:hover:border-accent [&_a]:hover:text-accent [&_button.active]:border-accent [&_button.active]:bg-accent [&_button.active]:text-white [&_a.active]:border-accent [&_a.active]:bg-accent [&_a.active]:text-white flex flex-wrap items-center gap-2 community-main-tabs" aria-label="Community sections">
         <button className={mainTab === 'events' ? 'active' : ''} onClick={() => setMainTab('events')} type="button">
           Events
         </button>
@@ -352,7 +354,7 @@ export function CommunityPage() {
       {mainTab === 'finspo' && renderFinspoPanel()}
 
       {!user && (
-        <section className="seller-cta compact">
+        <section className="seller-cta mx-auto w-full max-w-[1280px] rounded-xl bg-accent p-6 text-white my-10 grid gap-6 md:grid-cols-[1fr_auto] [&_h2]:text-3xl [&_h2]:font-bold compact">
           <div>
             <h2>Want to contribute?</h2>
             <p>Create an account to save events, like Finspo, and manage your own posts.</p>

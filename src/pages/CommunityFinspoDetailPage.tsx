@@ -28,10 +28,10 @@ function openFinspo(event: MouseEvent<HTMLAnchorElement>, post: GalleryPost) {
 
 function renderImageTile(post: GalleryPost) {
   return (
-    <article className="finspo-tile" key={post._id}>
+    <article className="finspo-tile relative mb-3 break-inside-avoid max-md:mb-2" key={post._id}>
       <a
         aria-label={post.caption || `Finspo by ${authorName(post)}`}
-        className="finspo-image finspo-tile-link"
+        className="finspo-image block overflow-hidden rounded-none border-0 bg-transparent [&_img]:h-auto [&_img]:w-full [&_img]:object-contain finspo-tile-link"
         href={withBasePath(`/community/finspo/${post._id}`)}
         onClick={(event) => openFinspo(event, post)}
       >
@@ -51,9 +51,9 @@ export function CommunityFinspoDetailPage() {
 
   return (
     <AppShell active="community" searchPlaceholder="Search Finspo...">
-      <div className="dashboard-head">
+      <div className="dashboard-head mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
         <div>
-          <a className="back-link" href="/community?tab=finspo">
+          <a className="back-link mb-6 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted hover:text-accent" href="/community?tab=finspo">
             <Icon name="arrow" /> Back to Finspo
           </a>
           <h1>Finspo</h1>
@@ -66,9 +66,9 @@ export function CommunityFinspoDetailPage() {
       {!post && postResource.error && <ErrorState message={postResource.error} retry={postResource.refetch} />}
 
       {post && (
-        <section className="finspo-detail-layout">
-          <article className="finspo-detail-card finspo-focus-card">
-            <div className="finspo-detail-image">
+        <section className="finspo-detail-layout flex flex-col gap-5 lg:flex-row">
+          <article className="finspo-detail-card flex-1 rounded-xl border border-foose-border bg-foose-surface p-4 finspo-focus-card">
+            <div className="finspo-detail-image overflow-hidden rounded-lg bg-foose-surface-mid [&_img]:h-full [&_img]:w-full [&_img]:object-cover">
               <LightboxImage alt={post.caption || 'Finspo post'} src={post.imageUrl} />
             </div>
             <div className="finspo-detail-body">
@@ -76,15 +76,15 @@ export function CommunityFinspoDetailPage() {
                 <a href={authorHref(post)}>
                   <strong>{authorName(post)}</strong>
                 </a>
-                <FavoriteButton className="button button-secondary favorite-button" showText targetId={post._id} targetType="finspo" />
+                <FavoriteButton className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent favorite-button [&.is-active]:bg-foose-danger-bg [&.is-active]:text-foose-danger" showText targetId={post._id} targetType="finspo" />
               </div>
               {post.caption && <p>{post.caption}</p>}
-              {!!post.tags?.length && <p className="muted-copy">{post.tags.map((tag) => `#${tag}`).join(' ')}</p>}
-              {post.createdAt && <small className="muted-copy">{formatDate(post.createdAt)}</small>}
+              {!!post.tags?.length && <p className="muted-copy text-sm leading-6 text-foose-muted md:text-base">{post.tags.map((tag) => `#${tag}`).join(' ')}</p>}
+              {post.createdAt && <small className="muted-copy text-sm leading-6 text-foose-muted md:text-base">{formatDate(post.createdAt)}</small>}
             </div>
           </article>
 
-          <aside className="finspo-surround" aria-label="More Finspo posts">
+          <aside className="finspo-surround flex-1 columns-2 gap-3 md:columns-3 [&_.finspo-tile]:mb-3" aria-label="More Finspo posts">
             {relatedResource.loading && <LoadingState label="Loading more Finspo..." />}
             {relatedResource.error && <ErrorState message={relatedResource.error} retry={relatedResource.refetch} />}
             {!relatedResource.loading && !relatedResource.error && !relatedPosts.length && <EmptyState body="More Finspo posts will appear here." title="Nothing else yet" />}

@@ -193,7 +193,7 @@ export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   return (
     <svg
       aria-hidden="true"
-      className="icon"
+      className="inline-block shrink-0 align-middle"
       fill="none"
       height={size}
       stroke="currentColor"

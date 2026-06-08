@@ -14,6 +14,10 @@ export type CartItem = {
   image?: string
   shopId?: string
   shopName: string
+  sourceEventId?: string
+  sourceEventTitle?: string
+  availableFrom?: string
+  availableUntil?: string
 }
 
 function storageKey() {
@@ -45,7 +49,11 @@ export function useCart() {
   }, [])
 
   const addListing = useCallback(
-    (listing: Listing, quantity = 1) => {
+    (
+      listing: Listing,
+      quantity = 1,
+      options: Pick<CartItem, 'availableFrom' | 'availableUntil' | 'sourceEventId' | 'sourceEventTitle'> = {},
+    ) => {
       const shop = getShop(listing)
       const listingType = listing.type || 'retail'
       const nextQuantity = listingType === 'retail' ? 1 : Math.max(quantity, listing.bulkMinQty || 1)
@@ -58,6 +66,7 @@ export function useCart() {
         quantity: nextQuantity,
         shopId: shop?._id,
         shopName: getShopName(listing),
+        ...options,
         title: listing.title,
         type: listingType,
       }
@@ -66,7 +75,7 @@ export function useCart() {
       const nextItems = existing
         ? currentItems.map((item) =>
             item.listingId === listing._id
-              ? { ...item, quantity: listingType === 'retail' ? 1 : item.quantity + nextQuantity }
+              ? { ...item, ...options, quantity: listingType === 'retail' ? 1 : item.quantity + nextQuantity }
               : item,
           )
         : [...currentItems, nextItem]

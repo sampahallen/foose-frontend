@@ -108,13 +108,13 @@ export function ImagePreviewInput({
         ))}
       {keptTouchedName && hasExistingImages && <input name={keptTouchedName} type="hidden" value="1" />}
       {!!keptImages.length && (
-        <div className="image-preview-grid">
+        <div className="image-preview-grid mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 [&_img]:aspect-square [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_.lightbox-trigger]:aspect-square [&_.lightbox-trigger]:h-full [&_.lightbox-trigger]:w-full [&_.lightbox-trigger]:object-cover">
           {keptImages.map((image, index) => (
-            <div className="image-preview-item" key={image}>
+            <div className="image-preview-item relative overflow-hidden rounded-lg border border-foose-border" key={image}>
               <LightboxImage alt={`Current upload ${index + 1}`} src={image} />
               <button
                 aria-label={`Remove current upload ${index + 1}`}
-                className="image-preview-remove"
+                className="image-preview-remove absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white hover:bg-black"
                 onClick={() => setKeptImages((currentImages) => currentImages.filter((currentImage) => currentImage !== image))}
                 type="button"
               >
@@ -125,13 +125,13 @@ export function ImagePreviewInput({
         </div>
       )}
       {!!visibleFiles.length && (
-        <div className="image-preview-grid">
+        <div className="image-preview-grid mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 [&_img]:aspect-square [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_.lightbox-trigger]:aspect-square [&_.lightbox-trigger]:h-full [&_.lightbox-trigger]:w-full [&_.lightbox-trigger]:object-cover">
           {visibleFiles.map((file, index) => (
-            <div className="image-preview-item" key={file.id}>
+            <div className="image-preview-item relative overflow-hidden rounded-lg border border-foose-border" key={file.id}>
               <LightboxImage alt={`${file.name || 'Selected upload'} ${index + 1}`} src={file.url} />
               <button
                 aria-label={`Remove selected upload ${index + 1}`}
-                className="image-preview-remove"
+                className="image-preview-remove absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white hover:bg-black"
                 onClick={() => removeSelectedFile(file.id)}
                 type="button"
               >
@@ -142,7 +142,7 @@ export function ImagePreviewInput({
         </div>
       )}
       {maxFiles && (
-        <span className="muted-copy">
+        <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">
           {remainingSlots > 0
             ? `Add ${remainingSlots} more image${remainingSlots === 1 ? '' : 's'}.`
             : `Maximum of ${maxFiles} image${maxFiles === 1 ? '' : 's'} reached.`}

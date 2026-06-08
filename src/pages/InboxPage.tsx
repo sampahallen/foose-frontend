@@ -215,12 +215,12 @@ export function InboxPage() {
 
   return (
     <AppShell searchPlaceholder="Search messages..." flush>
-      <main className="inbox-shell">
-        <aside className="conversation-list">
-          <div className="inbox-heading">
+      <main className="inbox-shell grid min-h-[calc(100dvh-4rem)] border-x border-foose-border bg-foose-surface lg:grid-cols-[340px_minmax(0,1fr)] max-md:grid-cols-1">
+        <aside className="conversation-list border-b border-foose-border lg:border-b-0 lg:border-r">
+          <div className="inbox-heading mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl">
             <h1>Messages</h1>
           </div>
-          <section className="conversation-stack">
+          <section className="conversation-stack flex max-h-[45dvh] flex-col overflow-y-auto lg:max-h-none max-md:max-h-72">
             <h2>Conversations</h2>
             {conversations.loading && <LoadingState label="Loading conversations..." />}
             {conversations.error && <ErrorState message={conversations.error} retry={conversations.refetch} />}
@@ -236,11 +236,11 @@ export function InboxPage() {
 
                 return (
                   <a
-                    className={`conversation ${active ? 'active' : ''}`}
+                    className={`conversation grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 border-b border-foose-border px-4 py-3 text-left transition hover:bg-foose-surface-low [&.active]:bg-accent-light [&_img]:size-11 [&_img]:rounded-lg [&_img]:object-cover [&_p]:truncate [&_p]:text-sm [&_p]:text-foose-muted [&_small]:truncate [&_small]:text-sm [&_small]:text-foose-muted [&_strong]:truncate [&_strong]:text-sm [&_strong]:font-bold [&_time]:text-xs [&_time]:text-foose-faint [&_b]:inline-flex [&_b]:size-5 [&_b]:items-center [&_b]:justify-center [&_b]:rounded-full [&_b]:bg-accent [&_b]:text-xs [&_b]:text-white ${active ? 'active' : ''} `}
                     href={withBasePath(`/inbox?conversationId=${encodeURIComponent(conversation.conversationId)}`)}
                     key={conversation.conversationId}
                   >
-                    {image ? <img alt="" src={image} /> : <span className="conversation-avatar">{initials(displayUser(participant))}</span>}
+                    {image ? <img alt="" src={image} /> : <span className="conversation-avatar inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-light text-sm font-bold text-accent">{initials(displayUser(participant))}</span>}
                     <span>
                       <strong>{displayUser(participant)}</strong>
                       <p title={conversation.latestMessage.content || attachmentLabel(conversation.latestMessage.attachments?.length || 0)}>
@@ -254,7 +254,7 @@ export function InboxPage() {
                 )
               })}
           </section>
-          <section className="system-notifications">
+          <section className="system-notifications p-4">
             <h2>System notifications</h2>
             {notifications.loading && <LoadingState label="Loading notifications..." />}
             {notifications.error && <ErrorState message={notifications.error} retry={notifications.refetch} />}
@@ -263,18 +263,18 @@ export function InboxPage() {
             )}
             {!!unreadNotifications.length &&
               unreadNotifications.map((notification) => (
-                <article className="notification-item unread" key={notification._id}>
+                <article className="notification-item mb-2 rounded-lg border border-foose-border bg-foose-surface p-3 text-sm [&.unread]:border-accent [&.unread]:bg-accent-light [&.seen]:opacity-70 unread" key={notification._id}>
                   <strong>{notification.title}</strong>
                   <p>{notification.body || 'System update'}</p>
                   {notification.createdAt && <span>{formatDateTime(notification.createdAt)}</span>}
                 </article>
               ))}
             {!!seenNotifications.length && (
-              <details className="seen-notifications">
+              <details className="seen-notifications [&_summary]:cursor-pointer [&_summary]:text-sm [&_summary]:font-semibold [&_summary]:text-foose-muted">
                 <summary>Seen notifications ({seenNotifications.length})</summary>
                 <div>
                   {seenNotifications.map((notification) => (
-                    <article className="notification-item seen" key={notification._id}>
+                    <article className="notification-item mb-2 rounded-lg border border-foose-border bg-foose-surface p-3 text-sm [&.unread]:border-accent [&.unread]:bg-accent-light [&.seen]:opacity-70 seen" key={notification._id}>
                       <strong>{notification.title}</strong>
                       <p>{notification.body || 'System update'}</p>
                       {notification.createdAt && <span>{formatDateTime(notification.createdAt)}</span>}
@@ -285,7 +285,7 @@ export function InboxPage() {
             )}
           </section>
         </aside>
-        <section className="thread">
+        <section className="thread [&_header]:mb-5 [&_header]:flex [&_header]:flex-col [&_header]:gap-2 [&_header]:md:flex-row [&_header]:md:items-center [&_header]:md:justify-between flex min-h-[70dvh] flex-col bg-foose-bg [&_header]:border-b [&_header]:border-foose-border [&_header]:bg-foose-surface [&_header]:p-4">
           <header>
             {activeListing && listingImage(activeListing) && <img alt="" src={listingImage(activeListing)} />}
             <div>
@@ -298,7 +298,7 @@ export function InboxPage() {
               )}
             </div>
           </header>
-          <div className="messages">
+          <div className="messages flex h-[calc(100dvh-16rem)] flex-col gap-4 overflow-y-auto p-4">
             {messages.loading && <LoadingState label="Loading conversation..." />}
             {messages.error && <ErrorState message={messages.error} retry={messages.refetch} />}
             {!params.conversationId && !params.receiverId && (
@@ -318,15 +318,15 @@ export function InboxPage() {
                 )
               })}
           </div>
-          {sendError && <p className="danger-text inbox-send-error">{sendError}</p>}
-          <form className={`message-composer ${canCompose ? 'single-line' : ''}`} onSubmit={(event) => void sendMessage(event)}>
+          {sendError && <p className="danger-text font-semibold text-foose-danger inbox-send-error">{sendError}</p>}
+          <form className={`message-composer sticky bottom-0 flex items-end gap-2 border-t border-foose-border bg-foose-surface p-3 [&_input]:h-12 [&_input]:w-full [&_input]:px-4 ${canCompose ? 'single-line' : ''} `} onSubmit={(event) => void sendMessage(event)}>
             {!params.conversationId && !params.receiverId && <input aria-label="Receiver user ID" name="receiverId" placeholder="Receiver user ID" />}
-            <div className="composer-main">
+            <div className="composer-main flex-1 [&_input]:h-12 [&_input]:w-full [&_input]:px-4">
               <input aria-label="Write message" name="content" placeholder="Ask a question about this product..." />
               {!!selectedAttachments.length && (
-                <div className="composer-media-previews">
+                <div className="composer-media-previews flex flex-wrap gap-2">
                   {selectedAttachments.map((attachment, index) => (
-                    <div className="composer-media-preview" key={attachment.id}>
+                    <div className="composer-media-preview [&_img]:max-h-44 [&_img]:rounded-lg [&_img]:object-cover [&_video]:max-h-44 [&_video]:rounded-lg [&_video]:object-cover relative overflow-hidden rounded-lg border border-foose-border bg-foose-surface-low p-1 [&>button:first-child]:block [&>button:first-child]:border-0 [&>button:first-child]:bg-transparent [&>button:first-child]:p-0 [&_small]:block [&_small]:max-w-28 [&_small]:truncate [&_small]:text-xs [&_small]:text-foose-muted" key={attachment.id}>
                       <button
                         aria-label={`Preview ${attachment.file.name}`}
                         onClick={() => setPreviewAttachment(attachment)}
@@ -348,21 +348,21 @@ export function InboxPage() {
                 </div>
               )}
             </div>
-            <label className="attachment-button" title="Attach images or videos">
+            <label className="attachment-button inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-foose-border bg-foose-surface text-accent hover:bg-accent-light [&_input]:sr-only" title="Attach images or videos">
               <Icon name="upload" />
               <input accept="image/*,video/*" multiple name="attachments" onChange={handleAttachmentChange} type="file" />
             </label>
-            <label className="attachment-button" title="Open camera">
+            <label className="attachment-button inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-foose-border bg-foose-surface text-accent hover:bg-accent-light [&_input]:sr-only" title="Open camera">
               <Icon name="camera" />
               <input accept="image/*,video/*" capture="environment" multiple onChange={handleAttachmentChange} type="file" />
             </label>
-            <button aria-label="Send message" className="message-send-button" type="submit">
+            <button aria-label="Send message" className="message-send-button inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-foose-border bg-foose-surface text-accent hover:bg-accent-light border-accent bg-accent text-white hover:bg-accent-hover" type="submit">
               <Icon name="send" />
             </button>
           </form>
           {previewAttachment && (
-            <div className="image-lightbox" role="dialog" aria-label="Attachment preview" aria-modal="true">
-              <button className="image-lightbox-close" onClick={() => setPreviewAttachment(null)} type="button" aria-label="Close attachment preview">
+            <div className="image-lightbox fixed inset-0 z-100 flex items-center justify-center bg-black/85 p-4 [&>img]:max-h-[88dvh] [&>img]:max-w-[92vw] [&>img]:rounded-xl [&>img]:object-contain [&>video]:max-h-[88dvh] [&>video]:max-w-[92vw] [&>video]:rounded-xl [&>video]:object-contain" role="dialog" aria-label="Attachment preview" aria-modal="true">
+              <button className="image-lightbox-close absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white hover:bg-black" onClick={() => setPreviewAttachment(null)} type="button" aria-label="Close attachment preview">
                 <Icon name="plus" />
               </button>
               {previewAttachment.type === 'video' ? (

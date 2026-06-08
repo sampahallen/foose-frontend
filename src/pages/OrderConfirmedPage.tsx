@@ -57,7 +57,7 @@ export function OrderConfirmedPage() {
 
   return (
     <AppShell flush>
-      <section className="confirmation-page">
+      <section className="confirmation-page min-h-dvh bg-foose-bg">
         {!ids.length && !reference && (
           <EmptyState
             action={<ButtonLink to="/browse">Continue shopping</ButtonLink>}
@@ -68,8 +68,8 @@ export function OrderConfirmedPage() {
         {orders.loading && <LoadingState label="Loading order..." />}
         {orders.error && <ErrorState message={orders.error} retry={orders.refetch} />}
         {!!displayedOrders.length && (
-          <div className="confirmation-card">
-            <div className="success-icon">
+          <div className="confirmation-card mx-auto mt-16 flex w-full max-w-3xl flex-col items-center gap-6 rounded-xl border border-foose-border bg-foose-surface p-6 text-center shadow-lg md:p-10 [&_h1]:text-4xl [&_h1]:font-bold">
+            <div className="success-icon inline-flex size-11 items-center justify-center rounded-full border border-foose-border bg-foose-surface font-bold border-accent bg-accent text-white">
               <Icon name="check" size={56} />
             </div>
             <h1>Order placed!</h1>
@@ -78,14 +78,14 @@ export function OrderConfirmedPage() {
                 ? 'Your pickup request was sent to the seller.'
                 : 'Payment confirmed. Funds are held in escrow until delivery is confirmed.'}
             </p>
-            <div className="order-number">
+            <div className="order-number flex flex-wrap items-center justify-between gap-4 rounded-lg border border-foose-border bg-foose-surface-low p-4 [&_img]:size-12 [&_img]:rounded-lg [&_img]:object-cover [&_b]:size-12 [&_b]:rounded-lg [&_b]:object-cover">
               <div>
                 <span>Order records</span>
                 <strong>{displayedOrders.map((order) => `#${order._id.slice(-6)}`).join(', ')}</strong>
               </div>
               <b>{formatMoney(total, firstOrder?.currency)}</b>
             </div>
-            <div className="order-confirm-list">
+            <div className="order-confirm-list w-full space-y-3">
               {displayedOrders.map((order) => (
                 <article key={order._id}>
                   <div>
@@ -95,14 +95,14 @@ export function OrderConfirmedPage() {
                     </span>
                   </div>
                   {['processing', 'shipped'].includes(order.status) && (
-                    <button className="button button-secondary" onClick={() => void confirmReceived(order._id)} type="button">
+                    <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void confirmReceived(order._id)} type="button">
                       Confirm received
                     </button>
                   )}
                 </article>
               ))}
             </div>
-            <div className="button-row center">
+            <div className="button-row flex flex-wrap items-center gap-3 center">
               <ButtonLink to="/profile">View profile orders</ButtonLink>
               <ButtonLink to="/browse" variant="secondary">
                 Continue shopping

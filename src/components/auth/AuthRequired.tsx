@@ -31,7 +31,7 @@ export function AuthRequired({
 
   if (adminOnly && user.role !== 'admin') {
     return (
-      <main className="page">
+      <main className="page mx-auto w-full max-w-[1280px] px-4 pb-24 pt-8 md:px-6 lg:px-8 max-md:px-3 max-md:pt-5">
         <EmptyState
           action={<ButtonLink to="/">Back to marketplace</ButtonLink>}
           body={`This area is limited to ${brand} administrators.`}

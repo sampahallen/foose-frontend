@@ -6,7 +6,7 @@ import { apiPost, apiPut } from '../lib/api'
 import type { Listing } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { LISTING_BRANDS, LISTING_CATEGORIES, LISTING_CONDITIONS, sizePlaceholderForCategory } from '../utils/listingTaxonomy'
-import { getCurrentAppPathname, navigateTo } from '../utils/navigation'
+import { getCurrentAppPathname, navigateTo, withBasePath } from '../utils/navigation'
 
 function readFormText(formData: FormData, name: string) {
   return String(formData.get(name) || '').trim()
@@ -30,6 +30,10 @@ function currentEditId() {
   return match ? decodeURIComponent(match[1]).trim() : ''
 }
 
+function sourceEventId() {
+  return new URLSearchParams(window.location.search).get('eventId')?.trim() || ''
+}
+
 function parseGhsToPesewas(value: string) {
   const normalized = value.trim().replace(/,/g, '.')
   if (!/^\d+(\.\d{0,2})?$/.test(normalized)) return null
@@ -45,6 +49,7 @@ function priceInputValue(price?: number) {
 export function NewListingPage() {
   const { user } = useAuth()
   const editId = currentEditId()
+  const eventId = sourceEventId()
   const editResource = useApiResource<{ listing: Listing }>(editId ? `/listings/${editId}` : null)
   const listing = editResource.data?.listing
   const [error, setError] = useState('')
@@ -94,6 +99,7 @@ export function NewListingPage() {
     appendText(uploadData, 'status', requestedStatus)
     appendText(uploadData, 'title', readFormText(sourceData, 'title'))
     appendText(uploadData, 'type', listingType)
+    appendText(uploadData, 'visibility', eventId && !editId ? 'event' : undefined)
     sourceData.getAll('keptImages').forEach((image) => appendText(uploadData, 'keptImages', String(image)))
     if (sourceData.has('keptImagesTouched')) appendText(uploadData, 'keptImagesTouched', '1')
 
@@ -125,6 +131,13 @@ export function NewListingPage() {
       const data = editId
         ? await apiPut<{ listing: Listing }>(`/listings/${editId}`, uploadData)
         : await apiPost<{ listing: Listing }>('/listings', uploadData)
+
+      if (!editId && eventId && requestedStatus === 'active') {
+        await apiPost(`/community/events/${eventId}/listings`, { listingId: data.listing._id })
+        navigateTo(`/community/events/${eventId}/manage`)
+        return
+      }
+
       navigateTo(requestedStatus === 'draft' ? '/manage-shop' : `/listing/${data.listing._id}`)
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to save listing'))
@@ -178,19 +191,19 @@ export function NewListingPage() {
 
   return (
     <AppShell searchPlaceholder="Search marketplace...">
-      <div className="dashboard-head">
+      <div className="dashboard-head mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
         <div>
-          <a className="back-link" href="/manage-shop">
-            <Icon name="arrow" /> Back to shop
+          <a className="back-link mb-6 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted hover:text-accent" href={withBasePath(eventId ? `/community/events/${eventId}/manage` : '/manage-shop')}>
+            <Icon name="arrow" /> {eventId ? 'Back to event' : 'Back to shop'}
           </a>
           <h1>{editId ? 'Edit listing' : 'Add listing'}</h1>
           <p>{editId ? 'Update the listing details buyers see.' : 'Create a listing from your shop inventory.'}</p>
         </div>
       </div>
 
-      <section className="form-card large listing-form-card">
+      <section className="form-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3 max-lg:rounded-lg max-lg:p-3 large listing-form-card">
         <form encType="multipart/form-data" onSubmit={(event) => void createListing(event)}>
-          <div className="listing-form-grid">
+          <div className="listing-form-grid grid gap-6 [&_.wide]:sm:col-span-2 gap-5 lg:grid-cols-2">
             <label className="wide">
               Title
               <input defaultValue={listing?.title || ''} name="title" placeholder="Vintage bomber jacket" required />
@@ -210,7 +223,7 @@ export function NewListingPage() {
                 <option value="retail">Retail</option>
                 <option value="wholesale">Wholesale</option>
               </select>
-              <span className="muted-copy">
+              <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">
                 {listingType === 'retail'
                   ? 'Retail listings are single items. Upload a separate listing for each extra piece.'
                   : 'Wholesale listings use bulk quantities and minimum order quantities.'}
@@ -219,7 +232,7 @@ export function NewListingPage() {
             <label>
               {listingType === 'wholesale' ? 'Unit price (GHS)' : 'Price (GHS)'}
               <input defaultValue={priceInputValue(listing?.price)} inputMode="decimal" name="price" placeholder="240.00" required />
-              <span className="muted-copy">Use up to two decimal places. The API stores the exact pesewa amount.</span>
+              <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Use up to two decimal places. The API stores the exact pesewa amount.</span>
             </label>
             <label>
               Category
@@ -301,7 +314,7 @@ export function NewListingPage() {
                 multiple
                 name="images"
               />
-              <span className="muted-copy">
+              <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">
                 {editId ? 'Add or remove images one at a time, up to six total.' : 'Upload up to six JPEG, PNG, or WebP files. You can add them one at a time.'}
               </span>
             </label>
@@ -309,14 +322,14 @@ export function NewListingPage() {
 
           {error && <ErrorState message={error} />}
 
-          <div className="form-actions">
-            <ButtonLink to="/manage-shop" variant="secondary">
+          <div className="form-actions flex flex-wrap items-center gap-3">
+            <ButtonLink to={eventId ? `/community/events/${eventId}/manage` : '/manage-shop'} variant="secondary">
               Cancel
             </ButtonLink>
-            <button className="button button-secondary" data-status="draft" disabled={submitting} type="submit">
+            <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" data-status="draft" disabled={submitting} type="submit">
               {submitting && submittingAction === 'draft' ? 'Saving draft...' : 'Save as draft'}
             </button>
-            <button className="button button-primary" disabled={submitting} type="submit">
+            <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting} type="submit">
               {submitting && submittingAction === 'active' ? 'Saving...' : editId ? 'Save item' : 'Post item'} <Icon name="plus" />
             </button>
           </div>

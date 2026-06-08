@@ -24,7 +24,7 @@ export function CategoryStrip({
   const activeCategory = query.get('category') || ''
 
   return (
-    <section className="category-strip browse-category-strip" aria-label="Listing categories">
+    <section className="category-strip mx-auto w-full max-w-[1280px] flex gap-2 overflow-x-auto border-b border-foose-border px-4 py-4 [scrollbar-width:thin] md:px-6 [&_button]:shrink-0 [&_button]:rounded-full [&_button]:border [&_button]:border-foose-border [&_button]:bg-foose-surface-low [&_button]:px-4 [&_button]:py-2 [&_button]:text-sm [&_button]:font-semibold [&_button]:text-foose-muted [&_button]:transition [&_button]:hover:border-accent [&_button]:hover:text-accent [&_a]:shrink-0 [&_a]:rounded-full [&_a]:border [&_a]:border-foose-border [&_a]:bg-foose-surface-low [&_a]:px-4 [&_a]:py-2 [&_a]:text-sm [&_a]:font-semibold [&_a]:text-foose-muted [&_a]:transition [&_a]:hover:border-accent [&_a]:hover:text-accent [&_button.active]:border-accent [&_button.active]:bg-accent [&_button.active]:text-white [&_a.active]:border-accent [&_a.active]:bg-accent [&_a.active]:text-white browse-category-strip mb-6 rounded-xl border bg-foose-surface" aria-label="Listing categories">
       <a className={!activeCategory ? 'active' : ''} href={categoryHref()}>
         All
       </a>

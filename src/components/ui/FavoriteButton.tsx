@@ -102,7 +102,7 @@ export function FavoriteButton({
     <button
       aria-label={active ? displayActiveLabel : displayLabel}
       aria-pressed={active}
-      className={`${className} ${active ? 'is-active' : ''}`}
+      className={` ${className} ${active ? 'is-active' : ''} `}
       disabled={busy || status === 'checking'}
       onClick={(event) => void handleClick(event)}
       title={error || (active ? displayActiveLabel : displayLabel)}
