@@ -1,10 +1,12 @@
-import { AuthRequired } from './components'
+import { AuthRequired, ImagePreviewModal } from './components'
 import { useCurrentRoute } from './hooks/useCurrentRoute'
 import {
   AdminDisputesPage,
   AdminKycDetailPage,
   AdminKycPage,
   AdminOverviewPage,
+  AuthCallbackPage,
+  BaleWholesalePage,
   BrowsePage,
   CartPage,
   CheckoutPage,
@@ -14,6 +16,8 @@ import {
   CommunityPage,
   EventDetailPage,
   EventManagementPage,
+  DigiShopsPage,
+  FreshDropsPage,
   HomePage,
   InboxPage,
   KycPage,
@@ -21,7 +25,11 @@ import {
   NewListingPage,
   OpenShopPage,
   OrderConfirmedPage,
+  OrderDetailPage,
+  OrderManagementPage,
+  PromotionReturnPage,
   ProfilePage,
+  ProfileSettingsPage,
   RegisterPage,
   RetailDetailPage,
   SavedPage,
@@ -35,129 +43,207 @@ import { resolveRoute } from './utils/routes'
 function App() {
   const { pathname, search } = useCurrentRoute()
 
+  let page
+
   switch (resolveRoute(pathname, search)) {
     case 'login':
-      return <LoginPage />
+      page = <LoginPage />
+      break
+    case 'authCallback':
+      page = <AuthCallbackPage />
+      break
     case 'register':
-      return <RegisterPage />
+      page = <RegisterPage />
+      break
     case 'adminKyc':
-      return (
+      page = (
         <AuthRequired adminOnly>
           <AdminKycPage />
         </AuthRequired>
       )
+      break
     case 'adminKycDetail':
-      return (
+      page = (
         <AuthRequired adminOnly>
           <AdminKycDetailPage />
         </AuthRequired>
       )
+      break
     case 'adminDisputes':
-      return (
+      page = (
         <AuthRequired adminOnly>
           <AdminDisputesPage />
         </AuthRequired>
       )
+      break
     case 'adminOverview':
-      return (
+      page = (
         <AuthRequired adminOnly>
           <AdminOverviewPage />
         </AuthRequired>
       )
+      break
     case 'browse':
-      return <BrowsePage />
+      page = <BrowsePage />
+      break
+    case 'freshDrops':
+      page = <FreshDropsPage />
+      break
+    case 'digishops':
+      page = <DigiShopsPage />
+      break
+    case 'bales':
+      page = <BaleWholesalePage />
+      break
     case 'topPicks':
-      return <TopPicksPage />
+      page = <TopPicksPage />
+      break
     case 'shop':
-      return <ShopPage />
+      page = <ShopPage />
+      break
     case 'retailDetail':
-      return <RetailDetailPage />
+      page = <RetailDetailPage />
+      break
     case 'newListing':
     case 'editListing':
-      return (
+      page = (
         <AuthRequired>
           <NewListingPage />
         </AuthRequired>
       )
+      break
     case 'community':
-      return <CommunityPage />
+      page = <CommunityPage />
+      break
     case 'eventDetail':
-      return <EventDetailPage />
+      page = <EventDetailPage />
+      break
     case 'eventManage':
-      return (
+      page = (
         <AuthRequired>
           <EventManagementPage />
         </AuthRequired>
       )
+      break
     case 'communityEventForm':
-      return (
+      page = (
         <AuthRequired>
           <CommunityEventFormPage />
         </AuthRequired>
       )
+      break
     case 'communityFinspoForm':
-      return (
+      page = (
         <AuthRequired>
           <CommunityFinspoFormPage />
         </AuthRequired>
       )
+      break
     case 'communityFinspoDetail':
-      return <CommunityFinspoDetailPage />
+      page = <CommunityFinspoDetailPage />
+      break
     case 'saved':
-      return (
+      page = (
         <AuthRequired>
           <SavedPage />
         </AuthRequired>
       )
+      break
+    case 'profileSettings':
+      page = (
+        <AuthRequired>
+          <ProfileSettingsPage />
+        </AuthRequired>
+      )
+      break
     case 'profile':
-      return <ProfilePage />
+      page = <ProfilePage />
+      break
     case 'inbox':
-      return (
+      page = (
         <AuthRequired>
           <InboxPage />
         </AuthRequired>
       )
+      break
     case 'cart':
-      return <CartPage />
+      page = <CartPage />
+      break
     case 'checkout':
-      return (
+      page = (
         <AuthRequired>
           <CheckoutPage />
         </AuthRequired>
       )
+      break
     case 'orderConfirmed':
-      return (
+      page = (
         <AuthRequired>
           <OrderConfirmedPage />
         </AuthRequired>
       )
+      break
+    case 'orderDetail':
+      page = (
+        <AuthRequired>
+          <OrderDetailPage />
+        </AuthRequired>
+      )
+      break
+    case 'orderHistory':
+    case 'orderManagement':
+      page = (
+        <AuthRequired>
+          <OrderManagementPage />
+        </AuthRequired>
+      )
+      break
+    case 'promotionReturn':
+      page = (
+        <AuthRequired>
+          <PromotionReturnPage />
+        </AuthRequired>
+      )
+      break
     case 'kyc':
-      return (
+      page = (
         <AuthRequired>
           <KycPage />
         </AuthRequired>
       )
+      break
     case 'openShop':
-      return (
+      page = (
         <AuthRequired>
           <OpenShopPage />
         </AuthRequired>
       )
+      break
     case 'wallet':
-      return (
+      page = (
         <AuthRequired>
           <WalletPage />
         </AuthRequired>
       )
+      break
     case 'manageShop':
-      return (
+      page = (
         <AuthRequired>
           <SellerDashboardPage />
         </AuthRequired>
       )
+      break
     case 'home':
-      return <HomePage />
+      page = <HomePage />
+      break
   }
+
+  return (
+    <>
+      {page}
+      <ImagePreviewModal />
+    </>
+  )
 }
 
 export default App

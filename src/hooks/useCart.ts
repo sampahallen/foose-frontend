@@ -14,6 +14,7 @@ export type CartItem = {
   image?: string
   shopId?: string
   shopName: string
+  status?: Listing['status']
   sourceEventId?: string
   sourceEventTitle?: string
   availableFrom?: string
@@ -66,6 +67,7 @@ export function useCart() {
         quantity: nextQuantity,
         shopId: shop?._id,
         shopName: getShopName(listing),
+        status: listing.status,
         ...options,
         title: listing.title,
         type: listingType,
@@ -75,7 +77,7 @@ export function useCart() {
       const nextItems = existing
         ? currentItems.map((item) =>
             item.listingId === listing._id
-              ? { ...item, ...options, quantity: listingType === 'retail' ? 1 : item.quantity + nextQuantity }
+              ? { ...item, ...options, status: listing.status, quantity: listingType === 'retail' ? 1 : item.quantity + nextQuantity }
               : item,
           )
         : [...currentItems, nextItem]

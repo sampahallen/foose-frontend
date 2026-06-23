@@ -42,13 +42,13 @@ export function ProfilePage() {
   const shouldRedirectToAuth = !username && status === 'guest' && !user
 
   useEffect(() => {
-    if (shouldRedirectToAuth) navigateTo(authHref('/register', '/profile'))
+    if (shouldRedirectToAuth) navigateTo(authHref('/login', '/profile'))
   }, [shouldRedirectToAuth])
 
   async function toggleFollow() {
     if (!data) return
     if (!user) {
-      navigateTo(authHref('/register'))
+      navigateTo(authHref('/login'))
       return
     }
 
@@ -76,6 +76,7 @@ export function ProfilePage() {
             <div>
               <h1>{data.user.name}</h1>
               <p>@{data.user.username}</p>
+              {data.user.bio && <p className="mx-auto mt-2 max-w-xl normal-case tracking-normal text-foose-muted">{data.user.bio}</p>}
               <div className="badge-row flex flex-wrap items-center gap-3">
                 {data.user.isKycVerified && <Badge tone="success">Verified</Badge>}
                 {data.user.hasShop && <Badge tone="accent">Seller</Badge>}
@@ -87,6 +88,11 @@ export function ProfilePage() {
               <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void toggleFollow()} type="button">
                 {isFollowing ? 'Following' : 'Follow'}
               </button>
+            )}
+            {isOwnProfile && (
+              <ButtonLink to="/profile/settings" variant="secondary">
+                Edit profile
+              </ButtonLink>
             )}
           </section>
           {followError && <ErrorState message={followError} />}

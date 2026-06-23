@@ -5,7 +5,7 @@ import { useApiResource } from '../hooks/useApiResource'
 import { apiPost, apiPut } from '../lib/api'
 import type { Listing } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
-import { LISTING_BRANDS, LISTING_CATEGORIES, LISTING_CONDITIONS, sizePlaceholderForCategory } from '../utils/listingTaxonomy'
+import { LISTING_BRANDS, LISTING_CATEGORIES, LISTING_COLORS, LISTING_CONDITIONS, sizePlaceholderForCategory } from '../utils/listingTaxonomy'
 import { getCurrentAppPathname, navigateTo, withBasePath } from '../utils/navigation'
 
 function readFormText(formData: FormData, name: string) {
@@ -55,10 +55,13 @@ export function NewListingPage() {
   const [error, setError] = useState('')
   const [selectedListingType, setSelectedListingType] = useState<'' | 'retail' | 'wholesale'>('')
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [selectedCondition, setSelectedCondition] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submittingAction, setSubmittingAction] = useState<'active' | 'draft' | ''>('')
   const listingType = selectedListingType || listing?.type || 'retail'
   const categoryValue = selectedCategory || listing?.category || ''
+  const conditionValue = selectedCondition || listing?.condition || ''
+  const needsFlawProof = conditionValue === 'fair' || conditionValue === 'poor'
   const sizePlaceholder = sizePlaceholderForCategory(categoryValue)
 
   async function createListing(event: FormEvent<HTMLFormElement>) {
@@ -71,6 +74,10 @@ export function NewListingPage() {
     const price = parseGhsToPesewas(readFormText(sourceData, 'price'))
     const bulkQuantity = optionalNumber(readFormText(sourceData, 'quantity'))
     const minimumOrderQuantity = optionalNumber(readFormText(sourceData, 'bulkMinQty'))
+    const flawNote = readFormText(sourceData, 'flawNote')
+    const imageInput = form.elements.namedItem('images') as HTMLInputElement | null
+    const selectedFiles = Array.from(imageInput?.files || []).slice(0, 6)
+    const keptImageCount = sourceData.getAll('keptImages').filter(Boolean).length
 
     if (price === null || price < 0) {
       setError('Enter a valid price with up to two decimal places.')
@@ -94,6 +101,18 @@ export function NewListingPage() {
       }
     }
 
+    if (needsFlawProof) {
+      if (!flawNote) {
+        setError('For fair or poor condition items, describe the flaw so escrow review is clear.')
+        return
+      }
+
+      if (!selectedFiles.length && !keptImageCount) {
+        setError('For fair or poor condition items, upload at least one image that shows the flaw.')
+        return
+      }
+    }
+
     appendText(uploadData, 'currency', 'GHS')
     appendText(uploadData, 'price', price)
     appendText(uploadData, 'status', requestedStatus)
@@ -103,7 +122,8 @@ export function NewListingPage() {
     sourceData.getAll('keptImages').forEach((image) => appendText(uploadData, 'keptImages', String(image)))
     if (sourceData.has('keptImagesTouched')) appendText(uploadData, 'keptImagesTouched', '1')
 
-    ;['description', 'category', 'brand', 'condition'].forEach((field) => {
+    appendText(uploadData, 'description', needsFlawProof ? `${readFormText(sourceData, 'description')}\n\nFlaws: ${flawNote}`.trim() : readFormText(sourceData, 'description'))
+    ;['category', 'brand', 'condition', 'color'].forEach((field) => {
       appendText(uploadData, field, readFormText(sourceData, field))
     })
 
@@ -118,10 +138,7 @@ export function NewListingPage() {
       appendText(uploadData, 'bulkWeight', readFormText(sourceData, 'bulkWeight'))
     }
 
-    const imageInput = form.elements.namedItem('images') as HTMLInputElement | null
-    Array.from(imageInput?.files || [])
-      .slice(0, 6)
-      .forEach((file) => uploadData.append('images', file))
+    selectedFiles.forEach((file) => uploadData.append('images', file))
 
     setSubmitting(true)
     setSubmittingAction(requestedStatus)
@@ -201,9 +218,9 @@ export function NewListingPage() {
         </div>
       </div>
 
-      <section className="form-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3 max-lg:rounded-lg max-lg:p-3 large listing-form-card">
-        <form encType="multipart/form-data" onSubmit={(event) => void createListing(event)}>
-          <div className="listing-form-grid grid gap-6 [&_.wide]:sm:col-span-2 gap-5 lg:grid-cols-2">
+      <section className="form-card rounded-xl border border-foose-border bg-foose-surface p-5 shadow-sm md:p-7 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-foose-border [&_input]:bg-foose-surface [&_input]:px-3 [&_input]:py-3 [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-foose-border [&_select]:bg-foose-surface [&_select]:px-3 [&_select]:py-3 [&_select]:outline-none [&_select]:transition [&_select]:focus:border-accent [&_select]:focus:ring-2 [&_select]:focus:ring-accent/15 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-foose-border [&_textarea]:bg-foose-surface [&_textarea]:px-3 [&_textarea]:py-3 [&_textarea]:outline-none [&_textarea]:transition [&_textarea]:focus:border-accent [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-accent/15 max-lg:rounded-lg max-lg:p-4 large listing-form-card">
+        <form className="space-y-6" encType="multipart/form-data" onSubmit={(event) => void createListing(event)}>
+          <div className="listing-form-grid grid gap-5 lg:grid-cols-2 [&_.wide]:sm:col-span-2">
             <label className="wide">
               Title
               <input defaultValue={listing?.title || ''} name="title" placeholder="Vintage bomber jacket" required />
@@ -278,11 +295,30 @@ export function NewListingPage() {
             )}
             <label>
               Condition
-              <select defaultValue={listing?.condition || ''} name="condition">
+              <select name="condition" onChange={(event) => setSelectedCondition(event.target.value)} value={conditionValue}>
                 <option value="">Select condition</option>
                 {LISTING_CONDITIONS.map((condition) => (
                   <option key={condition} value={condition}>
-                    {condition === 'new' ? 'New' : 'Used'}
+                    {condition[0].toUpperCase() + condition.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {needsFlawProof && (
+              <label className="wide rounded-xl border border-amber-200 bg-amber-50 p-4">
+                Flaw note for escrow review
+                <textarea name="flawNote" placeholder="Example: Small stain on left sleeve, shown in photo 2." rows={3} />
+                <span className="text-sm font-normal leading-6 text-amber-800">
+                  Fair or poor items need at least one image showing the flaw. This note is added to the listing description.
+                </span>
+              </label>
+            )}
+            <label>
+              Color
+              <select defaultValue={listing?.color || 'multi'} name="color">
+                {LISTING_COLORS.map((color) => (
+                  <option key={color.value} value={color.value}>
+                    {color.label}
                   </option>
                 ))}
               </select>

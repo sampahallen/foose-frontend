@@ -16,8 +16,8 @@ export function eventTypeLabel(event: Pick<Event, 'type'>) {
 }
 
 export function eventHostName(event: Pick<Event, 'organizerId' | 'shopId'>) {
+  if (event.organizerId && typeof event.organizerId === 'object') return event.organizerId.username ? `@${event.organizerId.username}` : 'Foose member'
   if (event.shopId && typeof event.shopId === 'object') return event.shopId.shopName
-  if (event.organizerId && typeof event.organizerId === 'object') return event.organizerId.name || event.organizerId.username
   return 'Foose member'
 }
 
@@ -32,6 +32,10 @@ export function eventTimeLabel(event: Pick<Event, 'date' | 'endTime' | 'startTim
   const end = event.endTime || ''
   const time = start && end ? `${start} - ${end}` : start || 'Time pending'
   return `${formatDate(event.date)} · ${time}`
+}
+
+export function eventTimeTerm(event: Pick<Event, 'type'>) {
+  return isOnlinePopUp(event) ? 'Window' : 'Time'
 }
 
 export function concreteEventListings(event: Pick<Event, 'eventListings'>): Listing[] {

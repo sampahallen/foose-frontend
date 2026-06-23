@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { AppShell, ButtonLink, ErrorState, Icon, ImagePreviewInput, LoadingState } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { apiPost, apiPut } from '../lib/api'
@@ -9,6 +9,17 @@ import { getErrorMessage } from '../utils/errorMessage'
 import { getCurrentAppPathname, navigateTo } from '../utils/navigation'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
+const eventTypeCard =
+  'flex min-h-28 w-full flex-col items-start gap-3 rounded-2xl border p-4 text-left transition hover:border-accent hover:bg-accent-light/60 focus:outline-none focus:ring-2 focus:ring-accent/20'
+const eventTypeCardActive = 'border-accent bg-accent-light text-foose-text shadow-sm shadow-accent/10'
+const eventTypeCardIdle = 'border-foose-border bg-white text-foose-text'
+
+type StyledPickerInputProps = {
+  defaultValue?: string
+  name: string
+  required?: boolean
+  type: 'date' | 'time'
+}
 
 function editEventId() {
   const match = getCurrentAppPathname().match(/^\/community\/events\/([^/]+)\/edit/)
@@ -24,6 +35,45 @@ function appendSelectedFile(formData: FormData, form: HTMLFormElement, name: str
   const input = form.elements.namedItem(name) as HTMLInputElement | null
   const file = input?.files?.[0]
   if (file && file.name && file.size > 0) formData.append(name, file)
+}
+
+function StyledPickerInput({ defaultValue = '', name, required = false, type }: StyledPickerInputProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const iconName = type === 'date' ? 'calendar' : 'clock'
+
+  function openPicker() {
+    const input = inputRef.current
+    if (!input) return
+    if (typeof input.showPicker === 'function') {
+      input.showPicker()
+      return
+    }
+    input.focus()
+  }
+
+  return (
+    <span className="group relative flex min-h-12 items-center rounded-xl border border-foose-border bg-white shadow-sm transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15 hover:border-accent/60">
+      <span className="pointer-events-none absolute left-3 inline-flex size-8 items-center justify-center rounded-full bg-accent-light text-accent">
+        <Icon name={iconName} size={17} />
+      </span>
+      <input
+        className="!h-12 !rounded-xl !border-0 !bg-transparent !py-0 !pl-12 !pr-12 text-sm font-bold text-foose-text outline-none [color-scheme:light] focus:!border-0 focus:!ring-0 [&::-webkit-calendar-picker-indicator]:opacity-0"
+        defaultValue={defaultValue}
+        name={name}
+        ref={inputRef}
+        required={required}
+        type={type}
+      />
+      <button
+        aria-label={`Open ${type} picker`}
+        className="absolute right-2 inline-flex size-8 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-foose-muted transition hover:border-accent hover:bg-accent hover:text-white"
+        onClick={openPicker}
+        type="button"
+      >
+        <Icon name="chevron" size={15} />
+      </button>
+    </span>
+  )
 }
 
 export function CommunityEventFormPage() {
@@ -85,32 +135,66 @@ export function CommunityEventFormPage() {
       {eventId && eventResource.error && <ErrorState message={eventResource.error} retry={eventResource.refetch} />}
 
       {(!eventId || event) && (
-        <section className="form-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3 max-lg:rounded-lg max-lg:p-3 large community-form-page [&_form]:mx-auto [&_form]:w-full [&_form]:max-w-3xl [&_form]:rounded-xl [&_form]:border [&_form]:border-foose-border [&_form]:bg-foose-surface [&_form]:p-5 [&_form]:md:p-8 py-8">
-          <form encType="multipart/form-data" onSubmit={(event) => void handleSubmit(event)}>
-            <div className="form-grid grid gap-4 sm:grid-cols-2 [&_.wide]:sm:col-span-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3">
-              <label className="wide">
-                Event type
-                <select name="type" onChange={(input) => setSelectedType(input.target.value as 'online-pop-up' | 'in-person-pop-up')} value={activeType}>
-                  <option value="in-person-pop-up">In-person pop-up</option>
-                  <option value="online-pop-up">Online pop-up</option>
-                </select>
-              </label>
+        <section className="community-form-page rounded-2xl border border-foose-border bg-white p-4 shadow-sm md:p-7">
+          <form
+            className="mx-auto w-full max-w-3xl space-y-7 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-black [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-foose-border [&_input]:bg-white [&_input]:px-4 [&_input]:py-3 [&_input]:text-sm [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_textarea]:w-full [&_textarea]:rounded-xl [&_textarea]:border [&_textarea]:border-foose-border [&_textarea]:bg-white [&_textarea]:px-4 [&_textarea]:py-3 [&_textarea]:text-sm [&_textarea]:outline-none [&_textarea]:transition [&_textarea]:focus:border-accent [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-accent/15"
+            encType="multipart/form-data"
+            onSubmit={(event) => void handleSubmit(event)}
+          >
+            <div className="rounded-2xl border border-foose-border bg-foose-surface-low p-4 md:p-5">
+              <div className="mb-4">
+                <h2 className="text-lg font-black text-foose-text">Event details</h2>
+                <p className="mt-1 text-sm leading-6 text-foose-muted">Choose the pop-up format, schedule, and attendee-facing details.</p>
+              </div>
+              <div className="form-grid grid gap-5 sm:grid-cols-2 [&_.wide]:sm:col-span-2">
+                <div className="wide">
+                  <span className="mb-2 block text-sm font-black text-foose-text">Event type</span>
+                  <input name="type" type="hidden" value={activeType} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      className={`${eventTypeCard} ${activeType === 'in-person-pop-up' ? eventTypeCardActive : eventTypeCardIdle}`}
+                      onClick={() => setSelectedType('in-person-pop-up')}
+                      type="button"
+                    >
+                      <span className="inline-flex size-10 items-center justify-center rounded-full bg-accent-light text-accent">
+                        <Icon name="location" />
+                      </span>
+                      <span>
+                        <strong className="block text-sm font-black">In-person pop-up</strong>
+                        <small className="mt-1 block text-xs leading-5 text-foose-muted">For physical events with a venue and meetup time.</small>
+                      </span>
+                    </button>
+                    <button
+                      className={`${eventTypeCard} ${activeType === 'online-pop-up' ? eventTypeCardActive : eventTypeCardIdle}`}
+                      onClick={() => setSelectedType('online-pop-up')}
+                      type="button"
+                    >
+                      <span className="inline-flex size-10 items-center justify-center rounded-full bg-accent-light text-accent">
+                        <Icon name="store" />
+                      </span>
+                      <span>
+                        <strong className="block text-sm font-black">Online pop-up</strong>
+                        <small className="mt-1 block text-xs leading-5 text-foose-muted">Host a timed shopping window from your DigiShop catalog.</small>
+                      </span>
+                    </button>
+                  </div>
+                </div>
               <label className="wide">
                 Title
                 <input defaultValue={event?.title || ''} name="title" placeholder="Accra Thrift Fest" required />
               </label>
               <label>
                 Date
-                <input defaultValue={event?.date ? event.date.slice(0, 10) : ''} name="date" required type="date" />
+                <StyledPickerInput defaultValue={event?.date ? event.date.slice(0, 10) : ''} name="date" required type="date" />
               </label>
               <label>
                 {activeType === 'online-pop-up' ? 'Start time' : 'Time'}
-                <input defaultValue={event?.startTime || ''} name="startTime" required type="time" />
+                <StyledPickerInput defaultValue={event?.startTime || ''} name="startTime" required type="time" />
               </label>
               {activeType === 'online-pop-up' ? (
                 <label>
                   End time
-                  <input defaultValue={event?.endTime || ''} name="endTime" required type="time" />
+                  <StyledPickerInput defaultValue={event?.endTime || ''} name="endTime" required type="time" />
                 </label>
               ) : (
                 <label>
@@ -122,19 +206,26 @@ export function CommunityEventFormPage() {
                 Description
                 <textarea defaultValue={event?.description || ''} name="description" placeholder="Optional details for attendees" rows={5} />
               </label>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-foose-border bg-white p-4 md:p-5">
               <label className="wide">
                 Cover image
+                <span className="text-sm font-normal leading-6 text-foose-muted">Optional, but a strong banner makes promoted events feel more trustworthy.</span>
                 <ImagePreviewInput accept={ACCEPT_IMAGES} existingImages={event?.coverImage ? [event.coverImage] : []} maxFiles={1} name="coverImage" />
                 {eventId && <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Choose a new image only if you want to replace the current cover.</span>}
               </label>
             </div>
 
             {activeType === 'online-pop-up' && (
-              <div className="info-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5">
-                <Icon name="store" />
-                <div>
-                  <strong>{eventTypeLabel({ type: activeType })}</strong>
-                  <p>
+              <div className="info-card flex flex-col gap-4 rounded-2xl border border-accent/25 bg-accent-light/60 p-4 shadow-sm md:flex-row md:p-5">
+                <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-accent">
+                  <Icon name="store" />
+                </span>
+                <div className="space-y-2">
+                  <strong className="block text-sm font-black text-foose-text">{eventTypeLabel({ type: activeType })}</strong>
+                  <p className="text-sm leading-6 text-foose-muted">
                     Online pop-ups are hosted on Foose and require a DigiShop so listings can be added to the pop-up catalog.
                   </p>
                   {onlineRequiresShop && <ButtonLink to="/open-shop" variant="secondary">Open your DigiShop</ButtonLink>}
@@ -144,7 +235,7 @@ export function CommunityEventFormPage() {
 
             {error && <ErrorState message={error} />}
 
-            <div className="form-actions flex flex-wrap items-center gap-3">
+            <div className="form-actions flex flex-col-reverse gap-3 border-t border-foose-border pt-5 sm:flex-row sm:items-center sm:justify-end">
               <ButtonLink to="/community?tab=events&scope=mine" variant="secondary">
                 Cancel
               </ButtonLink>

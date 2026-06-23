@@ -1,13 +1,18 @@
 import { useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, ErrorState } from '../components'
+import blueLogo from '../assets/foose-logo-blue.png'
+import { AppShell, ErrorState } from '../components'
+import { FaApple } from 'react-icons/fa'
+import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../hooks/useAuth'
 import { authHref, closeTargetForAuthModal, redirectFromSearch } from '../utils/authRedirect'
 import { getErrorMessage } from '../utils/errorMessage'
 import { navigateTo } from '../utils/navigation'
+import { startOAuth } from '../utils/oauth'
 
 export function LoginPage() {
   const { login, user } = useAuth()
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const redirectTarget = redirectFromSearch()
   const closeTarget = closeTargetForAuthModal(redirectTarget)
@@ -33,30 +38,51 @@ export function LoginPage() {
 
   return (
     <AppShell flush>
-      <section className="auth-modal-shell fixed inset-0 z-100 flex items-center justify-center p-4">
+      <section className="auth-modal-shell fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-4">
         <a aria-label="Close login" className="auth-modal-backdrop absolute inset-0 bg-black/45" href={closeTarget} />
-        <form className="form-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3 max-lg:rounded-lg max-lg:p-3 auth-card mx-auto w-full max-w-3xl p-5 md:p-8 auth-modal-card relative z-10" onSubmit={(event) => void handleSubmit(event)}>
+        <form className="form-card auth-card auth-modal-card relative z-10 mx-auto flex max-h-[92dvh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-2xl border border-accent/20 bg-white p-4 shadow-2xl shadow-black/20 sm:p-6 md:max-w-lg md:p-8 [&_h1]:font-display [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-accent sm:[&_h1]:text-4xl [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-accent/25 [&_input]:bg-accent-light/20 [&_input]:px-3 [&_input]:py-3 [&_input]:text-foose-text [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:bg-white [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15" onSubmit={(event) => void handleSubmit(event)}>
           <a aria-label="Close login" className="modal-close-button absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white hover:bg-black" href={closeTarget}>
             x
           </a>
-          <h1>Log in</h1>
-          <p>Sign in with your email or username. Your session uses secure tokens stored in this browser only.</p>
+          <header className="flex flex-col gap-3 border-b border-foose-border pb-4 pt-2">
+            <img alt="Foose" className="h-auto w-32 sm:w-36" src={blueLogo} />
+            <div>
+              <h1>Log in</h1>
+              <p className="mt-1 text-sm leading-6 text-foose-muted">Thrift smarter. Manage buying, selling, messages, and saved finds in one place.</p>
+            </div>
+          </header>
           {user && <p className="accent-text font-bold text-accent">You are already logged in.</p>}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light" onClick={() => startOAuth('google', redirectTarget)} type="button">
+              <FcGoogle size={20} /> Sign in with Gmail
+            </button>
+            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light" onClick={() => startOAuth('apple', redirectTarget)} type="button">
+              <FaApple size={20} /> Sign in with iCloud
+            </button>
+          </div>
           <label>
             Email or username
             <input autoComplete="username" name="identifier" required />
           </label>
           <label>
             Password
-            <input autoComplete="current-password" name="password" required type="password" />
+            <span className="relative block">
+              <input autoComplete="current-password" className="pr-24" name="password" required type={showPassword ? 'text' : 'password'} />
+              <button className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-3 py-1 text-xs font-bold text-accent hover:bg-accent-light" onClick={() => setShowPassword((value) => !value)} type="button">
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </span>
           </label>
           {error && <ErrorState message={error} />}
-          <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover full" disabled={submitting} type="submit">
+          <button className="button inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-accent bg-accent px-5 py-2.5 text-center text-sm font-bold text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full full" disabled={submitting} type="submit">
             {submitting ? 'Logging in...' : 'Log in'}
           </button>
-          <ButtonLink to={authHref('/register', redirectTarget)} variant="secondary">
-            Create account
-          </ButtonLink>
+          <p className="text-center text-sm text-foose-muted">
+            New here?{' '}
+            <a className="font-display font-bold text-accent hover:underline" href={authHref('/register', redirectTarget)}>
+              Create an account
+            </a>
+          </p>
         </form>
       </section>
     </AppShell>

@@ -1,9 +1,38 @@
 import { AppShell, ButtonLink, EmptyState, Icon, OrderSummary } from '../components'
+import { useEffect, useMemo, useState } from 'react'
 import { useCart } from '../hooks/useCart'
+import { apiGet } from '../lib/api'
+import type { Listing } from '../types/api'
 import { formatMoney } from '../utils/format'
 
 export function CartPage() {
   const cart = useCart()
+  const [listingStatuses, setListingStatuses] = useState<Record<string, Listing['status']>>({})
+  const listingIds = useMemo(() => cart.items.map((item) => item.listingId).join(','), [cart.items])
+
+  useEffect(() => {
+    const ids = listingIds.split(',').filter(Boolean)
+    if (!ids.length) {
+      setListingStatuses({})
+      return undefined
+    }
+
+    let mounted = true
+    void Promise.all(
+      ids.map((id) =>
+        apiGet<{ listing: Listing }>(`/listings/${encodeURIComponent(id)}`)
+          .then((result) => [id, result.listing.status] as const)
+          .catch(() => [id, undefined] as const),
+      ),
+    ).then((entries) => {
+      if (!mounted) return
+      setListingStatuses(Object.fromEntries(entries.filter((entry): entry is readonly [string, Listing['status']] => Boolean(entry[1]))))
+    })
+
+    return () => {
+      mounted = false
+    }
+  }, [listingIds])
 
   return (
     <AppShell active="browse" searchPlaceholder="Search curated finds...">
@@ -25,7 +54,14 @@ export function CartPage() {
           <section className="cart-items space-y-4">
             {cart.items.map((item) => (
               <article className="cart-item [&_img]:h-full [&_img]:w-full [&_img]:object-cover grid gap-4 rounded-xl border border-foose-border bg-foose-surface p-4 sm:grid-cols-[120px_minmax(0,1fr)_auto] [&_img]:aspect-square [&_img]:rounded-lg [&_h2]:text-xl [&_h2]:font-bold [&_.qty]:w-fit [&_.qty]:rounded-lg [&_.qty]:border [&_.qty]:border-foose-border [&>strong]:font-display [&>strong]:text-xl [&>strong]:text-accent max-md:grid-cols-[84px_minmax(0,1fr)] max-md:[&>strong]:col-span-2" key={item.listingId}>
-                {item.image ? <img alt={item.title} src={item.image} /> : <span className="image-placeholder flex min-h-32 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No image</span>}
+                <div className="relative">
+                  {(listingStatuses[item.listingId] || item.status) === 'sold' && (
+                    <span className="absolute left-2 top-2 z-10 rounded-full bg-foose-danger px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white">
+                      Sold
+                    </span>
+                  )}
+                  {item.image ? <img alt={item.title} src={item.image} /> : <span className="image-placeholder flex min-h-32 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No image</span>}
+                </div>
                 <div>
                   <h2>{item.title}</h2>
                   <p>Shop: {item.shopName}</p>

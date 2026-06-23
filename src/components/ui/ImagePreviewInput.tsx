@@ -39,6 +39,13 @@ export function ImagePreviewInput({
   const hasExistingImages = Boolean(existingImagesKey)
   const visibleFiles = useMemo(() => (maxFiles ? files.slice(0, maxFiles) : files), [files, maxFiles])
   const remainingSlots = Math.max((maxFiles || Number.POSITIVE_INFINITY) - keptImages.length - visibleFiles.length, 0)
+  const previewItems = useMemo(
+    () => [
+      ...keptImages.map((image, index) => ({ alt: `Current upload ${index + 1}`, src: image })),
+      ...visibleFiles.map((file, index) => ({ alt: `${file.name || 'Selected upload'} ${index + 1}`, src: file.url })),
+    ],
+    [keptImages, visibleFiles],
+  )
 
   function syncInputFiles(nextFiles: PreviewFile[]) {
     const input = inputRef.current
@@ -111,7 +118,7 @@ export function ImagePreviewInput({
         <div className="image-preview-grid mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 [&_img]:aspect-square [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_.lightbox-trigger]:aspect-square [&_.lightbox-trigger]:h-full [&_.lightbox-trigger]:w-full [&_.lightbox-trigger]:object-cover">
           {keptImages.map((image, index) => (
             <div className="image-preview-item relative overflow-hidden rounded-lg border border-foose-border" key={image}>
-              <LightboxImage alt={`Current upload ${index + 1}`} src={image} />
+              <LightboxImage alt={`Current upload ${index + 1}`} index={index} items={previewItems} src={image} />
               <button
                 aria-label={`Remove current upload ${index + 1}`}
                 className="image-preview-remove absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white hover:bg-black"
@@ -128,7 +135,7 @@ export function ImagePreviewInput({
         <div className="image-preview-grid mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 [&_img]:aspect-square [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_.lightbox-trigger]:aspect-square [&_.lightbox-trigger]:h-full [&_.lightbox-trigger]:w-full [&_.lightbox-trigger]:object-cover">
           {visibleFiles.map((file, index) => (
             <div className="image-preview-item relative overflow-hidden rounded-lg border border-foose-border" key={file.id}>
-              <LightboxImage alt={`${file.name || 'Selected upload'} ${index + 1}`} src={file.url} />
+              <LightboxImage alt={`${file.name || 'Selected upload'} ${index + 1}`} index={keptImages.length + index} items={previewItems} src={file.url} />
               <button
                 aria-label={`Remove selected upload ${index + 1}`}
                 className="image-preview-remove absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white hover:bg-black"

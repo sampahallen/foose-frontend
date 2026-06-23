@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { apiGet, apiPost, clearStoredTokens, getStoredTokens, storeTokens } from '../lib/api'
-import type { AuthPayload, User } from '../types/api'
+import type { AuthPayload, AuthTokens, User } from '../types/api'
 import { AuthContext, type AuthStatus } from './auth-context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -74,6 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyAuth],
   )
 
+  const completeOAuth = useCallback(
+    (tokens: AuthTokens) => {
+      storeTokens(tokens)
+      setStatus('checking')
+    },
+    [],
+  )
+
   const logout = useCallback(async () => {
     const refreshToken = getStoredTokens()?.refreshToken
 
@@ -87,8 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [becomeGuest])
 
   const value = useMemo(
-    () => ({ login, logout, refreshUser, register, status, user }),
-    [login, logout, refreshUser, register, status, user],
+    () => ({ completeOAuth, login, logout, refreshUser, register, status, user }),
+    [completeOAuth, login, logout, refreshUser, register, status, user],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

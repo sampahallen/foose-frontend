@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
+import { IoMegaphone } from 'react-icons/io5'
 import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, Icon, LightboxImage, LoadingState, SectionHeader } from '../components'
 import { useApiResource } from '../hooks/useApiResource'
-import { apiDelete, apiPost, apiPut } from '../lib/api'
+import { apiDelete, apiPost } from '../lib/api'
 import type { Event, Listing } from '../types/api'
-import { concreteEventListings, eventHostName, eventTimeLabel, eventTypeLabel, eventWindowHasClosed, eventWindowHasOpened, isOnlinePopUp } from '../utils/events'
+import { concreteEventListings, eventHostName, eventTimeLabel, eventTimeTerm, eventTypeLabel, eventWindowHasClosed, eventWindowHasOpened, isOnlinePopUp } from '../utils/events'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatMoney, getListingImage, listingMeta } from '../utils/format'
 import { getCurrentAppPathname, navigateTo, withBasePath } from '../utils/navigation'
+import { eventPromotionPackages, startPromotionCheckout, type PromotionPackageName } from '../utils/promotions'
 
 function eventIdFromPath() {
   const match = getCurrentAppPathname().match(/^\/community\/events\/([^/]+)\/manage/)
@@ -18,6 +20,8 @@ function attachedListingIds(listings: Listing[]) {
 }
 
 function isPromoted(event: Event) {
+  if (event.status === 'past') return false
+  if (event.promotionExpiresAt && new Date(event.promotionExpiresAt).getTime() <= Date.now()) return false
   return Boolean(event.promotionTags?.some((tag) => ['featured', 'home-featured', 'home-banner'].includes(tag)))
 }
 
@@ -33,6 +37,7 @@ export function EventManagementPage() {
   const [selectedListingId, setSelectedListingId] = useState('')
   const [actionError, setActionError] = useState('')
   const [actionStatus, setActionStatus] = useState('')
+  const [eventPromotionPackage, setEventPromotionPackage] = useState<PromotionPackageName>('basic')
   const catalogOpen = event ? eventWindowHasOpened(event) && !eventWindowHasClosed(event) : false
 
   async function refreshEvent() {
@@ -70,12 +75,9 @@ export function EventManagementPage() {
     setActionError('')
     setActionStatus('')
     try {
-      const promotionTags = Array.from(new Set([...(event.promotionTags || []), 'featured', 'home-featured']))
-      await apiPut(`/community/events/${eventId}`, { promotionTags })
-      setActionStatus('Event promoted.')
-      await refreshEvent()
+      await startPromotionCheckout('event', event._id, eventPromotionPackage)
     } catch (err) {
-      setActionError(getErrorMessage(err, 'Could not promote this event'))
+      setActionError(getErrorMessage(err, 'Could not start event promotion'))
     }
   }
 
@@ -120,7 +122,7 @@ export function EventManagementPage() {
             <Icon name="arrow" /> Back to my events
           </a>
           <h1>{event?.title || 'Event management'}</h1>
-          {event && <p>{eventTimeLabel(event)} · {eventTypeLabel(event)}</p>}
+          {event && <p>{eventTimeLabel(event)} - {eventTypeLabel(event)}</p>}
         </div>
       </div>
 
@@ -133,10 +135,10 @@ export function EventManagementPage() {
       {event && (
         <>
           <section className="event-management-summary grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] max-lg:grid-cols-1">
-            <div className="event-management-cover overflow-hidden rounded-lg bg-foose-surface-mid [&_img]:h-full [&_img]:w-full [&_img]:object-cover aspect-[16/10]">
+            <div className="event-management-cover overflow-hidden rounded-xl border border-foose-border bg-foose-surface-mid [&_.lightbox-trigger]:h-full [&_.lightbox-trigger]:w-full [&_img]:h-full [&_img]:w-full [&_img]:object-contain aspect-[16/10]">
               {event.coverImage ? <LightboxImage alt={event.title} src={event.coverImage} /> : <span className="image-placeholder flex min-h-32 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No event banner</span>}
             </div>
-            <div className="event-management-panel rounded-xl border border-foose-border bg-foose-surface p-5">
+            <div className="event-management-panel flex flex-col gap-5 rounded-xl border border-foose-border bg-foose-surface p-5 shadow-sm md:p-6 [&>h2]:text-2xl [&>h2]:font-bold [&>p]:text-sm [&>p]:leading-6 [&>p]:text-foose-muted">
               <div className="badge-row flex flex-wrap items-center gap-3">
                 <Badge tone={event.status === 'ongoing' ? 'warning' : event.status === 'past' ? 'neutral' : 'accent'}>{event.status || 'upcoming'}</Badge>
                 <Badge>{eventTypeLabel(event)}</Badge>
@@ -149,7 +151,7 @@ export function EventManagementPage() {
                   <dd>{eventHostName(event)}</dd>
                 </div>
                 <div>
-                  <dt>Window</dt>
+                  <dt>{eventTimeTerm(event)}</dt>
                   <dd>{eventTimeLabel(event)}</dd>
                 </div>
                 <div>
@@ -164,9 +166,23 @@ export function EventManagementPage() {
                 {isPromoted(event) ? (
                   <span className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent event-promotion-pill pointer-events-none bg-accent-light text-accent">Promoted</span>
                 ) : (
-                  <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void promoteEvent()} type="button">
-                    Promote
-                  </button>
+                  <span className="grid gap-2 sm:min-w-56">
+                    <select
+                      aria-label="Event promotion package"
+                      className="h-10 rounded-lg border border-foose-border bg-white px-3 text-sm font-bold text-foose-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
+                      onChange={(input) => setEventPromotionPackage(input.target.value as PromotionPackageName)}
+                      value={eventPromotionPackage}
+                    >
+                      {eventPromotionPackages.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void promoteEvent()} type="button">
+                      <IoMegaphone /> Promote
+                    </button>
+                  </span>
                 )}
                 <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void deleteEvent()} type="button">
                   Delete

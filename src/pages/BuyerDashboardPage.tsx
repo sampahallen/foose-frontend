@@ -3,10 +3,13 @@ import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import type { Order } from '../types/api'
 import { formatMoney } from '../utils/format'
+import { isHistoricalOrder } from '../utils/orderStatus'
 
 export function BuyerDashboardPage() {
   const { user } = useAuth()
   const orders = useApiResource<{ orders: Order[] }>('/orders/me/buying')
+  const activeOrders = (orders.data?.orders || []).filter((order) => !isHistoricalOrder(order))
+  const historyOrders = (orders.data?.orders || []).filter(isHistoricalOrder)
 
   return (
     <AppShell>
@@ -35,16 +38,16 @@ export function BuyerDashboardPage() {
         <SectionHeader title="Active Orders" action={<a href="/orders">View All &gt;</a>} />
         {orders.loading && <LoadingState label="Loading orders..." />}
         {orders.error && <ErrorState message={orders.error} retry={orders.refetch} />}
-        {!orders.loading && !orders.error && !orders.data?.orders.length && (
+        {!orders.loading && !orders.error && !activeOrders.length && (
           <EmptyState
             action={<ButtonLink to="/browse">Browse listings</ButtonLink>}
             body="Orders you place will appear here."
             title="No active orders"
           />
         )}
-        {!!orders.data?.orders.length && (
+        {!!activeOrders.length && (
           <div className="order-card-grid grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {orders.data.orders.slice(0, 3).map((order) => (
+            {activeOrders.slice(0, 3).map((order) => (
               <article className="order-card [&_img]:h-full [&_img]:w-full [&_img]:object-cover overflow-hidden rounded-xl border border-foose-border bg-foose-surface [&_img]:aspect-[16/9] [&_div]:p-4" key={order._id}>
                 <div>
                   <Badge>{order.status}</Badge>
@@ -63,6 +66,7 @@ export function BuyerDashboardPage() {
           {[
             ['Browse listings', '/browse'],
             ['Inbox', '/inbox'],
+            [`Order history (${historyOrders.length})`, '/orders/history'],
             ['KYC status', '/kyc'],
             ['Wallet', '/wallet'],
           ].map(([label, href]) => (
@@ -72,7 +76,7 @@ export function BuyerDashboardPage() {
           ))}
         </div>
       </section>
-      <RecentOrders orders={orders.data?.orders || []} />
+      <RecentOrders orders={historyOrders} />
     </AppShell>
   )
 }

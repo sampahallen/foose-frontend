@@ -103,7 +103,7 @@ export function OrderConfirmedPage() {
               ))}
             </div>
             <div className="button-row flex flex-wrap items-center gap-3 center">
-              <ButtonLink to="/profile">View profile orders</ButtonLink>
+              <ButtonLink to="/orders">View orders</ButtonLink>
               <ButtonLink to="/browse" variant="secondary">
                 Continue shopping
               </ButtonLink>

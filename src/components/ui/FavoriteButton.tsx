@@ -70,7 +70,7 @@ export function FavoriteButton({
     if (!user && status === 'checking') return
 
     if (!user) {
-      navigateTo(authHref('/register'))
+      navigateTo(authHref('/login'))
       return
     }
 

@@ -14,7 +14,7 @@ function savedTab(): SavedTab {
 }
 
 function authorName(post: GalleryPost) {
-  if (post.userId && typeof post.userId === 'object') return post.userId.name
+  if (post.userId && typeof post.userId === 'object') return `@${post.userId.username}`
   return 'Foose member'
 }
 
@@ -65,7 +65,7 @@ export function SavedPage() {
           <SectionHeader title="Favorite items" eyebrow={`${data.listings.length} saved`} />
           {!data.listings.length && <EmptyState body="Tap the heart on a listing to save it here." title="No favorite items yet" />}
           {!!data.listings.length && (
-            <div className="product-grid grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 [&.four]:grid-cols-2 [&.four]:lg:grid-cols-4 max-md:grid-cols-2 max-md:gap-3 max-md:[&.four]:grid-cols-2 max-md:[&.four]:gap-3 four">
+            <div className="product-grid grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {data.listings.map((listing) => (
                 <ProductCard key={listing._id} listing={listing} />
               ))}
@@ -79,9 +79,9 @@ export function SavedPage() {
           <SectionHeader title="Saved events" eyebrow={`${data.events.length} saved`} />
           {!data.events.length && <EmptyState body="Save public events from Community to revisit them here." title="No saved events yet" />}
           {!!data.events.length && (
-            <div className="event-grid grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="event-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {data.events.map((event) => (
-                <article className="event-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:leading-tight [&_h2]:md:text-lg [&_p]:text-xs [&_p]:uppercase [&_p]:tracking-wide [&_p]:text-foose-faint overflow-hidden p-0 [&>div:last-child]:flex [&>div:last-child]:flex-col [&>div:last-child]:gap-3 [&>div:last-child]:p-4 [&_.button]:w-full [&_.table-actions_.button]:w-full" key={event._id}>
+                <article className="event-card rounded-lg border border-foose-border bg-foose-surface shadow-sm [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:leading-tight [&_p]:text-[11px] [&_p]:uppercase [&_p]:tracking-wide [&_p]:text-foose-faint overflow-hidden p-0 [&>div:last-child]:flex [&>div:last-child]:flex-col [&>div:last-child]:gap-2 [&>div:last-child]:p-3 [&_.button]:min-h-9 [&_.button]:w-full [&_.button]:px-3 [&_.button]:py-2 [&_.table-actions_.button]:w-full" key={event._id}>
                   <div className="event-image overflow-hidden rounded-lg bg-foose-surface-mid [&_img]:h-full [&_img]:w-full [&_img]:object-cover aspect-[16/9] rounded-none">
                     {event.coverImage ? <img alt="" src={event.coverImage} /> : <span className="image-placeholder flex min-h-32 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No image</span>}
                   </div>
@@ -94,7 +94,7 @@ export function SavedPage() {
                       <Icon name="location" /> {event.location || 'Location pending'}
                     </p>
                     <FavoriteButton
-                      className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent favorite-button [&.is-active]:bg-foose-danger-bg [&.is-active]:text-foose-danger"
+                      className="button inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-center text-xs font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent favorite-button [&.is-active]:bg-accent [&.is-active]:text-white"
                       onChange={(active) => {
                         if (!active) void favorites.refetch()
                       }}
@@ -115,7 +115,7 @@ export function SavedPage() {
           <SectionHeader title="Liked Finspo" eyebrow={`${data.finspos.length} liked`} />
           {!data.finspos.length && <EmptyState body="Like Finspo posts in Community to collect them here." title="No liked Finspo yet" />}
           {!!data.finspos.length && (
-            <div className="finspo-masonry columns-2 gap-3 md:columns-3 lg:columns-4 max-md:columns-2 max-md:gap-2">
+            <div className="finspo-masonry columns-2 gap-2 md:columns-3 lg:columns-5 max-md:columns-2 max-md:gap-2">
               {data.finspos.map((post) => (
                 <article className="finspo-tile relative mb-3 break-inside-avoid max-md:mb-2" key={post._id}>
                   <a
@@ -126,11 +126,11 @@ export function SavedPage() {
                   >
                     <img alt="" src={post.imageUrl} />
                   </a>
-                  <a className="finspo-author-link mt-2 flex items-center gap-2 text-sm font-semibold text-foose-muted" href={authorHref(post)}>
+                  <a className="finspo-author-link mt-1 flex items-center gap-2 text-xs font-semibold text-foose-muted" href={authorHref(post)}>
                     {authorName(post)}
                   </a>
                   <FavoriteButton
-                    className="floating-round inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent absolute right-3 top-3 z-10 bg-white/90 shadow favorite-button [&.is-active]:bg-foose-danger-bg [&.is-active]:text-foose-danger"
+                    className="floating-round inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent absolute right-2 top-2 z-10 bg-white/90 shadow favorite-button [&.is-active]:bg-accent [&.is-active]:text-white"
                     onChange={(active) => {
                       if (!active) void favorites.refetch()
                     }}

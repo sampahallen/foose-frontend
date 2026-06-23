@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { getAppName } from '../../config/env'
 import { useAuth } from '../../hooks/useAuth'
+import { useApiResource } from '../../hooks/useApiResource'
+import type { ChatConversation } from '../../types/api'
 import { authHref, currentRedirectTarget } from '../../utils/authRedirect'
 import { initials } from '../../utils/format'
 import { navigateTo, withBasePath } from '../../utils/navigation'
@@ -18,10 +20,13 @@ export function TopNav({
   const [menuOpen, setMenuOpen] = useState(false)
   const [drawerReady, setDrawerReady] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-  const profileMenuRef = useRef<HTMLDivElement | null>(null)
+  const desktopProfileMenuRef = useRef<HTMLDivElement | null>(null)
+  const mobileProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const brand = getAppName()
   const placeholder = searchPlaceholder ?? `Search ${brand}`
   const redirectTarget = currentRedirectTarget()
+  const conversationPreview = useApiResource<{ conversations: ChatConversation[] }>('/chat?page=1&limit=8', Boolean(user))
+  const hasUnreadMessages = Boolean(conversationPreview.data?.conversations.some((conversation) => conversation.unreadCount > 0))
 
   useEffect(() => {
     if (!menuOpen) return undefined
@@ -34,7 +39,8 @@ export function TopNav({
     if (!profileMenuOpen) return undefined
 
     function closeOnOutsideClick(event: MouseEvent) {
-      if (profileMenuRef.current?.contains(event.target as Node)) return
+      const target = event.target as Node
+      if (desktopProfileMenuRef.current?.contains(target) || mobileProfileMenuRef.current?.contains(target)) return
       setProfileMenuOpen(false)
     }
 
@@ -80,15 +86,75 @@ export function TopNav({
           <a aria-label={`${brand} home`} className="brand-logo inline-flex min-w-20 items-center font-display text-xl font-bold [&_img]:h-auto [&_img]:w-20 [&_img]:md:w-[86px]" href={withBasePath('/')}>
             <img src={whiteLogo} alt="" />
           </a>
-          <button
-            aria-expanded={menuOpen}
-            aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
-            className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent mobile-menu-button ml-auto lg:hidden max-lg:!inline-flex lg:!hidden"
-            onClick={menuOpen ? closeMenu : openMenu}
-            type="button"
-          >
-            <Icon name="menu" />
-          </button>
+          <div className="mobile-nav-actions ml-auto flex items-center gap-1 lg:hidden">
+            {user?.hasShop && (
+              <a aria-label="Manage shop" className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white" href={withBasePath('/manage-shop')}>
+                <Icon name="store" />
+              </a>
+            )}
+            {user ? (
+              <div className="profile-menu-wrap relative" ref={mobileProfileMenuRef}>
+                <button
+                  aria-expanded={profileMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label="Open profile menu"
+                  className={`avatar-link inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white [&_span]:inline-flex [&_span]:size-10 [&_span]:shrink-0 [&_span]:items-center [&_span]:justify-center [&_span]:rounded-full [&_span]:bg-white/10 [&_span]:text-sm [&_span]:font-bold [&_span]:text-white [&_img]:inline-flex [&_img]:size-10 [&_img]:shrink-0 [&_img]:items-center [&_img]:justify-center [&_img]:rounded-full [&_img]:bg-white/10 [&_img]:text-sm [&_img]:font-bold [&_img]:text-white [&_img]:object-cover profile-menu-trigger border border-white/25 ${active === 'profile' ? 'active' : ''} `}
+                  onClick={() => setProfileMenuOpen((open) => !open)}
+                  type="button"
+                >
+                  {user.profilePhoto ? <img alt="" src={user.profilePhoto} /> : <span aria-hidden>{initials(user.name)}</span>}
+                </button>
+                {profileMenuOpen && (
+                  <div className="profile-dropdown fixed right-4 top-16 z-[95] w-[min(90vw,18rem)] rounded-xl border border-foose-border bg-foose-surface p-3 text-foose-text shadow-2xl [&_hr]:my-2 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-foose-border" role="menu">
+                    <div className="profile-dropdown-head [&_img]:object-cover flex items-center gap-3 p-2 [&>span]:size-12 [&>span]:rounded-full [&_img]:size-12 [&_img]:rounded-full [&_div]:flex [&_div]:min-w-0 [&_div]:flex-col [&_strong]:truncate [&_strong]:text-sm [&_strong]:font-bold [&_small]:truncate [&_small]:text-xs [&_small]:text-foose-faint">
+                      {user.profilePhoto ? <img alt="" src={user.profilePhoto} /> : <span aria-hidden>{initials(user.name)}</span>}
+                      <div>
+                        <strong>{user.name}</strong>
+                        <small>@{user.username}</small>
+                      </div>
+                    </div>
+                    <hr />
+                    <div className="profile-dropdown-links flex flex-col gap-1 [&_a]:rounded-lg [&_a]:px-3 [&_a]:py-2 [&_a]:text-left [&_a]:text-sm [&_a]:font-semibold [&_a]:transition [&_a]:hover:bg-foose-surface-low">
+                      <a className="!bg-accent-light !text-accent hover:!bg-accent hover:!text-white" href={withBasePath('/orders')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        My orders
+                      </a>
+                      <span className="profile-dropdown-spacer h-3" />
+                      <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        Profile settings
+                      </a>
+                      <a href={withBasePath('/profile?panel=account')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        Account settings
+                      </a>
+                      <a href={withBasePath('/inbox?support=true')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        Help and support
+                      </a>
+                      <span className="profile-dropdown-spacer h-6" />
+                      <a href={withBasePath('/profile?panel=settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        Settings
+                      </a>
+                    </div>
+                    <hr />
+                    <button className="profile-dropdown-logout w-full rounded-lg border-0 bg-transparent px-3 py-2 text-left text-sm font-semibold text-foose-danger transition hover:bg-foose-surface-low" onClick={handleLogout} role="menuitem" type="button">
+                      Log out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : status === 'checking' ? null : (
+              <a aria-label="Log in" className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white" href={authHref('/login', redirectTarget)}>
+                <Icon name="user" />
+              </a>
+            )}
+            <button
+              aria-expanded={menuOpen}
+              aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
+              className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white mobile-menu-button"
+              onClick={menuOpen ? closeMenu : openMenu}
+              type="button"
+            >
+              <Icon name="menu" />
+            </button>
+          </div>
           <nav className="nav-links hidden items-center gap-6 lg:flex [&_a]:rounded-full [&_a]:px-3 [&_a]:py-2 [&_a]:text-sm [&_a]:font-semibold [&_a]:text-white/85 [&_a]:transition [&_a]:hover:bg-white/10 [&_a]:hover:text-white [&_a.active]:bg-white [&_a.active]:text-accent" aria-label="Primary navigation">
             <a className={active === 'home' ? 'active' : ''} href={withBasePath('/')}>
               Home
@@ -113,15 +179,16 @@ export function TopNav({
             </a>
             {user ? (
               <>
-                <a aria-label="Inbox" className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent" href={withBasePath('/inbox')}>
+                <a aria-label="Inbox" className="icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent" href={withBasePath('/inbox')}>
                   <Icon name="mail" />
+                  {hasUnreadMessages && <span aria-hidden className="absolute right-2 top-2 size-2.5 rounded-full bg-red-500 ring-2 ring-accent" />}
                 </a>
                 {user.hasShop && (
                   <a aria-label="Manage shop" className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent" href={withBasePath('/manage-shop')}>
                     <Icon name="store" />
                   </a>
                 )}
-                <div className="profile-menu-wrap relative" ref={profileMenuRef}>
+                <div className="profile-menu-wrap relative" ref={desktopProfileMenuRef}>
                   <button
                     aria-expanded={profileMenuOpen}
                     aria-haspopup="menu"
@@ -143,7 +210,11 @@ export function TopNav({
                       </div>
                       <hr />
                       <div className="profile-dropdown-links flex flex-col gap-1 [&_a]:rounded-lg [&_a]:px-3 [&_a]:py-2 [&_a]:text-left [&_a]:text-sm [&_a]:font-semibold [&_a]:transition [&_a]:hover:bg-foose-surface-low">
-                        <a href={withBasePath('/profile')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        <a className="!bg-accent-light !text-accent hover:!bg-accent hover:!text-white" href={withBasePath('/orders')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                          My orders
+                        </a>
+                        <span className="profile-dropdown-spacer h-3" />
+                        <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                           Profile settings
                         </a>
                         <a href={withBasePath('/profile?panel=account')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
@@ -179,37 +250,64 @@ export function TopNav({
       {menuOpen && (
         <button
           aria-label="Close navigation"
-          className="mobile-nav-backdrop fixed inset-x-0 top-16 bottom-0 z-80 border-0 bg-black/35 lg:hidden open max-lg:!block lg:!hidden"
+          className="mobile-nav-backdrop fixed inset-0 z-[80] border-0 bg-black/40 lg:hidden"
           onClick={closeMenu}
           type="button"
         />
       )}
       {menuOpen && (
-        <nav className={`mobile-nav-panel [&_a]:rounded-full [&_a]:px-3 [&_a]:py-2 [&_a]:text-sm [&_a]:font-semibold [&_a]:text-white/85 [&_a]:transition [&_a]:hover:bg-white/10 [&_a]:hover:text-white [&_.nav-link-button]:rounded-full [&_.nav-link-button]:px-3 [&_.nav-link-button]:py-2 [&_.nav-link-button]:text-sm [&_.nav-link-button]:font-semibold [&_.nav-link-button]:text-white/85 [&_.nav-link-button]:transition [&_.nav-link-button]:hover:bg-white/10 [&_.nav-link-button]:hover:text-white [&_a.active]:bg-white [&_a.active]:text-accent fixed top-16 right-0 bottom-0 z-90 hidden h-[calc(100dvh-4rem)] w-[min(82vw,320px)] translate-x-full flex-col gap-2 overflow-y-auto border-l border-white/25 bg-accent-strong px-4 py-5 pb-28 text-white shadow-2xl transition-transform duration-200 lg:hidden [&.open]:flex [&.open]:translate-x-0 ${drawerReady ? 'open' : ''} max-lg:!flex lg:!hidden`} aria-label="Mobile navigation menu">
-          <a className={active === 'home' ? 'active' : ''} href={withBasePath('/')} onClick={closeMenu}>
-            Home
-          </a>
-          <a className={active === 'browse' ? 'active' : ''} href={withBasePath('/browse')} onClick={closeMenu}>
-            Browse
-          </a>
-          <a className={active === 'community' ? 'active' : ''} href={withBasePath('/community')} onClick={closeMenu}>
-            Community
-          </a>
+        <nav className={`mobile-nav-panel fixed inset-y-0 right-0 z-[90] flex h-dvh w-[min(84vw,340px)] flex-col overflow-y-auto overscroll-contain border-l border-white/25 bg-accent-strong px-5 pb-28 pt-20 text-white shadow-2xl transition-transform duration-200 ease-out lg:hidden [&_a]:rounded-full [&_a]:px-4 [&_a]:py-3 [&_a]:text-sm [&_a]:font-semibold [&_a]:text-white/90 [&_a]:transition [&_a]:hover:bg-white/10 [&_a]:hover:text-white [&_a.active]:bg-white [&_a.active]:text-accent [&_.nav-link-button]:rounded-full [&_.nav-link-button]:px-4 [&_.nav-link-button]:py-3 [&_.nav-link-button]:text-sm [&_.nav-link-button]:font-semibold [&_.nav-link-button]:text-white/90 [&_.nav-link-button]:transition [&_.nav-link-button]:hover:bg-white/10 [&_.nav-link-button]:hover:text-white [&_.danger-action]:text-red-200 [&_.danger-action]:hover:bg-red-500/15 [&_.danger-action]:hover:text-white ${drawerReady ? 'translate-x-0' : 'translate-x-full'}`} aria-label="Mobile navigation menu">
+          <div className="flex flex-col gap-2">
+            <a className={active === 'home' ? 'active' : ''} href={withBasePath('/')} onClick={closeMenu}>
+              Home
+            </a>
+            <a className={active === 'browse' ? 'active' : ''} href={withBasePath('/browse')} onClick={closeMenu}>
+              Browse
+            </a>
+            <a className={active === 'community' ? 'active' : ''} href={withBasePath('/community')} onClick={closeMenu}>
+              Community
+            </a>
+          </div>
           {user ? (
-            <button className="nav-link-button border-0 bg-transparent text-left" onClick={handleLogout} type="button">
-              Log out
-            </button>
+            <>
+              <div className="mt-16 flex flex-col gap-2">
+                <a className={active === 'profile' ? 'active' : ''} href={withBasePath('/profile')} onClick={closeMenu}>
+                  Profile
+                </a>
+                {user.hasShop && (
+                  <a href={withBasePath('/manage-shop')} onClick={closeMenu}>
+                    Manage shop
+                  </a>
+                )}
+              </div>
+              <div className="mt-16 flex flex-col gap-2">
+                <a href={withBasePath('/inbox?support=true')} onClick={closeMenu}>
+                  Help & support
+                </a>
+                <a href={withBasePath('/profile?panel=settings')} onClick={closeMenu}>
+                  Settings
+                </a>
+              </div>
+              <div className="mt-16 flex flex-col">
+                <button className="nav-link-button danger-action border-0 bg-transparent text-left" onClick={handleLogout} type="button">
+                  Log out
+                </button>
+              </div>
+            </>
           ) : status === 'checking' ? (
             <span className="mobile-nav-status rounded-lg bg-white/10 px-3 py-2 text-sm text-white/80">Checking session...</span>
           ) : (
-            <>
+            <div className="mt-16 flex flex-col gap-2">
               <a href={authHref('/login', redirectTarget)} onClick={closeMenu}>
                 Log in
               </a>
               <a href={authHref('/register', redirectTarget)} onClick={closeMenu}>
                 Sign up
               </a>
-            </>
+              <a href={withBasePath('/inbox?support=true')} onClick={closeMenu}>
+                Help & support
+              </a>
+            </div>
           )}
         </nav>
       )}

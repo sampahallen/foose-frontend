@@ -76,7 +76,24 @@ export const LISTING_BRANDS = [
   'Unbranded',
 ]
 
-export const LISTING_CONDITIONS = ['new', 'used'] as const
+export const LISTING_CONDITIONS = ['excellent', 'great', 'good', 'fair', 'poor'] as const
+
+export const LISTING_COLORS = [
+  { hex: '#e10600', label: 'Red', value: 'red' },
+  { hex: '#973131', label: 'Burgundy', value: 'burgundy' },
+  { hex: '#ff6500', label: 'Orange', value: 'orange' },
+  { hex: '#ed5aae', label: 'Pink', value: 'pink' },
+  { hex: '#5b20d6', label: 'Purple', value: 'purple' },
+  { hex: '#1179bd', label: 'Blue', value: 'blue' },
+  { hex: '#002b5f', label: 'Navy', value: 'navy' },
+  { hex: '#49a900', label: 'Green', value: 'green' },
+  { hex: '#9c8a16', label: 'Khaki', value: 'khaki' },
+  { hex: 'conic-gradient(#e10600, #ffcc00, #38b000, #1179bd, #5b20d6, #e10600)', label: 'Multi', value: 'multi' },
+  { hex: 'linear-gradient(135deg,#777,#f6f6f6)', label: 'Silver', value: 'silver' },
+  { hex: '#d5b43f', label: 'Gold', value: 'gold' },
+] as const
+
+export type ListingColor = (typeof LISTING_COLORS)[number]['value']
 
 export function sizePlaceholderForCategory(category?: string) {
   return LISTING_CATEGORIES.find((item) => item.label === category)?.sizePlaceholder || 'M, L, XL, W32, UK 8...'

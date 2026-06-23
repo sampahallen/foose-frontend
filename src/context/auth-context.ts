@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import type { User } from '../types/api'
+import type { AuthTokens, User } from '../types/api'
 
 export type AuthStatus = 'checking' | 'guest' | 'authenticated'
 
@@ -15,6 +15,7 @@ export type AuthContextValue = {
     phone?: string
     location?: { region?: string; city?: string }
   }) => Promise<void>
+  completeOAuth: (tokens: AuthTokens) => void
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
 }

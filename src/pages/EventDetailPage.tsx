@@ -3,7 +3,7 @@ import { AppShell, Badge, EmptyState, ErrorState, FavoriteButton, Icon, Lightbox
 import { useApiResource } from '../hooks/useApiResource'
 import { useCart } from '../hooks/useCart'
 import type { Event, Listing } from '../types/api'
-import { concreteEventListings, eventHostHref, eventHostName, eventTimeLabel, eventTypeLabel, eventWindowHasClosed, eventWindowHasOpened, isOnlinePopUp } from '../utils/events'
+import { concreteEventListings, eventHostHref, eventHostName, eventTimeLabel, eventTimeTerm, eventTypeLabel, eventWindowHasClosed, eventWindowHasOpened, isOnlinePopUp } from '../utils/events'
 import { formatMoney, getListingImage, listingMeta } from '../utils/format'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
 
@@ -71,15 +71,18 @@ export function EventDetailPage() {
 
       {event && (
         <section className="event-detail grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] max-lg:grid-cols-1">
-          <div className="event-detail-media overflow-hidden rounded-lg bg-foose-surface-mid [&_img]:h-full [&_img]:w-full [&_img]:object-cover aspect-[16/10]">
+          <div className="event-detail-media overflow-hidden rounded-xl border border-foose-border bg-foose-surface-mid [&_.lightbox-trigger]:h-full [&_.lightbox-trigger]:w-full [&_img]:h-full [&_img]:w-full [&_img]:object-contain aspect-[16/10]">
             {event.coverImage ? <LightboxImage alt={event.title} src={event.coverImage} /> : <span className="image-placeholder flex min-h-32 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No event banner</span>}
           </div>
-          <div className="event-detail-panel rounded-xl border border-foose-border bg-foose-surface p-5">
-            <Badge tone={event.promotionTags?.length ? 'accent' : 'neutral'}>{event.promotionTags?.length ? 'Promoted' : event.status || event.type}</Badge>
+          <div className="event-detail-panel flex flex-col gap-5 rounded-xl border border-foose-border bg-foose-surface p-5 shadow-sm md:p-6 [&>h2]:text-2xl [&>h2]:font-bold [&>p]:text-sm [&>p]:leading-6 [&>p]:text-foose-muted">
+            <div className="badge-row flex flex-wrap items-center gap-2">
+              <Badge tone={event.promotionTags?.length ? 'accent' : 'neutral'}>{event.promotionTags?.length ? 'Promoted' : event.status || event.type}</Badge>
+              <Badge>{eventTypeLabel(event)}</Badge>
+            </div>
             <h2>{event.title}</h2>
-            <dl className="event-detail-list grid gap-3 sm:grid-cols-2 [&_div]:rounded-lg [&_div]:bg-foose-surface-low [&_div]:p-3 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:tracking-widest [&_dt]:text-foose-faint [&_dd]:mt-1 [&_dd]:text-sm [&_dd]:font-semibold [&_dd]:text-foose-text">
+            <dl className="event-detail-list grid gap-3 sm:grid-cols-2 [&_div]:rounded-lg [&_div]:border [&_div]:border-foose-border [&_div]:bg-foose-surface-low [&_div]:p-3 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:tracking-widest [&_dt]:text-foose-faint [&_dd]:mt-1 [&_dd]:text-sm [&_dd]:font-semibold [&_dd]:text-foose-text">
               <div>
-                <dt>Window</dt>
+                <dt>{eventTimeTerm(event)}</dt>
                 <dd>{eventTimeLabel(event)}</dd>
               </div>
               <div>
@@ -107,7 +110,7 @@ export function EventDetailPage() {
                 </div>
               </div>
             )}
-            <FavoriteButton className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover favorite-button [&.is-active]:bg-foose-danger-bg [&.is-active]:text-foose-danger" showText targetId={event._id} targetType="event" />
+            <FavoriteButton className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" showText targetId={event._id} targetType="event" />
           </div>
         </section>
       )}

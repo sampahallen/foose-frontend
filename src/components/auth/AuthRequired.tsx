@@ -19,14 +19,14 @@ export function AuthRequired({
 
   useEffect(() => {
     if (status === 'guest' && !user) {
-      navigateTo(authHref('/register', redirectTarget))
+      navigateTo(authHref('/login', redirectTarget))
     }
   }, [redirectTarget, status, user])
 
   if (status === 'checking') return <LoadingState label="Checking your session..." />
 
   if (!user) {
-    return <LoadingState label="Redirecting to sign up..." />
+    return <LoadingState label="Redirecting to sign in..." />
   }
 
   if (adminOnly && user.role !== 'admin') {

@@ -24,6 +24,7 @@ export type User = {
   email: string
   username: string
   phone?: string
+  bio?: string
   profilePhoto?: string
   role: 'user' | 'admin'
   isEmailVerified: boolean
@@ -61,6 +62,10 @@ export type Shop = {
     bankName?: string
     branch?: string
   }
+  socialLinks?: {
+    instagram?: string
+    whatsapp?: string
+  }
 }
 
 export type Listing = {
@@ -72,7 +77,8 @@ export type Listing = {
   brand?: string
   size?: string
   gender?: 'men' | 'women' | 'unisex' | 'kids'
-  condition?: 'new' | 'used'
+  condition?: 'excellent' | 'great' | 'good' | 'fair' | 'poor'
+  color?: 'red' | 'burgundy' | 'orange' | 'pink' | 'purple' | 'blue' | 'navy' | 'green' | 'khaki' | 'multi' | 'silver' | 'gold'
   type: 'retail' | 'wholesale'
   price: number
   currency?: string
@@ -85,6 +91,7 @@ export type Listing = {
   }>
   images?: string[]
   promotionTags?: string[]
+  promotionExpiresAt?: string
   visibility?: 'marketplace' | 'event'
   status?: 'active' | 'sold' | 'draft' | 'removed'
   views?: number
@@ -132,6 +139,18 @@ export type Order = {
   updatedAt?: string
 }
 
+export type Review = {
+  _id: string
+  reviewerId?: User | string
+  shopId?: Shop | string
+  orderId?: Order | string
+  source?: 'order' | 'direct'
+  rating: number
+  comment?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export type KycRecord = {
   _id?: string
   userId?: User | string
@@ -165,6 +184,7 @@ export type Event = {
   coverImage?: string
   eventListings?: Listing[] | string[]
   promotionTags?: string[]
+  promotionExpiresAt?: string
   type: 'online-pop-up' | 'in-person-pop-up' | 'pop-up' | 'fair' | 'online'
   attendees?: string[]
   status?: 'upcoming' | 'ongoing' | 'past'
@@ -221,6 +241,8 @@ export type ChatConversation = {
     content: string
     createdAt?: string
     isRead?: boolean
+    reactions?: ChatReaction[]
+    replyTo?: ChatMessagePreview | string
     senderId?: User | string
     receiverId?: User | string
     listingId?: Listing | string
@@ -237,6 +259,22 @@ export type ChatAttachment = {
   originalname?: string
 }
 
+export type ChatReactionName = 'thumbs_up' | 'heart' | 'thumbs_down' | 'fire' | 'sad' | 'laugh'
+
+export type ChatReaction = {
+  userId?: User | string
+  reaction: ChatReactionName
+}
+
+export type ChatMessagePreview = {
+  _id: string
+  attachments?: ChatAttachment[]
+  content?: string
+  createdAt?: string
+  senderId?: User | string
+  listingId?: Listing | string
+}
+
 export type AuthPayload = {
   user: User
   tokens: AuthTokens
@@ -244,6 +282,20 @@ export type AuthPayload = {
 
 export type PaginatedListings = {
   results: Listing[]
+  total: number
+  page: number
+  pages: number
+}
+
+export type PaginatedReviews = {
+  reviews: Review[]
+  total: number
+  page: number
+  pages: number
+}
+
+export type PaginatedShops = {
+  shops: Shop[]
   total: number
   page: number
   pages: number

@@ -1,62 +1,71 @@
-import { useState } from 'react'
-import { AppShell, CategoryStrip, EmptyState, ErrorState, FilterPanel, Icon, LoadingState, ProductCard } from '../components'
-import { useApiResource } from '../hooks/useApiResource'
+import { useCallback, useMemo } from 'react'
+import { AppShell, EmptyState, ErrorState, LoadingState, ProductCard, TopFilterBar } from '../components'
+import { useAuth } from '../hooks/useAuth'
+import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
+import { useScrollRevealBand } from '../hooks/useScrollRevealBand'
 import type { PaginatedListings } from '../types/api'
-import { navigateTo } from '../utils/navigation'
+import { withoutOwnListings } from '../utils/listingOwnership'
+import { withBasePath } from '../utils/navigation'
 
-function searchPath() {
-  const query = new URLSearchParams(window.location.search)
+function searchPath(page: number, search: string) {
+  const query = new URLSearchParams(search)
   if (!query.has('page')) query.set('page', '1')
   if (!query.has('limit')) query.set('limit', '20')
+  if (!query.has('type')) query.set('type', 'retail')
+  query.set('page', String(page))
   return `/search?${query.toString()}`
 }
 
+function modeHref(mode: 'retail' | 'wholesale', search: string) {
+  const query = new URLSearchParams(search)
+  query.set('type', mode)
+  query.delete('page')
+  return withBasePath(`/browse?${query.toString()}`)
+}
+
 export function BrowsePage() {
-  const query = new URLSearchParams(window.location.search)
-  const listings = useApiResource<PaginatedListings>(searchPath())
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  const { user } = useAuth()
+  const search = window.location.search
+  const query = useMemo(() => new URLSearchParams(search), [search])
+  const activeMode = query.get('type') === 'wholesale' ? 'wholesale' : 'retail'
+  const buildPath = useCallback((page: number) => searchPath(page, search), [search])
+  const extractListings = useCallback((data: PaginatedListings) => data.results || [], [])
+  const listings = useInfiniteApiResource(buildPath, extractListings, [search])
+  const filterBandVisible = useScrollRevealBand()
+  const feedListings = useMemo(() => withoutOwnListings(listings.items, user), [listings.items, user])
 
   return (
     <AppShell active="browse" searchPlaceholder="Search curated thrift...">
-      <CategoryStrip query={query} />
-      <div className="browse-layout grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <div className={`filter-drawer hidden lg:block max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:top-16 max-lg:z-70 max-lg:block max-lg:w-[min(86vw,320px)] max-lg:-translate-x-full max-lg:overflow-y-auto max-lg:bg-foose-surface max-lg:p-4 max-lg:shadow-2xl max-lg:transition-transform max-lg:[&.open]:translate-x-0 ${filtersOpen ? 'open' : ''} `}>
-          <FilterPanel query={query} />
-        </div>
-        {filtersOpen && <button className="filter-backdrop fixed inset-0 z-60 border-0 bg-black/35 lg:hidden" aria-label="Close filters" onClick={() => setFiltersOpen(false)} type="button" />}
-        <section className="browse-results">
-          <div className="browse-top [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text flex items-center justify-between gap-3 text-sm text-foose-muted">
-            <div className="browse-count flex items-center justify-between gap-3 text-sm text-foose-muted">
-              <button className="mobile-filter-button inline-flex items-center gap-2 rounded-lg border border-foose-border bg-foose-surface px-3 py-2 text-sm font-bold lg:hidden" onClick={() => setFiltersOpen(true)} type="button">
-                <Icon name="filter" /> Filters
-              </button>
-              <strong>{listings.data?.total ?? 0} items found</strong>
-            </div>
-            <label>
-              Sort by
-              <select defaultValue={query.get('sort') || 'newest'} onChange={(event) => {
-                query.set('sort', event.target.value)
-                navigateTo(`/browse?${query.toString()}`)
-              }}>
-                <option value="newest">Newest first</option>
-                <option value="price_desc">Price high to low</option>
-                <option value="price_asc">Price low to high</option>
-                <option value="popular">Popular</option>
-              </select>
-            </label>
+      <div className={`sticky top-16 z-40 mb-6 space-y-3 transition duration-200 ${filterBandVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-full opacity-0'}`}>
+        <nav className="flex items-center justify-center border-b border-foose-border bg-foose-bg/95 py-2 backdrop-blur" aria-label="Browse listing type">
+          <div className="flex w-full max-w-md items-center justify-between gap-4 text-sm font-black">
+            <a className={`border-b-2 px-4 py-2 transition ${activeMode === 'retail' ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:text-accent'}`} href={modeHref('retail', search)}>
+              Retail
+            </a>
+            <a className={`border-b-2 px-4 py-2 transition ${activeMode === 'wholesale' ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:text-accent'}`} href={modeHref('wholesale', search)}>
+              Bale
+            </a>
           </div>
+        </nav>
+        <TopFilterBar hideType query={query} resultLabel={`${listings.total} ${activeMode === 'wholesale' ? 'bales' : 'items'}`} />
+      </div>
+      <div className="browse-layout">
+        <section className="browse-results">
           {listings.loading && <LoadingState label="Loading marketplace..." />}
           {listings.error && <ErrorState message={listings.error} retry={listings.refetch} />}
-          {!listings.loading && !listings.error && !listings.data?.results.length && (
+          {!listings.loading && !listings.error && !feedListings.length && (
             <EmptyState body="Try different filters or check back soon for new listings." title="No listings found" />
           )}
-          {!!listings.data?.results.length && (
-            <div className="masonry columns-2 gap-3 md:columns-3 lg:columns-4 [&_.product-card]:mb-4 [&_.product-card]:break-inside-avoid max-md:columns-2 max-md:gap-2">
-              {listings.data.results.map((listing) => (
+          {!!feedListings.length && (
+            <div className="masonry grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {feedListings.map((listing) => (
                 <ProductCard key={listing._id} listing={listing} />
               ))}
             </div>
           )}
+          <div ref={listings.sentinelRef} className="flex min-h-14 items-center justify-center py-4">
+            {listings.loadingMore && <span className="size-6 animate-spin rounded-full border-2 border-foose-border border-t-accent" aria-label="Loading more listings" />}
+          </div>
         </section>
       </div>
     </AppShell>

@@ -43,6 +43,6 @@ export function closeTargetForAuthModal(redirect = redirectFromSearch()) {
   return target
 }
 
-export function authHref(path: '/login' | '/register' = '/register', redirect = currentRedirectTarget()) {
+export function authHref(path: '/login' | '/register' = '/login', redirect = currentRedirectTarget()) {
   return withBasePath(`${path}?redirect=${encodeURIComponent(sanitizeRedirect(redirect))}`)
 }
