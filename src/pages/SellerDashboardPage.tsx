@@ -9,7 +9,7 @@ import { getErrorMessage } from '../utils/errorMessage'
 import { formatDateTime, formatMoney, getListingImage } from '../utils/format'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
 import { canSellerMarkPickupReady, isHistoricalOrder, orderAddress, orderProgressLabel, participantContact, participantName } from '../utils/orderStatus'
-import { isActiveTopPick, listingPromotionPackages, startPromotionCheckout, type PromotionPackageName } from '../utils/promotions'
+import { isActiveTopPick } from '../utils/promotions'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 
@@ -47,16 +47,11 @@ function ShopManagementSidebar({
     icon: Parameters<typeof Icon>[0]['name']
     label: string
   }> = [
-    { active: activePanel === 'overview', href: '/manage-shop', icon: 'store', label: 'Shop mgmt.' },
+    { active: activePanel === 'overview', href: '/manage-shop', icon: 'store', label: 'Shop Management' },
     { active: activePanel === 'listings', href: '/manage-shop/listings', icon: 'grid', label: 'Shop listings' },
     { href: '/manage-shop/orders', icon: 'box', label: 'Orders' },
   ]
-  const bottomItems: Array<{
-    active?: boolean
-    href: string
-    icon: Parameters<typeof Icon>[0]['name']
-    label: string
-  }> = [
+  const bottomItems: typeof topItems = [
     { active: activePanel === 'settings', href: '/manage-shop/settings', icon: 'settings', label: 'Shop settings' },
     { href: '/listings/new', icon: 'plus', label: 'Add listing' },
   ]
@@ -118,7 +113,7 @@ function ShopSettingsPanel({
   function fieldFrame(name: string, label: string, control: ReactNode) {
     const open = isEditable(name)
     return (
-      <div className={`rounded-xl border p-4 transition ${open ? 'border-accent bg-accent-light/40' : 'border-foose-border bg-foose-surface'}`}>
+      <div className={`rounded-xl border p-3 transition ${open ? 'border-accent bg-accent-light/40' : 'border-foose-border bg-white'}`}>
         <div className="mb-2 flex items-center justify-between gap-3">
           <label className="text-sm font-bold text-foose-text" htmlFor={name}>
             {label}
@@ -179,68 +174,118 @@ function ShopSettingsPanel({
   }
 
   return (
-    <section className="rounded-2xl border border-foose-border bg-foose-surface p-4 shadow-sm md:p-6">
-      <SectionHeader title="Shop settings" eyebrow="Unlock individual fields, make your change, then save." />
-      <form className="space-y-5 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-foose-border [&_input]:bg-white [&_input]:px-3 [&_input]:py-3 [&_input]:outline-none [&_input]:transition [&_input]:disabled:bg-foose-surface-low [&_input]:disabled:text-foose-muted [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-foose-border [&_select]:bg-white [&_select]:px-3 [&_select]:py-3 [&_select]:outline-none [&_select]:disabled:bg-foose-surface-low [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-foose-border [&_textarea]:bg-white [&_textarea]:px-3 [&_textarea]:py-3 [&_textarea]:outline-none [&_textarea]:disabled:bg-foose-surface-low" encType="multipart/form-data" onSubmit={(event) => void saveShop(event)}>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {fieldFrame('shopName', 'Shop name', <input defaultValue={shop.shopName} disabled={!isEditable('shopName')} id="shopName" name="shopName" required />)}
-          {fieldFrame(
-            'category',
-            'Primary category',
-            <select defaultValue={shop.category || 'both'} disabled={!isEditable('category')} id="category" name="category">
-              <option value="retail">Retail</option>
-              <option value="wholesale">Wholesale</option>
-              <option value="both">Both</option>
-            </select>,
-          )}
-          <div className="lg:col-span-2">
-            {fieldFrame('bio', 'Shop bio', <textarea defaultValue={shop.bio || ''} disabled={!isEditable('bio')} id="bio" name="bio" rows={5} />)}
-          </div>
-          {fieldFrame('instagram', 'Instagram', <input defaultValue={shop.socialLinks?.instagram || ''} disabled={!isEditable('instagram')} id="instagram" name="instagram" placeholder="@yourshop" />)}
-          {fieldFrame('whatsapp', 'WhatsApp', <input defaultValue={shop.socialLinks?.whatsapp || ''} disabled={!isEditable('whatsapp')} id="whatsapp" name="whatsapp" placeholder="+233..." />)}
+    <section>
+      <form className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-foose-border [&_input]:bg-white [&_input]:px-3 [&_input]:py-3 [&_input]:outline-none [&_input]:transition [&_input]:disabled:bg-accent-light/50 [&_input]:disabled:text-foose-muted [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_select]:w-full [&_select]:rounded-xl [&_select]:border [&_select]:border-foose-border [&_select]:bg-white [&_select]:px-3 [&_select]:py-3 [&_select]:outline-none [&_select]:disabled:bg-accent-light/50 [&_textarea]:w-full [&_textarea]:rounded-xl [&_textarea]:border [&_textarea]:border-foose-border [&_textarea]:bg-white [&_textarea]:px-3 [&_textarea]:py-3 [&_textarea]:outline-none [&_textarea]:disabled:bg-accent-light/50" encType="multipart/form-data" onSubmit={(event) => void saveShop(event)}>
+        <div className="space-y-5">
+          <section className="overflow-hidden rounded-2xl border border-foose-border bg-foose-surface shadow-sm">
+            <header className="flex items-center justify-between gap-3 border-b border-foose-border bg-accent-light/50 px-4 py-4 md:px-6">
+              <div>
+                <h2 className="text-xl font-black text-foose-text">General info</h2>
+                <p className="text-sm text-foose-muted">Core details shoppers see first.</p>
+              </div>
+              <button className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-black text-accent hover:bg-white" onClick={() => setEditable(new Set(['shopName', 'category', 'bio']))} type="button">
+                <Icon name="pencil" size={16} /> Edit
+              </button>
+            </header>
+            <div className="grid gap-4 p-4 md:grid-cols-2 md:p-6">
+              {fieldFrame('shopName', 'Shop name', <input defaultValue={shop.shopName} disabled={!isEditable('shopName')} id="shopName" name="shopName" required />)}
+              {fieldFrame(
+                'category',
+                'Primary category',
+                <select defaultValue={shop.category || 'both'} disabled={!isEditable('category')} id="category" name="category">
+                  <option value="retail">Retail</option>
+                  <option value="wholesale">Wholesale</option>
+                  <option value="both">Both</option>
+                </select>,
+              )}
+              <div className="md:col-span-2">
+                {fieldFrame('bio', 'Shop bio', <textarea defaultValue={shop.bio || ''} disabled={!isEditable('bio')} id="bio" name="bio" rows={5} />)}
+              </div>
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-foose-border bg-foose-surface shadow-sm">
+            <header className="flex items-center justify-between gap-3 border-b border-foose-border bg-accent-light/50 px-4 py-4 md:px-6">
+              <div>
+                <h2 className="text-xl font-black text-foose-text">Social connections</h2>
+                <p className="text-sm text-foose-muted">Keep your customer contact links tidy.</p>
+              </div>
+              <button className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-black text-accent hover:bg-white" onClick={() => setEditable(new Set(['instagram', 'whatsapp']))} type="button">
+                <Icon name="pencil" size={16} /> Edit
+              </button>
+            </header>
+            <div className="grid gap-4 p-4 md:grid-cols-2 md:p-6">
+              {fieldFrame('instagram', 'Instagram', <input defaultValue={shop.socialLinks?.instagram || ''} disabled={!isEditable('instagram')} id="instagram" name="instagram" placeholder="@yourshop" />)}
+              {fieldFrame('whatsapp', 'WhatsApp', <input defaultValue={shop.socialLinks?.whatsapp || ''} disabled={!isEditable('whatsapp')} id="whatsapp" name="whatsapp" placeholder="+233..." />)}
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-foose-border bg-foose-surface shadow-sm">
+            <header className="flex items-center justify-between gap-3 border-b border-foose-border bg-accent-light/50 px-4 py-4 md:px-6">
+              <div>
+                <h2 className="text-xl font-black text-foose-text">Funds collection method</h2>
+                <p className="text-sm text-foose-muted">Where Foose should send shop funds.</p>
+              </div>
+              <button className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-black text-accent hover:bg-white" onClick={() => setEditable(new Set(['payoutMethodType', 'payoutAccountName', 'payoutProvider', 'payoutAccountNumber', 'payoutBankName', 'payoutBranch']))} type="button">
+                <Icon name="pencil" size={16} /> Edit
+              </button>
+            </header>
+            <div className="grid gap-4 p-4 md:grid-cols-2 md:p-6">
+              {fieldFrame(
+                'payoutMethodType',
+                'Method',
+                <select defaultValue={shop.payoutMethod?.type || 'mobile_money'} disabled={!isEditable('payoutMethodType')} id="payoutMethodType" name="payoutMethodType">
+                  <option value="mobile_money">Mobile money</option>
+                  <option value="bank_transfer">Bank transfer</option>
+                </select>,
+              )}
+              {fieldFrame('payoutProvider', 'Provider', <input defaultValue={shop.payoutMethod?.provider || ''} disabled={!isEditable('payoutProvider')} id="payoutProvider" name="payoutProvider" placeholder="MTN, Vodafone, bank..." />)}
+              {fieldFrame('payoutAccountName', 'Account name', <input defaultValue={shop.payoutMethod?.accountName || ''} disabled={!isEditable('payoutAccountName')} id="payoutAccountName" name="payoutAccountName" />)}
+              {fieldFrame('payoutAccountNumber', 'Account / phone number', <input defaultValue={shop.payoutMethod?.accountNumber || ''} disabled={!isEditable('payoutAccountNumber')} id="payoutAccountNumber" name="payoutAccountNumber" />)}
+              {fieldFrame('payoutBankName', 'Bank name', <input defaultValue={shop.payoutMethod?.bankName || ''} disabled={!isEditable('payoutBankName')} id="payoutBankName" name="payoutBankName" />)}
+              {fieldFrame('payoutBranch', 'Branch', <input defaultValue={shop.payoutMethod?.branch || ''} disabled={!isEditable('payoutBranch')} id="payoutBranch" name="payoutBranch" />)}
+            </div>
+          </section>
         </div>
 
-        <fieldset className="rounded-2xl border border-foose-border bg-foose-surface-low p-4">
-          <legend className="px-2 text-sm font-bold text-foose-text">Funds collection method</legend>
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            {fieldFrame(
-              'payoutMethodType',
-              'Method',
-              <select defaultValue={shop.payoutMethod?.type || 'mobile_money'} disabled={!isEditable('payoutMethodType')} id="payoutMethodType" name="payoutMethodType">
-                <option value="mobile_money">Mobile money</option>
-                <option value="bank_transfer">Bank transfer</option>
-              </select>,
-            )}
-            {fieldFrame('payoutAccountName', 'Account name', <input defaultValue={shop.payoutMethod?.accountName || ''} disabled={!isEditable('payoutAccountName')} id="payoutAccountName" name="payoutAccountName" />)}
-            {fieldFrame('payoutProvider', 'Provider', <input defaultValue={shop.payoutMethod?.provider || ''} disabled={!isEditable('payoutProvider')} id="payoutProvider" name="payoutProvider" />)}
-            {fieldFrame('payoutAccountNumber', 'Account / phone number', <input defaultValue={shop.payoutMethod?.accountNumber || ''} disabled={!isEditable('payoutAccountNumber')} id="payoutAccountNumber" name="payoutAccountNumber" />)}
-            {fieldFrame('payoutBankName', 'Bank name', <input defaultValue={shop.payoutMethod?.bankName || ''} disabled={!isEditable('payoutBankName')} id="payoutBankName" name="payoutBankName" />)}
-            {fieldFrame('payoutBranch', 'Branch', <input defaultValue={shop.payoutMethod?.branch || ''} disabled={!isEditable('payoutBranch')} id="payoutBranch" name="payoutBranch" />)}
-          </div>
-        </fieldset>
+        <aside className="space-y-5">
+          <section className="overflow-hidden rounded-2xl border border-foose-border bg-foose-surface shadow-sm">
+            <header className="border-b border-foose-border bg-accent-light/50 px-4 py-4">
+              <h2 className="text-xl font-black text-foose-text">Brand assets</h2>
+            </header>
+            <div className="space-y-5 p-4">
+              {fieldFrame(
+                'logo',
+                'Shop logo',
+                <div className="space-y-3">
+                  {shop.logoUrl && <img alt="" className="size-24 rounded-2xl border border-foose-border object-cover" src={shop.logoUrl} />}
+                  {isEditable('logo') ? <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="logo" /> : <button className="flex min-h-28 w-full flex-col items-center justify-center rounded-2xl border border-dashed border-foose-border bg-accent-light/50 text-sm font-bold text-foose-muted" onClick={() => toggleEditable('logo')} type="button"><Icon name="upload" /> Upload logo</button>}
+                </div>,
+              )}
+              {fieldFrame(
+                'banner',
+                'Shop banner',
+                <div className="space-y-3">
+                  {shop.bannerUrl && <img alt="" className="h-28 w-full rounded-2xl border border-foose-border object-cover" src={shop.bannerUrl} />}
+                  {isEditable('banner') ? <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="banner" /> : <button className="flex min-h-32 w-full flex-col items-center justify-center rounded-2xl border border-dashed border-foose-border bg-accent-light/50 text-sm font-bold text-foose-muted" onClick={() => toggleEditable('banner')} type="button"><Icon name="upload" /> Upload banner</button>}
+                </div>,
+              )}
+              <div className="rounded-2xl bg-accent-light p-4 text-sm leading-6 text-foose-muted">
+                <strong className="mb-1 block text-accent">Identity verification</strong>
+                Ensure your shop brand assets align with marketplace guidelines to maintain professional visibility.
+              </div>
+            </div>
+          </section>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          {fieldFrame(
-            'logo',
-            'Shop logo',
-            <div className="space-y-3">
-              {shop.logoUrl && <img alt="" className="size-20 rounded-xl border border-foose-border object-cover" src={shop.logoUrl} />}
-              {isEditable('logo') && <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="logo" />}
-            </div>,
-          )}
-          {fieldFrame(
-            'banner',
-            'Shop banner',
-            <div className="space-y-3">
-              {shop.bannerUrl && <img alt="" className="h-24 w-full rounded-xl border border-foose-border object-cover" src={shop.bannerUrl} />}
-              {isEditable('banner') && <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="banner" />}
-            </div>,
-          )}
-        </div>
+          <section className="rounded-2xl border border-foose-border bg-accent-light p-5 text-sm leading-6 text-foose-muted shadow-sm">
+            <strong className="mb-2 block text-foose-text">Pro tip</strong>
+            Adding a detailed shop bio increases customer trust. Describe your values and what makes your thrift store unique.
+          </section>
+        </aside>
 
         {error && <ErrorState message={error} />}
         {message && <p className="rounded-lg bg-foose-success-bg px-4 py-3 text-sm font-bold text-foose-success">{message}</p>}
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-foose-border pt-5">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-foose-border pt-5 lg:col-span-2">
           <ButtonLink to="/manage-shop" variant="secondary">
             Back to listings
           </ButtonLink>
@@ -264,8 +309,6 @@ export function SellerDashboardPage() {
   const [listingPage, setListingPage] = useState(1)
   const [listingStatus, setListingStatus] = useState('')
   const [listingTypeFilter, setListingTypeFilter] = useState('')
-  const [promotingListingId, setPromotingListingId] = useState('')
-  const [listingPromotionPackage, setListingPromotionPackage] = useState<PromotionPackageName>('basic')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const shop = useApiResource<{ shop: Shop }>('/digishops/me', Boolean(user?.hasShop))
   const orders = useApiResource<{ orders: Order[] }>('/orders/me/selling', Boolean(user?.hasShop))
@@ -356,25 +399,13 @@ export function SellerDashboardPage() {
     }
   }
 
-  async function promoteListing(id: string) {
-    setDeleteError('')
-    setPromotingListingId(id)
-    try {
-      await startPromotionCheckout('listing', id, listingPromotionPackage)
-    } catch (requestError) {
-      setDeleteError(getErrorMessage(requestError, 'Unable to start listing promotion'))
-    } finally {
-      setPromotingListingId('')
-    }
-  }
-
   return (
     <AppShell active="profile" searchPlaceholder="Search marketplace..." showFooter={false}>
       <ShopManagementSidebar activePanel={activePanel} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((value) => !value)} />
-      <div className={`transition-[padding] duration-200 ${sidebarCollapsed ? 'lg:pl-24' : 'lg:pl-72'}`}>
+      <div className={sidebarCollapsed ? 'lg:pl-24' : 'lg:pl-72'}>
         <div className="mb-5 flex flex-wrap items-center gap-2 lg:hidden">
           <ButtonLink to="/manage-shop" variant={activePanel === 'overview' ? 'primary' : 'secondary'}>
-            <Icon name="store" /> Shop mgmt.
+            <Icon name="store" /> Shop Management
           </ButtonLink>
           <ButtonLink to="/manage-shop/listings" variant={activePanel === 'listings' ? 'primary' : 'secondary'}>
             <Icon name="grid" /> Listings
@@ -389,13 +420,18 @@ export function SellerDashboardPage() {
             <Icon name="plus" /> Add listing
           </ButtonLink>
         </div>
-        <div className="dashboard-head mb-6 flex flex-col gap-4 rounded-2xl bg-accent-light/60 p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-6 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
+        <div className="dashboard-head mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
           <div>
             <h1>{activePanel === 'settings' ? 'Shop settings' : activePanel === 'sold' ? 'Sold items' : activePanel === 'listings' ? 'Shop listings' : shop.data?.shop.shopName || 'Manage shop'}</h1>
             <p>{activePanel === 'settings' ? 'Edit your DigiShop profile and payout details.' : activePanel === 'sold' ? 'Review sold listings and the orders attached to them.' : activePanel === 'listings' ? 'Search, filter, promote, edit, and manage your inventory.' : 'A cleaner control room for orders, revenue, shop health, and next actions.'}</p>
             {shop.data?.shop.slug && <a href={withBasePath(`/shops/${shop.data.shop.slug}`)}>View public shop</a>}
           </div>
           <div className="button-row flex flex-wrap items-center gap-3">
+            {activePanel !== 'overview' && (
+              <ButtonLink to="/manage-shop" variant="secondary">
+                <Icon name="arrow" /> Back
+              </ButtonLink>
+            )}
             <ButtonLink to="/listings/new">Add Listing</ButtonLink>
             <ButtonLink to="/wallet" variant="secondary">
               Wallet
@@ -557,167 +593,146 @@ export function SellerDashboardPage() {
               </>
             )}
             {activePanel === 'listings' && (
-          <section className="home-section mx-auto w-full max-w-[1280px] rounded-xl bg-foose-surface p-3 md:p-5 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:md:text-4xl [&_a]:font-bold [&_a]:text-accent max-lg:rounded-lg max-lg:p-3 max-md:[&>h2]:text-2xl">
-            <SectionHeader
-              action={
-                <ButtonLink to="/manage-shop/sold" variant="secondary">
-                  <IoReceiptOutline /> Sold items
-                </ButtonLink>
-              }
-              title="Shop listings"
-            />
-            <div className="mb-3 flex flex-wrap items-center justify-end gap-2 text-sm">
-              <label className="font-bold text-foose-muted" htmlFor="listing-promotion-package">
-                Promotion package
-              </label>
-              <select
-                className="h-10 rounded-lg border border-foose-border bg-white px-3 text-sm font-semibold text-foose-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
-                id="listing-promotion-package"
-                onChange={(event) => setListingPromotionPackage(event.target.value as PromotionPackageName)}
-                value={listingPromotionPackage}
-              >
-                {listingPromotionPackages.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="listing-manager-toolbar mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.85fr)_minmax(0,0.85fr)] [&_input]:h-10 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-foose-border [&_input]:bg-foose-surface [&_input]:px-3 [&_input]:text-sm [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_label]:space-y-1 [&_label_span]:text-xs [&_label_span]:font-bold [&_label_span]:uppercase [&_label_span]:tracking-wider [&_label_span]:text-foose-faint [&_select]:h-10 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-foose-border [&_select]:bg-foose-surface [&_select]:px-3 [&_select]:text-sm [&_select]:outline-none [&_select]:transition [&_select]:focus:border-accent [&_select]:focus:ring-2 [&_select]:focus:ring-accent/15">
-              <input
-                aria-label="Search shop listings"
-                onChange={(event) => {
-                  setListingQuery(event.target.value)
-                  setListingPage(1)
-                }}
-                placeholder="Search your listings..."
-                value={listingQuery}
-              />
-              <select
-                aria-label="Filter by type"
-                onChange={(event) => {
-                  setListingTypeFilter(event.target.value)
-                  setListingPage(1)
-                }}
-                value={listingTypeFilter}
-              >
-                <option value="">All types</option>
-                <option value="retail">Retail</option>
-                <option value="wholesale">Wholesale</option>
-              </select>
-              <select
-                aria-label="Filter by status"
-                onChange={(event) => {
-                  setListingStatus(event.target.value)
-                  setListingPage(1)
-                }}
-                value={listingStatus}
-              >
-                <option value="">All statuses</option>
-                <option value="active">Active</option>
-                <option value="draft">Draft</option>
-              </select>
-              <label>
-                <span>Start date</span>
-                <input
-                  aria-label="Filter listings from date"
-                  onChange={(event) => {
-                    setListingDateFrom(event.target.value)
-                    setListingPage(1)
-                  }}
-                  type="date"
-                  value={listingDateFrom}
+              <section className="mx-auto w-full max-w-[1280px] rounded-xl bg-foose-surface p-3 shadow-sm md:p-5">
+                <SectionHeader
+                  action={
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <ButtonLink to="/manage-shop/sold" variant="secondary">
+                        <IoReceiptOutline /> Sold items
+                      </ButtonLink>
+                      <ButtonLink to="/manage-shop/promotions" variant="primary">
+                        <IoMegaphone /> Promote listings
+                      </ButtonLink>
+                    </div>
+                  }
+                  title="Shop listings"
                 />
-              </label>
-              <label>
-                <span>End date</span>
-                <input
-                  aria-label="Filter listings to date"
-                  onChange={(event) => {
-                    setListingDateTo(event.target.value)
-                    setListingPage(1)
-                  }}
-                  type="date"
-                  value={listingDateTo}
-                />
-              </label>
-            </div>
-            {!inventoryListings.length && <EmptyState body="Create listings to manage inventory here." title="No listings yet" />}
-            {!!inventoryListings.length && !filteredListings.length && (
-              <EmptyState body="Adjust your listing search or filters." title="No listings match" />
-            )}
-            {!!filteredListings.length && (
-              <div className="listing-manager-grid grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {visibleListings.map((listing) => (
-                  <article className="listing-manager-card rounded-xl bg-foose-surface shadow-sm p-3 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:leading-tight [&_small]:text-xs [&_small]:uppercase [&_small]:tracking-wide [&_small]:text-foose-faint flex flex-col gap-3" key={listing._id}>
-                    <div className="listing-manager-image relative overflow-hidden rounded-lg bg-foose-surface-low [&_img]:h-full [&_img]:w-full [&_img]:object-contain aspect-[4/3] image-frame">
-                      <button
-                        aria-label={isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt) ? `${listing.title} is promoted` : `Promote ${listing.title}`}
-                        className={`absolute left-3 top-3 z-10 inline-flex size-10 items-center justify-center rounded-full border shadow-lg transition disabled:pointer-events-none disabled:opacity-70 ${isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt) ? 'border-accent bg-accent text-white' : 'border-white/80 bg-white text-accent hover:bg-accent hover:text-white'}`}
-                        disabled={promotingListingId === listing._id || isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt)}
-                        onClick={() => void promoteListing(listing._id)}
-                        title={isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt) ? 'Promoted in Top Picks' : `Promote with ${listingPromotionPackage}`}
-                        type="button"
-                      >
-                        <IoMegaphone />
-                      </button>
-                      {getListingImage(listing) ? <img alt={listing.title} src={getListingImage(listing)} /> : <span className="image-placeholder flex min-h-32 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No image</span>}
-                    </div>
-                    <div>
-                      <div className="badge-row flex flex-wrap items-center gap-3">
-                        <Badge tone={listing.type === 'wholesale' ? 'warning' : 'accent'}>{listing.type}</Badge>
-                        <Badge tone={listing.status === 'sold' ? 'danger' : 'neutral'}>{listing.status || 'active'}</Badge>
-                        {isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt) && <Badge tone="success">Top Pick</Badge>}
-                      </div>
-                      <h3>{listing.title}</h3>
-                      <p>{formatMoney(listing.price, listing.currency)}</p>
-                      <small>
-                        {listing.type === 'retail'
-                          ? 'Single retail item'
-                          : `${listing.quantity || 0} available / min ${listing.bulkMinQty || 1}`}
-                      </small>
-                    </div>
-                    <div className="table-actions mt-auto flex flex-nowrap items-center justify-end gap-2">
-                      <a className="button inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-center text-sm font-bold transition whitespace-nowrap disabled:pointer-events-none disabled:opacity-50 button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath(`/listing/${listing._id}`)}>
-                        View
-                      </a>
-                      <a aria-label={`Edit ${listing.title}`} className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-accent bg-white text-accent shadow-sm transition hover:bg-accent hover:text-white" href={withBasePath(`/listings/${listing._id}/edit`)} title="Edit listing">
-                        <Icon name="pencil" />
-                      </a>
-                      <button
-                        aria-label={deletingId === listing._id ? `Removing ${listing.title}` : `Remove ${listing.title}`}
-                        className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-foose-danger transition hover:border-foose-danger hover:bg-red-100 disabled:pointer-events-none disabled:opacity-50"
-                        disabled={deletingId === listing._id}
-                        onClick={() => void deleteListing(listing._id)}
-                        title={deletingId === listing._id ? 'Removing...' : 'Remove listing'}
-                        type="button"
-                      >
-                        <Icon name="trash" />
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-            {filteredListings.length > listingsPerPage && (
-              <div className="listing-pagination mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-foose-border pt-4 text-sm text-foose-muted">
-                <span>
-                  Showing {(currentListingPage - 1) * listingsPerPage + 1}-{Math.min(currentListingPage * listingsPerPage, filteredListings.length)} of {filteredListings.length}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button className="inline-flex min-h-10 items-center justify-center rounded-lg border border-foose-border bg-foose-surface px-3 font-semibold text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-50" disabled={currentListingPage === 1} onClick={() => setListingPage((page) => Math.max(1, page - 1))} type="button">
-                    Previous
-                  </button>
-                  <span className="font-semibold text-foose-text">
-                    {currentListingPage} / {listingPageCount}
-                  </span>
-                  <button className="inline-flex min-h-10 items-center justify-center rounded-lg border border-foose-border bg-foose-surface px-3 font-semibold text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-50" disabled={currentListingPage === listingPageCount} onClick={() => setListingPage((page) => Math.min(listingPageCount, page + 1))} type="button">
-                    Next
-                  </button>
+                <div className="mb-5 grid gap-3 rounded-xl bg-foose-surface-low p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_150px_150px_150px_150px] [&_input]:h-11 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-foose-border [&_input]:bg-white [&_input]:px-3 [&_input]:text-sm [&_input]:outline-none [&_input]:focus:border-accent [&_label]:grid [&_label]:gap-1 [&_label_span]:text-xs [&_label_span]:font-bold [&_label_span]:text-foose-muted [&_select]:h-11 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-foose-border [&_select]:bg-white [&_select]:px-3 [&_select]:text-sm [&_select]:outline-none [&_select]:focus:border-accent">
+                  <label>
+                    <span className="sr-only">Search</span>
+                    <input
+                      aria-label="Search shop listings"
+                      onChange={(event) => {
+                        setListingQuery(event.target.value)
+                        setListingPage(1)
+                      }}
+                      placeholder="Search listings"
+                      value={listingQuery}
+                    />
+                  </label>
+                  <select
+                    aria-label="Filter by type"
+                    onChange={(event) => {
+                      setListingTypeFilter(event.target.value)
+                      setListingPage(1)
+                    }}
+                    value={listingTypeFilter}
+                  >
+                    <option value="">All types</option>
+                    <option value="retail">Retail</option>
+                    <option value="wholesale">Wholesale</option>
+                  </select>
+                  <select
+                    aria-label="Filter by status"
+                    onChange={(event) => {
+                      setListingStatus(event.target.value)
+                      setListingPage(1)
+                    }}
+                    value={listingStatus}
+                  >
+                    <option value="">All statuses</option>
+                    <option value="active">Active</option>
+                    <option value="draft">Draft</option>
+                  </select>
+                  <label>
+                    <span>Start date</span>
+                    <input
+                      aria-label="Filter listings from date"
+                      onChange={(event) => {
+                        setListingDateFrom(event.target.value)
+                        setListingPage(1)
+                      }}
+                      type="date"
+                      value={listingDateFrom}
+                    />
+                  </label>
+                  <label>
+                    <span>End date</span>
+                    <input
+                      aria-label="Filter listings to date"
+                      onChange={(event) => {
+                        setListingDateTo(event.target.value)
+                        setListingPage(1)
+                      }}
+                      type="date"
+                      value={listingDateTo}
+                    />
+                  </label>
                 </div>
-              </div>
-            )}
-          </section>
+                {!inventoryListings.length && <EmptyState body="Create listings to manage inventory here." title="No listings yet" />}
+                {!!inventoryListings.length && !filteredListings.length && <EmptyState body="Adjust your listing search or filters." title="No listings match" />}
+                {!!filteredListings.length && (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {visibleListings.map((listing) => (
+                      <article className="flex min-h-full flex-col rounded-xl bg-white p-3 shadow-sm" key={listing._id}>
+                        <div className="relative mb-3 overflow-hidden rounded-lg bg-foose-surface-low aspect-[4/3] [&_img]:h-full [&_img]:w-full [&_img]:object-contain">
+                          {isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt) && (
+                            <span className="absolute left-2 top-2">
+                              <Badge tone="success">Top Pick</Badge>
+                            </span>
+                          )}
+                          {getListingImage(listing) ? <img alt={listing.title} src={getListingImage(listing)} /> : <span className="flex h-full items-center justify-center text-sm font-semibold text-foose-faint">No image</span>}
+                        </div>
+                        <div className="flex flex-1 flex-col gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge tone={listing.type === 'wholesale' ? 'warning' : 'accent'}>{listing.type}</Badge>
+                            <Badge tone={listing.status === 'sold' ? 'danger' : 'neutral'}>{listing.status || 'active'}</Badge>
+                            {isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt) && <Badge tone="success">Top Pick</Badge>}
+                          </div>
+                          <h3 className="line-clamp-1 text-sm font-bold text-foose-text">{listing.title || 'Untitled listing'}</h3>
+                          <p className="text-base font-black text-accent">{listing.status === 'draft' ? '---' : formatMoney(listing.price, listing.currency)}</p>
+                          <small className="text-xs font-bold uppercase tracking-wider text-foose-muted">{listing.type === 'retail' ? 'Single retail item' : `${listing.quantity || 0} available / min ${listing.bulkMinQty || 1}`}</small>
+                        </div>
+                        <div className="mt-3 flex flex-nowrap items-center justify-end gap-2 border-t border-foose-border pt-3">
+                          <a className="inline-flex min-h-9 items-center justify-center rounded-lg border border-foose-border bg-white px-3 text-xs font-bold text-foose-text transition hover:border-accent hover:text-accent" href={withBasePath(`/listing/${listing._id}`)}>
+                            View
+                          </a>
+                          <a aria-label={`Edit ${listing.title}`} className="inline-flex min-h-9 items-center justify-center rounded-lg border border-foose-border bg-white px-3 text-accent transition hover:border-accent hover:bg-accent hover:text-white" href={withBasePath(`/listings/${listing._id}/edit`)}>
+                            <Icon name="pencil" size={16} />
+                          </a>
+                          <button
+                            aria-label={deletingId === listing._id ? `Removing ${listing.title}` : `Remove ${listing.title}`}
+                            className="inline-flex min-h-9 items-center justify-center rounded-lg border border-foose-border bg-white px-3 text-foose-danger transition hover:border-foose-danger hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50"
+                            disabled={deletingId === listing._id}
+                            onClick={() => void deleteListing(listing._id)}
+                            type="button"
+                          >
+                            <Icon name="trash" size={16} />
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+                {filteredListings.length > listingsPerPage && (
+                  <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-foose-border pt-4 text-sm text-foose-muted">
+                    <span>
+                      Showing {(currentListingPage - 1) * listingsPerPage + 1}-{Math.min(currentListingPage * listingsPerPage, filteredListings.length)} of {filteredListings.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button className="rounded-lg border border-foose-border bg-white px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={currentListingPage === 1} onClick={() => setListingPage((page) => Math.max(1, page - 1))} type="button">
+                        Previous
+                      </button>
+                      <span className="font-bold text-foose-text">
+                        {currentListingPage} / {listingPageCount}
+                      </span>
+                      <button className="rounded-lg border border-foose-border bg-white px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={currentListingPage === listingPageCount} onClick={() => setListingPage((page) => Math.min(listingPageCount, page + 1))} type="button">
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
             )}
           </>
         )}

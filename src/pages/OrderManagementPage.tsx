@@ -165,7 +165,7 @@ export function OrderManagementPage() {
 
   return (
     <AppShell active="profile" searchPlaceholder="Search orders...">
-      <div className="dashboard-head mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted">
+      <div className="dashboard-head mb-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-black [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted">
         <div>
           <h1>{historyMode ? 'Order history' : sellerMode ? 'Seller orders' : 'Your orders'}</h1>
           <p>{historyMode ? 'Completed and closed orders stay here permanently.' : sellerMode ? 'Process seller orders and update fulfillment.' : 'Confirm received deliveries, completed pickups, escrow, and payment status.'}</p>

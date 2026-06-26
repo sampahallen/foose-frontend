@@ -21,6 +21,7 @@ import {
   HomePage,
   InboxPage,
   KycPage,
+  ListingPromotionPage,
   LoginPage,
   NewListingPage,
   OpenShopPage,
@@ -202,6 +203,13 @@ function App() {
       page = (
         <AuthRequired>
           <PromotionReturnPage />
+        </AuthRequired>
+      )
+      break
+    case 'listingPromotions':
+      page = (
+        <AuthRequired>
+          <ListingPromotionPage />
         </AuthRequired>
       )
       break

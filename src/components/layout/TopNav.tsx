@@ -118,6 +118,9 @@ export function TopNav({
                       <a className="!bg-accent-light !text-accent hover:!bg-accent hover:!text-white" href={withBasePath('/orders')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                         My orders
                       </a>
+                      <a href={withBasePath('/wallet')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        Wallet
+                      </a>
                       <span className="profile-dropdown-spacer h-3" />
                       <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                         Profile settings
@@ -212,6 +215,9 @@ export function TopNav({
                       <div className="profile-dropdown-links flex flex-col gap-1 [&_a]:rounded-lg [&_a]:px-3 [&_a]:py-2 [&_a]:text-left [&_a]:text-sm [&_a]:font-semibold [&_a]:transition [&_a]:hover:bg-foose-surface-low">
                         <a className="!bg-accent-light !text-accent hover:!bg-accent hover:!text-white" href={withBasePath('/orders')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                           My orders
+                        </a>
+                        <a href={withBasePath('/wallet')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                          Wallet
                         </a>
                         <span className="profile-dropdown-spacer h-3" />
                         <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>

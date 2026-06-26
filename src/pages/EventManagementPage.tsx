@@ -167,18 +167,23 @@ export function EventManagementPage() {
                   <span className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent event-promotion-pill pointer-events-none bg-accent-light text-accent">Promoted</span>
                 ) : (
                   <span className="grid gap-2 sm:min-w-56">
-                    <select
-                      aria-label="Event promotion package"
-                      className="h-10 rounded-lg border border-foose-border bg-white px-3 text-sm font-bold text-foose-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
-                      onChange={(input) => setEventPromotionPackage(input.target.value as PromotionPackageName)}
-                      value={eventPromotionPackage}
-                    >
-                      {eventPromotionPackages.map((item) => (
-                        <option key={item.value} value={item.value}>
-                          {item.label}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="relative block">
+                      <select
+                        aria-label="Event promotion package"
+                        className="h-11 w-full appearance-none rounded-xl border border-accent/20 bg-accent-light/70 px-3 pr-10 text-sm font-black text-accent outline-none transition hover:border-accent focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/15"
+                        onChange={(input) => setEventPromotionPackage(input.target.value as PromotionPackageName)}
+                        value={eventPromotionPackage}
+                      >
+                        {eventPromotionPackages.map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-accent">
+                        <Icon name="chevron" size={16} />
+                      </span>
+                    </label>
                     <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void promoteEvent()} type="button">
                       <IoMegaphone /> Promote
                     </button>
