@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
-    base: '/foose-frontend/',
+    base: '/',
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),
