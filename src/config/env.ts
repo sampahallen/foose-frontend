@@ -19,9 +19,11 @@ export function getApiBaseUrl(): string {
     return '/api'
   }
 
-  throw new Error(
-    'VITE_API_BASE_URL is required for production builds. Set it in your environment or `.env.production`.',
+  const fallbackBase = typeof window !== 'undefined' ? `${window.location.origin}/api` : '/api'
+  console.warn(
+    '[config] VITE_API_BASE_URL is not set. Falling back to same-origin /api. In Amplify, set VITE_API_BASE_URL to your deployed API origin such as https://api.example.com/api.',
   )
+  return normalizeBaseUrl(fallbackBase)
 }
 
 export function getAppName(): string {

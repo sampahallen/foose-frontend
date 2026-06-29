@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { AppShell, ButtonLink, EmptyState, ErrorState, Icon, ImagePreviewInput, LoadingState } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
@@ -24,6 +24,96 @@ function appendText(formData: FormData, name: string, value: string | number | u
 }
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
+const listingSelectControl =
+  'h-12 w-full appearance-none rounded-xl border border-foose-border bg-foose-surface bg-[linear-gradient(45deg,transparent_50%,#5e5f5c_50%),linear-gradient(135deg,#5e5f5c_50%,transparent_50%)] bg-[length:5px_5px,5px_5px] bg-[position:calc(100%-18px)_50%,calc(100%-13px)_50%] bg-no-repeat px-3 pr-10 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
+
+type ListingDropdownOption = {
+  label: string
+  swatch?: string
+  value: string
+}
+
+function ListingDropdown({
+  dividerAfter,
+  name,
+  options,
+  placeholder,
+  value,
+}: {
+  dividerAfter?: string
+  name: string
+  options: ListingDropdownOption[]
+  placeholder: string
+  value?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [selectedValue, setSelectedValue] = useState(value || '')
+  const dropdownRef = useRef<HTMLDivElement | null>(null)
+  const selectedOption = options.find((option) => option.value === selectedValue)
+
+  useEffect(() => {
+    setSelectedValue(value || '')
+  }, [value])
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!dropdownRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false)
+    }
+
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
+
+  function selectOption(option: ListingDropdownOption) {
+    setSelectedValue(option.value)
+    setOpen(false)
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <input name={name} type="hidden" value={selectedValue} />
+      <button
+        aria-expanded={open}
+        className={`flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-foose-border bg-foose-surface px-3 text-left text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 ${!selectedOption ? 'text-foose-faint' : ''}`}
+        onClick={() => setOpen((current) => !current)}
+        type="button"
+      >
+        <span className="min-w-0 truncate">{selectedOption?.label || placeholder}</span>
+        <span className="flex items-center gap-3">
+          {selectedOption?.swatch && <span aria-hidden className="size-5 rounded-full border border-black/15" style={{ background: selectedOption.swatch }} />}
+          <span aria-hidden className={`text-xs text-foose-muted transition ${open ? 'rotate-180' : ''}`}>v</span>
+        </span>
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 max-h-72 overflow-y-auto rounded-xl border border-foose-border bg-white p-1.5 shadow-2xl">
+          {options.map((option) => (
+            <div key={option.value}>
+              <button
+                className={`flex min-h-10 w-full items-center justify-between gap-4 rounded-lg px-3 text-left text-sm font-semibold transition hover:bg-accent-light hover:text-accent ${option.value === selectedValue ? 'bg-accent-light text-accent' : 'text-foose-text'}`}
+                onClick={() => selectOption(option)}
+                type="button"
+              >
+                <span className="min-w-0 truncate">{option.label}</span>
+                {option.swatch && <span aria-hidden className="size-5 shrink-0 rounded-full border border-black/15" style={{ background: option.swatch }} />}
+              </button>
+              {dividerAfter === option.value && <hr className="my-1.5 border-0 border-t border-foose-border" />}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function currentEditId() {
   const match = getCurrentAppPathname().match(/^\/listings\/([^/]+)\/edit/)
@@ -61,6 +151,10 @@ export function NewListingPage() {
   const listingType = selectedListingType || listing?.type || 'retail'
   const categoryValue = selectedCategory || listing?.category || ''
   const conditionValue = selectedCondition || listing?.condition || ''
+  const brandOptions = listing?.brand && !LISTING_BRANDS.includes(listing.brand) ? [...LISTING_BRANDS, listing.brand].sort((a, b) => a.localeCompare(b)) : LISTING_BRANDS
+  const brandedOptions = brandOptions.filter((brand) => brand !== 'Unbranded').sort((a, b) => a.localeCompare(b))
+  const brandDropdownOptions = ['Unbranded', ...brandedOptions].map((brand) => ({ label: brand, value: brand }))
+  const colorDropdownOptions = LISTING_COLORS.map((color) => ({ label: color.label, swatch: color.hex, value: color.value }))
   const needsFlawProof = conditionValue === 'fair' || conditionValue === 'poor'
   const sizePlaceholder = sizePlaceholderForCategory(categoryValue)
 
@@ -232,6 +326,7 @@ export function NewListingPage() {
             <label>
               Listing type
               <select
+                className={listingSelectControl}
                 name="type"
                 onChange={(event) => setSelectedListingType(event.target.value as 'retail' | 'wholesale')}
                 required
@@ -254,6 +349,7 @@ export function NewListingPage() {
             <label>
               Category
               <select
+                className={listingSelectControl}
                 name="category"
                 onChange={(event) => setSelectedCategory(event.target.value)}
                 value={categoryValue}
@@ -268,12 +364,7 @@ export function NewListingPage() {
             </label>
             <label>
               Brand
-              <input defaultValue={listing?.brand || ''} list="listing-brands" name="brand" placeholder="Unbranded, Nike, Adidas..." />
-              <datalist id="listing-brands">
-                {LISTING_BRANDS.map((brand) => (
-                  <option key={brand} value={brand} />
-                ))}
-              </datalist>
+              <ListingDropdown dividerAfter="Unbranded" name="brand" options={brandDropdownOptions} placeholder="Select brand" value={listing?.brand || ''} />
             </label>
             {listingType === 'retail' && (
               <>
@@ -283,7 +374,7 @@ export function NewListingPage() {
                 </label>
                 <label>
                   Gender
-                  <select defaultValue={listing?.gender || ''} name="gender">
+                  <select className={listingSelectControl} defaultValue={listing?.gender || ''} name="gender">
                     <option value="">Select gender</option>
                     <option value="men">Men</option>
                     <option value="women">Women</option>
@@ -295,7 +386,7 @@ export function NewListingPage() {
             )}
             <label>
               Condition
-              <select name="condition" onChange={(event) => setSelectedCondition(event.target.value)} value={conditionValue}>
+              <select className={listingSelectControl} name="condition" onChange={(event) => setSelectedCondition(event.target.value)} value={conditionValue}>
                 <option value="">Select condition</option>
                 {LISTING_CONDITIONS.map((condition) => (
                   <option key={condition} value={condition}>
@@ -315,13 +406,7 @@ export function NewListingPage() {
             )}
             <label>
               Color
-              <select defaultValue={listing?.color || 'multi'} name="color">
-                {LISTING_COLORS.map((color) => (
-                  <option key={color.value} value={color.value}>
-                    {color.label}
-                  </option>
-                ))}
-              </select>
+              <ListingDropdown name="color" options={colorDropdownOptions} placeholder="Select color" value={listing?.color || 'multi'} />
             </label>
             {listingType === 'wholesale' && (
               <>

@@ -78,7 +78,7 @@ export type Listing = {
   size?: string
   gender?: 'men' | 'women' | 'unisex' | 'kids'
   condition?: 'excellent' | 'great' | 'good' | 'fair' | 'poor'
-  color?: 'red' | 'burgundy' | 'orange' | 'pink' | 'purple' | 'blue' | 'navy' | 'green' | 'khaki' | 'multi' | 'silver' | 'gold'
+  color?: 'beige' | 'black' | 'blue' | 'brown' | 'burgundy' | 'cream' | 'cyan' | 'gold' | 'green' | 'gray' | 'ivory' | 'khaki' | 'multi' | 'navy' | 'olive' | 'orange' | 'pink' | 'purple' | 'red' | 'silver' | 'teal' | 'turquoise' | 'violet' | 'white' | 'yellow'
   type: 'retail' | 'wholesale'
   price: number
   currency?: string

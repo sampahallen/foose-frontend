@@ -10,6 +10,10 @@ export type RequestOptions = Omit<RequestInit, 'body'> & {
 }
 
 async function parseJsonBody(response: Response): Promise<unknown | null> {
+  if (response.status === 204 || response.status === 205 || response.headers.get('content-length') === '0') {
+    return null
+  }
+
   const text = await response.text()
   if (!text) return null
   try {
@@ -43,7 +47,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   const payload = (await parseJsonBody(response)) as ApiEnvelope<T> | null
 
-  if (!response.ok || !payload || payload.success !== true) {
+  if (!response.ok) {
     const message =
       payload && 'error' in payload && typeof payload.error === 'string'
         ? payload.error
@@ -52,7 +56,19 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     throw new ApiError(message, response.status, details)
   }
 
-  return payload.data
+  if (payload === null) {
+    return null as T
+  }
+
+  if (typeof payload === 'object' && payload !== null && 'success' in payload) {
+    if (payload.success === false) {
+      throw new ApiError(payload.error, response.status, payload.details)
+    }
+
+    return payload.data
+  }
+
+  return payload as T
 }
 
 export function apiGet<T>(path: string, options?: RequestOptions) {

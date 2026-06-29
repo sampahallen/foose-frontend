@@ -25,6 +25,8 @@ export function TopNav({
   const brand = getAppName()
   const placeholder = searchPlaceholder ?? `Search ${brand}`
   const redirectTarget = currentRedirectTarget()
+  const shopHref = user?.hasShop ? '/manage-shop' : '/open-shop'
+  const shopLabel = user?.hasShop ? 'Manage shop' : 'Open shop'
   const conversationPreview = useApiResource<{ conversations: ChatConversation[] }>('/chat?page=1&limit=8', Boolean(user))
   const hasUnreadMessages = Boolean(conversationPreview.data?.conversations.some((conversation) => conversation.unreadCount > 0))
 
@@ -87,8 +89,8 @@ export function TopNav({
             <img src={whiteLogo} alt="" />
           </a>
           <div className="mobile-nav-actions ml-auto flex items-center gap-1 lg:hidden">
-            {user?.hasShop && (
-              <a aria-label="Manage shop" className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white" href={withBasePath('/manage-shop')}>
+            {user && (
+              <a aria-label={shopLabel} className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white" href={withBasePath(shopHref)}>
                 <Icon name="store" />
               </a>
             )}
@@ -186,11 +188,9 @@ export function TopNav({
                   <Icon name="mail" />
                   {hasUnreadMessages && <span aria-hidden className="absolute right-2 top-2 size-2.5 rounded-full bg-red-500 ring-2 ring-accent" />}
                 </a>
-                {user.hasShop && (
-                  <a aria-label="Manage shop" className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent" href={withBasePath('/manage-shop')}>
-                    <Icon name="store" />
-                  </a>
-                )}
+                <a aria-label={shopLabel} className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent" href={withBasePath(shopHref)}>
+                  <Icon name="store" />
+                </a>
                 <div className="profile-menu-wrap relative" ref={desktopProfileMenuRef}>
                   <button
                     aria-expanded={profileMenuOpen}
@@ -280,11 +280,9 @@ export function TopNav({
                 <a className={active === 'profile' ? 'active' : ''} href={withBasePath('/profile')} onClick={closeMenu}>
                   Profile
                 </a>
-                {user.hasShop && (
-                  <a href={withBasePath('/manage-shop')} onClick={closeMenu}>
-                    Manage shop
-                  </a>
-                )}
+                <a href={withBasePath(shopHref)} onClick={closeMenu}>
+                  {shopLabel}
+                </a>
               </div>
               <div className="mt-16 flex flex-col gap-2">
                 <a href={withBasePath('/inbox?support=true')} onClick={closeMenu}>

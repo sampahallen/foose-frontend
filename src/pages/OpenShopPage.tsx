@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { ButtonLink, EmptyState, ErrorState, Icon, ImagePreviewInput } from '../components'
 import { getAppName } from '../config/env'
 import { useAuth } from '../hooks/useAuth'
@@ -25,6 +25,10 @@ export function OpenShopPage() {
   const brand = getAppName()
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (user?.hasShop) navigateTo('/manage-shop')
+  }, [user?.hasShop])
 
   async function createShop(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
