@@ -127,8 +127,8 @@ export function RegisterPage() {
           </label>
           <label>
             <span className="flex items-center gap-2">Username {requiredBadge(fieldInvalid.username)}</span>
-            <input autoComplete="username" name="username" onBlur={() => markTouched('username')} onChange={(event) => updateRequiredField('username', event.target.value)} pattern="[a-zA-Z0-9_]{3,20}" required title="3-20 letters, numbers, or underscore" />
-            {fieldInvalid.username && <span className="text-xs font-semibold text-foose-danger">Use 3-20 letters, numbers, or underscores.</span>}
+            <input autoComplete="username" name="username" onBlur={() => markTouched('username')} onChange={(event) => updateRequiredField('username', event.target.value)} pattern="[a-zA-Z0-9_.]{3,20}" required title="3-20 letters, numbers, underscores, or dots" />
+            {fieldInvalid.username && <span className="text-xs font-semibold text-foose-danger">Use 3-20 letters, numbers, underscores, or dots.</span>}
           </label>
           <label>
             Phone

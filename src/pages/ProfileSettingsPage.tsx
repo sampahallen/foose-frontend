@@ -96,8 +96,8 @@ export function ProfileSettingsPage() {
               </label>
               <label>
                 <span className="flex items-center gap-2">Username {requiredBadge(usernameInvalid)}</span>
-                <input defaultValue={user.username} name="username" onBlur={() => setTouched((current) => ({ ...current, username: true }))} onChange={(event) => setUsername(event.target.value)} pattern="[a-zA-Z0-9_]{3,20}" required title="3-20 letters, numbers, or underscore" />
-                {usernameInvalid && <span className="text-xs font-semibold text-foose-danger">Use 3-20 letters, numbers, or underscores.</span>}
+                <input defaultValue={user.username} name="username" onBlur={() => setTouched((current) => ({ ...current, username: true }))} onChange={(event) => setUsername(event.target.value)} pattern="[a-zA-Z0-9_.]{3,20}" required title="3-20 letters, numbers, underscores, or dots" />
+                {usernameInvalid && <span className="text-xs font-semibold text-foose-danger">Use 3-20 letters, numbers, underscores, or dots.</span>}
               </label>
             </div>
 

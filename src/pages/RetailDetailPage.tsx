@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { MdVerified } from 'react-icons/md'
 import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, FavoriteButton, Icon, LightboxImage, LoadingState, ProductCard, SectionHeader, ShopReviewPanel } from '../components'
 import { useApiResource } from '../hooks/useApiResource'
@@ -112,6 +112,24 @@ export function RetailDetailPage() {
     () => compactListings(relatedListingsResource.data?.results, listing?._id, 6).filter((item) => shopIdValue(item.shopId) !== shopId),
     [listing?._id, relatedListingsResource.data?.results, shopId],
   )
+  const isModal = Boolean(listingReturn)
+
+  useEffect(() => {
+    if (!isModal) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') closeListing()
+    }
+
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [isModal])
 
   function handleAddToCart() {
     if (!listing) return
@@ -125,10 +143,9 @@ export function RetailDetailPage() {
     navigateTo('/checkout')
   }
 
-  function handleBrowseReturn(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault()
+  function closeListing() {
     const target = listingReturn?.href || withBasePath('/browse')
-    window.history.pushState(null, '', target)
+    window.history.replaceState(null, '', target)
     window.dispatchEvent(new PopStateEvent('popstate'))
     window.setTimeout(() => {
       window.scrollTo({ top: listingReturn?.scrollY || 0 })
@@ -136,8 +153,13 @@ export function RetailDetailPage() {
     }, 0)
   }
 
-  return (
-    <AppShell active="browse">
+  function handleBrowseReturn(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault()
+    closeListing()
+  }
+
+  const detailContent = (
+    <>
       <a className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted transition hover:text-accent" href={listingReturn?.href || withBasePath('/browse')} onClick={handleBrowseReturn}>
         <Icon name="arrow" /> Browse
       </a>
@@ -286,6 +308,35 @@ export function RetailDetailPage() {
           <ListingBand action={listing.category ? `/browse?category=${encodeURIComponent(listing.category)}` : '/browse'} listings={youMightLike} title="You might also like" />
         </>
       )}
+    </>
+  )
+
+  if (isModal) {
+    return (
+      <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/55 px-3 py-4 backdrop-blur-sm sm:px-5 sm:py-8" role="presentation">
+        <button aria-label="Close listing details" className="fixed inset-0 cursor-default border-0 bg-transparent" onClick={closeListing} type="button" />
+        <section
+          aria-modal="true"
+          className="relative z-10 flex max-h-[calc(100dvh-2rem)] min-h-[70dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-foose-border bg-foose-bg shadow-2xl shadow-black/30 sm:max-h-[calc(100dvh-4rem)]"
+          role="dialog"
+        >
+          <button
+            aria-label="Close listing details"
+            className="absolute right-3 top-3 z-20 inline-flex size-10 items-center justify-center rounded-full border border-foose-border bg-white text-foose-text shadow transition hover:border-accent hover:text-accent"
+            onClick={closeListing}
+            type="button"
+          >
+            x
+          </button>
+          <div className="overflow-y-auto p-4 pr-4 sm:p-5 sm:pr-12 md:p-7 md:pr-14">{detailContent}</div>
+        </section>
+      </div>
+    )
+  }
+
+  return (
+    <AppShell active="browse">
+      {detailContent}
     </AppShell>
   )
 }

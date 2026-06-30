@@ -14,7 +14,7 @@ export function emailLooksValid(value: string) {
 }
 
 export function usernameLooksValid(value: string) {
-  return /^[a-zA-Z0-9_]{3,20}$/.test(value.trim())
+  return /^[a-zA-Z0-9_.]{3,20}$/.test(value.trim())
 }
 
 export function normalizePhone(value: string) {

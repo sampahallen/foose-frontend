@@ -4,6 +4,7 @@ import { formatMoney, getListingImage, getShopName } from '../../utils/format'
 import { withBasePath } from '../../utils/navigation'
 import { FavoriteButton } from '../ui/FavoriteButton'
 import { MdVerified } from 'react-icons/md'
+import type { MouseEvent } from 'react'
 
 export function ProductCard({ listing }: { listing: Listing }) {
   const image = getListingImage(listing)
@@ -12,11 +13,16 @@ export function ProductCard({ listing }: { listing: Listing }) {
   const size = listing.size || (listing.type === 'wholesale' ? `${listing.bulkMinQty || 1}+` : 'One size')
   const shopName = getShopName(listing)
 
-  function rememberPosition() {
+  function openListing(event: MouseEvent<HTMLAnchorElement>) {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+    event.preventDefault()
+
     setListingReturn({
       href: `${window.location.pathname}${window.location.search}`,
       scrollY: window.scrollY,
     })
+    window.history.pushState(null, '', withBasePath(`/listing/${listing._id}`))
+    window.dispatchEvent(new PopStateEvent('popstate'))
   }
 
   const content = (
@@ -43,7 +49,7 @@ export function ProductCard({ listing }: { listing: Listing }) {
 
   return (
     <article className="product-card relative flex min-h-full flex-col overflow-hidden bg-transparent transition hover:-translate-y-0.5">
-      <a className="product-card-link flex flex-1 flex-col" href={withBasePath(`/listing/${listing._id}`)} onClick={rememberPosition}>
+      <a className="product-card-link flex flex-1 flex-col" href={withBasePath(`/listing/${listing._id}`)} onClick={openListing}>
         {content}
       </a>
       <FavoriteButton className="floating-round inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-text shadow transition hover:bg-accent-light hover:text-accent absolute right-1.5 top-1.5 z-10 favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />
