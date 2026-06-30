@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { AppShell, ErrorState, ImagePreviewInput, LoadingState } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { apiPut } from '../lib/api'
 import type { User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
+import { normalizePhone, usernameLooksValid } from '../utils/formValidation'
 import { initials } from '../utils/format'
 import { withBasePath } from '../utils/navigation'
 
@@ -12,6 +13,24 @@ export function ProfileSettingsPage() {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [name, setName] = useState(user?.name || '')
+  const [username, setUsername] = useState(user?.username || '')
+  const [touched, setTouched] = useState({ name: false, username: false })
+  const [bioLength, setBioLength] = useState(user?.bio?.length || 0)
+  const canSubmit = name.trim().length >= 2 && usernameLooksValid(username)
+  const nameInvalid = touched.name && name.trim().length < 2
+  const usernameInvalid = touched.username && !usernameLooksValid(username)
+
+  function requiredBadge(invalid: boolean) {
+    return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
+  }
+
+  useEffect(() => {
+    if (!user) return
+    setName(user.name || '')
+    setUsername(user.username || '')
+    setBioLength(user.bio?.length || 0)
+  }, [user])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -71,18 +90,26 @@ export function ProfileSettingsPage() {
 
             <div className="grid gap-5 md:grid-cols-2">
               <label>
-                Name
-                <input defaultValue={user.name} name="name" required />
+                <span className="flex items-center gap-2">Name {requiredBadge(nameInvalid)}</span>
+                <input defaultValue={user.name} name="name" onBlur={() => setTouched((current) => ({ ...current, name: true }))} onChange={(event) => setName(event.target.value)} required />
+                {nameInvalid && <span className="text-xs font-semibold text-foose-danger">Enter at least 2 characters.</span>}
               </label>
               <label>
-                Username
-                <input defaultValue={user.username} name="username" pattern="[a-zA-Z0-9_]{3,20}" required title="3-20 letters, numbers, or underscore" />
+                <span className="flex items-center gap-2">Username {requiredBadge(usernameInvalid)}</span>
+                <input defaultValue={user.username} name="username" onBlur={() => setTouched((current) => ({ ...current, username: true }))} onChange={(event) => setUsername(event.target.value)} pattern="[a-zA-Z0-9_]{3,20}" required title="3-20 letters, numbers, or underscore" />
+                {usernameInvalid && <span className="text-xs font-semibold text-foose-danger">Use 3-20 letters, numbers, or underscores.</span>}
               </label>
             </div>
 
             <label>
+              Phone
+              <input autoComplete="tel" defaultValue={user.phone || ''} name="phone" onBlur={(event) => { event.currentTarget.value = normalizePhone(event.currentTarget.value) }} placeholder="0240000000" />
+            </label>
+
+            <label>
               Bio
-              <textarea defaultValue={user.bio || ''} maxLength={280} name="bio" placeholder="Tell the Foose community what you thrift, sell, or collect." rows={5} />
+              <textarea defaultValue={user.bio || ''} maxLength={280} name="bio" onChange={(event) => setBioLength(event.target.value.length)} placeholder="Tell the Foose community what you thrift, sell, or collect." rows={5} />
+              <span className="text-xs font-semibold text-foose-muted">{bioLength}/280 characters</span>
             </label>
           </div>
 
@@ -93,7 +120,7 @@ export function ProfileSettingsPage() {
             <a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" href={withBasePath('/profile')}>
               Cancel
             </a>
-            <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-5 text-sm font-bold text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-60" disabled={submitting} type="submit">
+            <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-5 text-sm font-bold text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none" disabled={submitting || !canSubmit} type="submit">
               {submitting ? 'Saving...' : 'Save profile'}
             </button>
           </div>

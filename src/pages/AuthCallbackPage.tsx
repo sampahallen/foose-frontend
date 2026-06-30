@@ -18,19 +18,30 @@ function readOAuthTokens(): AuthTokens | null {
   }
 }
 
+function readCallbackParams() {
+  return new URLSearchParams(window.location.hash.replace(/^#/, '') || window.location.search.replace(/^\?/, ''))
+}
+
 export function AuthCallbackPage() {
   const { completeOAuth, refreshUser } = useAuth()
   const [error, setError] = useState('')
   const redirectTarget = useMemo(() => {
-    const params = new URLSearchParams(window.location.hash.replace(/^#/, '') || window.location.search.replace(/^\?/, ''))
+    const params = readCallbackParams()
     return params.get('redirect') || '/'
   }, [])
 
   useEffect(() => {
     async function finish() {
+      const params = readCallbackParams()
+      const callbackError = params.get('error')
+      if (callbackError) {
+        setError(callbackError)
+        return
+      }
+
       const tokens = readOAuthTokens()
       if (!tokens) {
-        setError('OAuth sign-in did not return usable credentials.')
+        setError('This sign-in link did not return usable credentials.')
         return
       }
 
@@ -40,7 +51,7 @@ export function AuthCallbackPage() {
         window.history.replaceState(null, '', window.location.pathname)
         navigateTo(redirectTarget)
       } catch {
-        setError('OAuth sign-in completed, but we could not load your profile.')
+        setError('Sign-in completed, but we could not load your profile.')
       }
     }
 

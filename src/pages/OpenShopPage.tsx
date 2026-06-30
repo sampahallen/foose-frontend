@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { apiPost } from '../lib/api'
 import type { Shop } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
+import { normalizePhone } from '../utils/formValidation'
 import { navigateTo } from '../utils/navigation'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
@@ -24,7 +25,16 @@ export function OpenShopPage() {
   const { refreshUser, user } = useAuth()
   const brand = getAppName()
   const [error, setError] = useState('')
+  const [shopName, setShopName] = useState('')
+  const [shopNameTouched, setShopNameTouched] = useState(false)
+  const [bioLength, setBioLength] = useState(0)
   const [submitting, setSubmitting] = useState(false)
+  const canSubmit = shopName.trim().length >= 2
+  const shopNameInvalid = shopNameTouched && !canSubmit
+
+  function requiredBadge(invalid: boolean) {
+    return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
+  }
 
   useEffect(() => {
     if (user?.hasShop) navigateTo('/manage-shop')
@@ -32,6 +42,7 @@ export function OpenShopPage() {
 
   async function createShop(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!canSubmit) return
     const form = event.currentTarget
     const sourceData = new FormData(form)
     const formData = new FormData()
@@ -93,12 +104,14 @@ export function OpenShopPage() {
           <p>Create your DigiShop record, then add listings from your profile.</p>
           <form className="space-y-5" encType="multipart/form-data" onSubmit={(event) => void createShop(event)}>
             <label>
-              Shop name
-              <input name="shopName" placeholder="e.g. Accra Vintage Finds" required />
+              <span className="flex items-center gap-2">Shop name {requiredBadge(shopNameInvalid)}</span>
+              <input name="shopName" onBlur={() => setShopNameTouched(true)} onChange={(event) => setShopName(event.target.value)} placeholder="e.g. Accra Vintage Finds" required />
+              {shopNameInvalid && <span className="text-xs font-semibold text-foose-danger">Enter at least 2 characters.</span>}
             </label>
             <label>
               Shop bio
-              <textarea name="bio" placeholder="Tell buyers what you curate..." rows={5} />
+              <textarea maxLength={500} name="bio" onChange={(event) => setBioLength(event.target.value.length)} placeholder="Tell buyers what you curate..." rows={5} />
+              <span className="text-xs font-semibold text-foose-muted">{bioLength}/500 characters</span>
             </label>
             <label>
               Primary category
@@ -121,7 +134,7 @@ export function OpenShopPage() {
                 </label>
                 <label>
                   Account name
-                  <input name="payoutAccountName" placeholder="Registered account name" />
+                  <input defaultValue={user?.name || ''} name="payoutAccountName" placeholder="Registered account name" />
                 </label>
                 <label>
                   Provider
@@ -129,7 +142,7 @@ export function OpenShopPage() {
                 </label>
                 <label>
                   Account / phone number
-                  <input autoComplete="tel" name="payoutAccountNumber" placeholder="024 000 0000" />
+                  <input autoComplete="tel" defaultValue={user?.phone || ''} name="payoutAccountNumber" onBlur={(event) => { event.currentTarget.value = normalizePhone(event.currentTarget.value) }} placeholder="0240000000" />
                 </label>
                 <label>
                   Bank name
@@ -156,7 +169,7 @@ export function OpenShopPage() {
               <ButtonLink to="/" variant="secondary">
                 Cancel
               </ButtonLink>
-              <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting} type="submit">
+              <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting || !canSubmit} type="submit">
                 {submitting ? 'Creating...' : 'Create DigiShop'} <Icon name="arrow" />
               </button>
             </div>

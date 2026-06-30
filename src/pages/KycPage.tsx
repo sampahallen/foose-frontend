@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ButtonLink, EmptyState, ErrorState, Icon, ImagePreviewInput, LightboxImage, LoadingState } from '../components'
 import { getAppName } from '../config/env'
 import { apiPost, apiPut } from '../lib/api'
 import { useApiResource } from '../hooks/useApiResource'
+import { useAuth } from '../hooks/useAuth'
 import type { KycRecord } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
+import { formIsValid, normalizePhone } from '../utils/formValidation'
 
 const ID_TYPES = ['Ghana Card', 'Passport', 'Driving License'] as const
 
@@ -22,16 +24,39 @@ function appendSelectedFile(formData: FormData, form: HTMLFormElement, name: str
 }
 
 export function KycPage() {
+  const { user } = useAuth()
   const brand = getAppName()
   const kyc = useApiResource<{ kyc: KycRecord }>('/kyc/me')
+  const formRef = useRef<HTMLFormElement | null>(null)
   const [error, setError] = useState('')
+  const [formReady, setFormReady] = useState(false)
+  const [touched, setTouched] = useState({ dob: false, idNo: false })
   const [submitting, setSubmitting] = useState(false)
 
   const status = kyc.data?.kyc.status
   const isResubmit = status === 'rejected'
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setFormReady(formIsValid(formRef.current)), 0)
+    return () => window.clearTimeout(timer)
+  }, [kyc.data, isResubmit])
+
+  function updateFormReady() {
+    setFormReady(formIsValid(formRef.current))
+  }
+
+  const idNoInput = formRef.current?.elements.namedItem('idNo') as HTMLInputElement | null
+  const dobInput = formRef.current?.elements.namedItem('dob') as HTMLInputElement | null
+  const idNoInvalid = touched.idNo && !idNoInput?.value.trim()
+  const dobInvalid = touched.dob && !dobInput?.value
+
+  function requiredBadge(invalid: boolean) {
+    return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
+  }
+
   async function submitKyc(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!formReady) return
     const form = event.currentTarget
     const sourceData = new FormData(form)
     const formData = new FormData()
@@ -89,13 +114,13 @@ export function KycPage() {
           <EmptyState body="Your submission is waiting for admin review." icon="shield" title="KYC pending" />
         )}
         {kyc.data && ['not_submitted', 'rejected'].includes(kyc.data.kyc.status) && (
-          <form className="kyc-grid grid gap-6 lg:grid-cols-2" encType="multipart/form-data" onSubmit={(event) => void submitKyc(event)}>
+          <form className="kyc-grid grid gap-6 lg:grid-cols-2" encType="multipart/form-data" onChange={updateFormReady} onInput={updateFormReady} onSubmit={(event) => void submitKyc(event)} ref={formRef}>
             <section className="form-card rounded-xl border border-foose-border bg-foose-surface p-5 shadow-sm md:p-6 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-foose-border [&_input]:bg-foose-surface [&_input]:px-3 [&_input]:py-3 [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-foose-border [&_select]:bg-foose-surface [&_select]:px-3 [&_select]:py-3 [&_select]:outline-none [&_select]:transition [&_select]:focus:border-accent [&_select]:focus:ring-2 [&_select]:focus:ring-accent/15 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-foose-border [&_textarea]:bg-foose-surface [&_textarea]:px-3 [&_textarea]:py-3 max-lg:rounded-lg max-lg:p-4">
               <h2>
                 <Icon name="user" /> Personal information
               </h2>
               <label>
-                ID type
+                <span className="flex items-center gap-2">ID type {requiredBadge(false)}</span>
                 <select defaultValue={kyc.data.kyc.idType || 'Ghana Card'} name="idType" required>
                   {ID_TYPES.map((t) => (
                     <option key={t} value={t}>
@@ -105,21 +130,24 @@ export function KycPage() {
                 </select>
               </label>
               <label>
-                ID number
-                <input defaultValue={kyc.data.kyc.idNo || ''} name="idNo" placeholder="GHA-000000000-0" required />
+                <span className="flex items-center gap-2">ID number {requiredBadge(idNoInvalid)}</span>
+                <input defaultValue={kyc.data.kyc.idNo || ''} name="idNo" onBlur={() => setTouched((current) => ({ ...current, idNo: true }))} placeholder="GHA-000000000-0" required />
+                {idNoInvalid && <span className="text-xs font-semibold text-foose-danger">Enter your ID number.</span>}
               </label>
               <div className="form-grid grid gap-4 sm:grid-cols-2 [&_.wide]:sm:col-span-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3">
                 <label>
-                  Date of birth
-                  <input defaultValue={kyc.data.kyc.dob || ''} name="dob" required type="date" />
+                  <span className="flex items-center gap-2">Date of birth {requiredBadge(dobInvalid)}</span>
+                  <input defaultValue={kyc.data.kyc.dob || ''} name="dob" onBlur={() => setTouched((current) => ({ ...current, dob: true }))} required type="date" />
+                  {dobInvalid && <span className="text-xs font-semibold text-foose-danger">Enter your date of birth.</span>}
                 </label>
                 <label>
                   Phone number
                   <input
                     autoComplete="tel"
-                    defaultValue={kyc.data.kyc.phone || ''}
+                    defaultValue={kyc.data.kyc.phone || user?.phone || ''}
                     name="phone"
-                    placeholder="024 000 0000"
+                    onBlur={(event) => { event.currentTarget.value = normalizePhone(event.currentTarget.value) }}
+                    placeholder="0240000000"
                   />
                 </label>
               </div>
@@ -139,7 +167,7 @@ export function KycPage() {
                 </div>
               )}
               <label>
-                ID document photo
+                <span className="flex items-center gap-2">ID document photo {!isResubmit && requiredBadge(false)}</span>
                 <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="idImg" required={!isResubmit} />
                 <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">JPEG, PNG, or WebP · max 10 MB</span>
               </label>
@@ -150,7 +178,7 @@ export function KycPage() {
                 </div>
               )}
               <label>
-                Selfie (holding ID optional)
+                <span className="flex items-center gap-2">Selfie (holding ID optional) {!isResubmit && requiredBadge(false)}</span>
                 <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="selfie" required={!isResubmit} />
                 <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">JPEG, PNG, or WebP · max 10 MB</span>
               </label>
@@ -174,7 +202,7 @@ export function KycPage() {
             {error && <ErrorState message={error} />}
             <div className="flow-actions flex flex-wrap items-center gap-3">
               <p>By submitting, you agree to seller terms and data processing policies.</p>
-              <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting} type="submit">
+              <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting || !formReady} type="submit">
                 {submitting ? 'Submitting…' : 'Submit verification'}
               </button>
             </div>

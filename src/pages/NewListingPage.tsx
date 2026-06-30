@@ -146,6 +146,12 @@ export function NewListingPage() {
   const [selectedListingType, setSelectedListingType] = useState<'' | 'retail' | 'wholesale'>('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [selectedCondition, setSelectedCondition] = useState('')
+  const [titleValue, setTitleValue] = useState(listing?.title || '')
+  const [priceValue, setPriceValue] = useState(listing ? priceInputValue(listing.price) : '')
+  const [descriptionLength, setDescriptionLength] = useState(listing?.description?.length || 0)
+  const [quantityValue, setQuantityValue] = useState(listing?.quantity ? String(listing.quantity) : '')
+  const [bulkMinQtyValue, setBulkMinQtyValue] = useState(listing?.bulkMinQty ? String(listing.bulkMinQty) : '')
+  const [touched, setTouched] = useState({ bulkMinQty: false, price: false, quantity: false, title: false })
   const [submitting, setSubmitting] = useState(false)
   const [submittingAction, setSubmittingAction] = useState<'active' | 'draft' | ''>('')
   const listingType = selectedListingType || listing?.type || 'retail'
@@ -157,9 +163,37 @@ export function NewListingPage() {
   const colorDropdownOptions = LISTING_COLORS.map((color) => ({ label: color.label, swatch: color.hex, value: color.value }))
   const needsFlawProof = conditionValue === 'fair' || conditionValue === 'poor'
   const sizePlaceholder = sizePlaceholderForCategory(categoryValue)
+  const priceNumber = parseGhsToPesewas(priceValue)
+  const bulkQuantity = optionalNumber(quantityValue)
+  const minimumOrderQuantity = optionalNumber(bulkMinQtyValue)
+  const wholesaleValid =
+    listingType !== 'wholesale' ||
+    Boolean(bulkQuantity && minimumOrderQuantity && bulkQuantity >= 1 && minimumOrderQuantity >= 1 && minimumOrderQuantity <= bulkQuantity)
+  const canSubmitListing = titleValue.trim().length >= 2 && priceNumber !== null && priceNumber >= 0 && wholesaleValid
+  const titleInvalid = touched.title && titleValue.trim().length < 2
+  const priceInvalid = touched.price && (priceNumber === null || priceNumber < 0)
+  const quantityInvalid = touched.quantity && listingType === 'wholesale' && (!bulkQuantity || bulkQuantity < 1)
+  const bulkMinQtyInvalid =
+    touched.bulkMinQty &&
+    listingType === 'wholesale' &&
+    (!minimumOrderQuantity || minimumOrderQuantity < 1 || Boolean(bulkQuantity && minimumOrderQuantity > bulkQuantity))
+
+  function requiredBadge(invalid: boolean) {
+    return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
+  }
+
+  useEffect(() => {
+    if (!listing) return
+    setTitleValue(listing.title || '')
+    setPriceValue(priceInputValue(listing.price))
+    setDescriptionLength(listing.description?.length || 0)
+    setQuantityValue(listing.quantity ? String(listing.quantity) : '')
+    setBulkMinQtyValue(listing.bulkMinQty ? String(listing.bulkMinQty) : '')
+  }, [listing])
 
   async function createListing(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!canSubmitListing) return
     const form = event.currentTarget
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
     const requestedStatus = submitter?.dataset.status === 'draft' ? 'draft' : 'active'
@@ -316,15 +350,17 @@ export function NewListingPage() {
         <form className="space-y-6" encType="multipart/form-data" onSubmit={(event) => void createListing(event)}>
           <div className="listing-form-grid grid gap-5 lg:grid-cols-2 [&_.wide]:sm:col-span-2">
             <label className="wide">
-              Title
-              <input defaultValue={listing?.title || ''} name="title" placeholder="Vintage bomber jacket" required />
+              <span className="flex items-center gap-2">Title {requiredBadge(titleInvalid)}</span>
+              <input defaultValue={listing?.title || ''} name="title" onBlur={() => setTouched((current) => ({ ...current, title: true }))} onChange={(event) => setTitleValue(event.target.value)} placeholder="Vintage bomber jacket" required />
+              {titleInvalid && <span className="text-xs font-semibold text-foose-danger">Enter at least 2 characters.</span>}
             </label>
             <label className="wide">
               Description
-              <textarea defaultValue={listing?.description || ''} name="description" placeholder="Condition, fit, measurements, and pickup notes" rows={5} />
+              <textarea defaultValue={listing?.description || ''} maxLength={1200} name="description" onChange={(event) => setDescriptionLength(event.target.value.length)} placeholder="Condition, fit, measurements, and pickup notes" rows={5} />
+              <span className="text-xs font-semibold text-foose-muted">{descriptionLength}/1200 characters</span>
             </label>
             <label>
-              Listing type
+              <span className="flex items-center gap-2">Listing type {requiredBadge(false)}</span>
               <select
                 className={listingSelectControl}
                 name="type"
@@ -342,9 +378,10 @@ export function NewListingPage() {
               </span>
             </label>
             <label>
-              {listingType === 'wholesale' ? 'Unit price (GHS)' : 'Price (GHS)'}
-              <input defaultValue={priceInputValue(listing?.price)} inputMode="decimal" name="price" placeholder="240.00" required />
+              <span className="flex items-center gap-2">{listingType === 'wholesale' ? 'Unit price (GHS)' : 'Price (GHS)'} {requiredBadge(priceInvalid)}</span>
+              <input defaultValue={priceInputValue(listing?.price)} inputMode="decimal" name="price" onBlur={() => setTouched((current) => ({ ...current, price: true }))} onChange={(event) => setPriceValue(event.target.value)} placeholder="240.00" required />
               <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Use up to two decimal places. The API stores the exact pesewa amount.</span>
+              {priceInvalid && <span className="text-xs font-semibold text-foose-danger">Enter a valid amount, like 240.00.</span>}
             </label>
             <label>
               Category
@@ -411,12 +448,15 @@ export function NewListingPage() {
             {listingType === 'wholesale' && (
               <>
                 <label>
-                  Total available quantity
-                  <input defaultValue={listing?.quantity || ''} min="1" name="quantity" placeholder="100" required step="1" type="number" />
+                  <span className="flex items-center gap-2">Total available quantity {requiredBadge(quantityInvalid)}</span>
+                  <input defaultValue={listing?.quantity || ''} min="1" name="quantity" onBlur={() => setTouched((current) => ({ ...current, quantity: true }))} onChange={(event) => setQuantityValue(event.target.value)} placeholder="100" required step="1" type="number" />
+                  {quantityInvalid && <span className="text-xs font-semibold text-foose-danger">Enter at least 1 item.</span>}
                 </label>
                 <label>
-                  Minimum order quantity
-                  <input defaultValue={listing?.bulkMinQty || ''} min="1" name="bulkMinQty" placeholder="10" required step="1" type="number" />
+                  <span className="flex items-center gap-2">Minimum order quantity {requiredBadge(bulkMinQtyInvalid)}</span>
+                  <input defaultValue={listing?.bulkMinQty || ''} min="1" name="bulkMinQty" onBlur={() => setTouched((current) => ({ ...current, bulkMinQty: true }))} onChange={(event) => setBulkMinQtyValue(event.target.value)} placeholder="10" required step="1" type="number" />
+                  {bulkMinQtyInvalid && (!minimumOrderQuantity || minimumOrderQuantity < 1) && <span className="text-xs font-semibold text-foose-danger">Enter at least 1 item.</span>}
+                  {bulkMinQtyInvalid && bulkQuantity && minimumOrderQuantity && minimumOrderQuantity > bulkQuantity && <span className="text-xs font-semibold text-foose-danger">Minimum order cannot exceed total quantity.</span>}
                 </label>
                 <label>
                   Bulk weight (optional)
@@ -447,10 +487,10 @@ export function NewListingPage() {
             <ButtonLink to={eventId ? `/community/events/${eventId}/manage` : '/manage-shop'} variant="secondary">
               Cancel
             </ButtonLink>
-            <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" data-status="draft" disabled={submitting} type="submit">
+            <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" data-status="draft" disabled={submitting || !canSubmitListing} type="submit">
               {submitting && submittingAction === 'draft' ? 'Saving draft...' : 'Save as draft'}
             </button>
-            <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting} type="submit">
+            <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting || !canSubmitListing} type="submit">
               {submitting && submittingAction === 'active' ? 'Saving...' : editId ? 'Save item' : 'Post item'} <Icon name="plus" />
             </button>
           </div>

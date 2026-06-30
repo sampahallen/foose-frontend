@@ -69,9 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phone?: string
       location?: { region?: string; city?: string }
     }) => {
-      applyAuth(await apiPost<AuthPayload>('/auth/register', payload, { auth: false }))
+      await apiPost('/auth/register', payload, { auth: false })
     },
-    [applyAuth],
+    [],
   )
 
   const completeOAuth = useCallback(
