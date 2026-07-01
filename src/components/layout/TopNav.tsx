@@ -127,7 +127,7 @@ export function TopNav({
                       <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                         Profile settings
                       </a>
-                      <a href={withBasePath('/profile?panel=account')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                      <a href={withBasePath('/profile/settings#account')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                         Account settings
                       </a>
                       <a href={withBasePath('/inbox?support=true')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
@@ -223,7 +223,7 @@ export function TopNav({
                         <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                           Profile settings
                         </a>
-                        <a href={withBasePath('/profile?panel=account')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        <a href={withBasePath('/profile/settings#account')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                           Account settings
                         </a>
                         <a href={withBasePath('/inbox?support=true')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>

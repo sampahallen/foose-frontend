@@ -25,3 +25,29 @@
   --font-display: 'Clash Display', 'DM Serif Display', Georgia, serif;
   --font-sans: Inter, system-ui, sans-serif;
 }
+
+.button.button-primary,
+.button.bg-accent,
+a.bg-accent.text-white,
+button.bg-accent.text-white {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #ffffff;
+}
+
+.button.button-primary:hover,
+.button.bg-accent:hover,
+a.bg-accent.text-white:hover,
+button.bg-accent.text-white:hover {
+  background-color: var(--color-accent-hover);
+  color: #ffffff;
+}
+
+.button.button-primary:disabled,
+.button.bg-accent:disabled,
+button.bg-accent.text-white:disabled {
+  background-color: var(--color-foose-surface-mid);
+  border-color: var(--color-foose-border);
+  color: var(--color-foose-faint);
+  box-shadow: none;
+}

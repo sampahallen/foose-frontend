@@ -20,7 +20,7 @@ type PaginatedGallery = { posts: GalleryPost[]; page: number; pages: number; tot
 
 function initialCommunityState() {
   const params = new URLSearchParams(window.location.search)
-  const tab = params.get('tab') === 'finspo' ? 'finspo' : 'events'
+  const tab = params.get('tab') === 'events' ? 'events' : 'finspo'
   const scope = params.get('scope')
 
   return {
@@ -98,11 +98,24 @@ export function CommunityPage() {
   }
 
   function addEventHref() {
-    return user || status === 'checking' ? '/community/events/new' : authHref('/login', '/community/events/new')
+    return user || status === 'checking' ? withBasePath('/community/events/new') : authHref('/login', '/community/events/new')
   }
 
   function addFinspoHref() {
-    return user || status === 'checking' ? '/community/finspo/new' : authHref('/login', '/community/finspo/new')
+    return user || status === 'checking' ? withBasePath('/community/finspo/new') : authHref('/login', '/community/finspo/new')
+  }
+
+  function renderFloatingCreateButton() {
+    const isFinspo = mainTab === 'finspo'
+    return (
+      <a
+        aria-label={isFinspo ? 'Post Finspo' : 'Add event'}
+        className="fixed bottom-24 right-4 z-50 inline-flex size-14 items-center justify-center rounded-full border border-white/20 bg-accent/90 text-white shadow-xl shadow-accent/25 backdrop-blur transition hover:bg-accent lg:hidden"
+        href={isFinspo ? addFinspoHref() : addEventHref()}
+      >
+        <Icon name="plus" size={26} />
+      </a>
+    )
   }
 
   async function deleteEvent(eventId: string) {
@@ -282,7 +295,7 @@ export function CommunityPage() {
           <>
             <SectionHeader
               action={
-                <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addEventHref()}>
+                <a className="button hidden min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 lg:inline-flex [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addEventHref()}>
                   Add event
                 </a>
               }
@@ -303,7 +316,7 @@ export function CommunityPage() {
           <>
             <SectionHeader
               action={
-                <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addEventHref()}>
+                <a className="button hidden min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 lg:inline-flex [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addEventHref()}>
                   Add event
                 </a>
               }
@@ -324,7 +337,7 @@ export function CommunityPage() {
           <>
             <SectionHeader
               action={
-                <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addEventHref()}>
+                <a className="button hidden min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 lg:inline-flex [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addEventHref()}>
                   Add event
                 </a>
               }
@@ -356,7 +369,7 @@ export function CommunityPage() {
           <>
             <SectionHeader
               action={
-                <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addFinspoHref()}>
+                <a className="button hidden min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 lg:inline-flex [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addFinspoHref()}>
                   Post Finspo
                 </a>
               }
@@ -381,7 +394,7 @@ export function CommunityPage() {
           <>
             <SectionHeader
               action={
-                <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addFinspoHref()}>
+                <a className="button hidden min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 lg:inline-flex [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addFinspoHref()}>
                   Post Finspo
                 </a>
               }
@@ -400,23 +413,20 @@ export function CommunityPage() {
 
   return (
     <AppShell active="community">
-      <section className="page-hero [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base mb-8 rounded-xl border border-foose-border bg-foose-surface p-5 md:p-8 [&.small]:py-6 max-md:[&_h1]:text-2xl community-hero">
-        <h1>Community Hub</h1>
-        <p>Find local events and browse Finspo from the Foose community.</p>
-      </section>
       {actionError && <ErrorState message={actionError} />}
 
       <nav className="tab-line community-main-tabs flex flex-wrap items-center justify-center gap-2 [&_button]:shrink-0 [&_button]:rounded-full [&_button]:border [&_button]:border-foose-border [&_button]:bg-foose-surface-low [&_button]:px-4 [&_button]:py-2 [&_button]:text-sm [&_button]:font-semibold [&_button]:text-foose-muted [&_button]:transition [&_button]:hover:border-accent [&_button]:hover:text-accent [&_a]:shrink-0 [&_a]:rounded-full [&_a]:border [&_a]:border-foose-border [&_a]:bg-foose-surface-low [&_a]:px-4 [&_a]:py-2 [&_a]:text-sm [&_a]:font-semibold [&_a]:text-foose-muted [&_a]:transition [&_a]:hover:border-accent [&_a]:hover:text-accent [&_button.active]:border-accent [&_button.active]:bg-accent [&_button.active]:text-white [&_a.active]:border-accent [&_a.active]:bg-accent [&_a.active]:text-white" aria-label="Community sections">
-        <button className={mainTab === 'events' ? 'active' : ''} onClick={() => setMainTab('events')} type="button">
-          Events
-        </button>
         <button className={mainTab === 'finspo' ? 'active' : ''} onClick={() => setMainTab('finspo')} type="button">
           Finspo
         </button>
+        <button className={mainTab === 'events' ? 'active' : ''} onClick={() => setMainTab('events')} type="button">
+          Events
+        </button>
       </nav>
 
-      {mainTab === 'events' && renderEventPanel()}
       {mainTab === 'finspo' && renderFinspoPanel()}
+      {mainTab === 'events' && renderEventPanel()}
+      {renderFloatingCreateButton()}
 
       {!user && (
         <section className="seller-cta mx-auto w-full max-w-[1280px] rounded-xl bg-accent p-6 text-white my-10 grid gap-6 md:grid-cols-[1fr_auto] [&_h2]:text-3xl [&_h2]:font-bold compact">

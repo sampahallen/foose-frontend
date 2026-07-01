@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { AppShell, ErrorState, ImagePreviewInput, LoadingState } from '../components'
 import { useAuth } from '../hooks/useAuth'
-import { apiPut } from '../lib/api'
+import { apiDelete, apiPost, apiPut } from '../lib/api'
 import type { User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { normalizePhone, usernameLooksValid } from '../utils/formValidation'
@@ -9,10 +9,12 @@ import { initials } from '../utils/format'
 import { withBasePath } from '../utils/navigation'
 
 export function ProfileSettingsPage() {
-  const { refreshUser, status, user } = useAuth()
+  const { logout, refreshUser, status, user } = useAuth()
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [accountAction, setAccountAction] = useState<'deactivate' | 'delete' | null>(null)
+  const [accountError, setAccountError] = useState('')
   const [name, setName] = useState(user?.name || '')
   const [username, setUsername] = useState(user?.username || '')
   const [touched, setTouched] = useState({ name: false, username: false })
@@ -48,6 +50,48 @@ export function ProfileSettingsPage() {
       setError(getErrorMessage(err, 'Could not update your profile'))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleDeactivateAccount() {
+    setAccountError('')
+    const firstConfirm = window.confirm(
+      'Deactivate your Foose account?\n\nYour profile will be hidden, you will be logged out, and the account will be scheduled for deletion after 30 days. To reactivate it, log in again and verify with the fresh email link.',
+    )
+    if (!firstConfirm) return
+
+    const sureSure = window.confirm('Are you sure sure? Deactivated accounts that are not reverified are deleted after 30 days.')
+    if (!sureSure) return
+
+    setAccountAction('deactivate')
+    try {
+      await apiPost<{ scheduledDeletionAt: string }>('/users/me/deactivate')
+      await logout()
+    } catch (err) {
+      setAccountError(getErrorMessage(err, 'Could not deactivate your account'))
+    } finally {
+      setAccountAction(null)
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setAccountError('')
+    const typed = window.prompt(
+      'This soft deletes your account, releases your username and email immediately, and cannot be reversed through login.\n\nType DELETE to confirm.',
+    )
+    if (typed !== 'DELETE') return
+
+    const sureSure = window.confirm('Are you sure sure? Your username and email can be claimed by someone else after this.')
+    if (!sureSure) return
+
+    setAccountAction('delete')
+    try {
+      await apiDelete('/users/me', { body: { confirmation: 'DELETE' } })
+      await logout()
+    } catch (err) {
+      setAccountError(getErrorMessage(err, 'Could not delete your account'))
+    } finally {
+      setAccountAction(null)
     }
   }
 
@@ -125,6 +169,53 @@ export function ProfileSettingsPage() {
             </button>
           </div>
         </form>
+
+        <section
+          className="mt-6 rounded-2xl border border-foose-danger/25 bg-white p-4 shadow-sm sm:p-6 md:p-8"
+          id="account"
+        >
+          <div className="flex flex-col gap-2 border-b border-foose-border pb-5">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-foose-danger">Account actions</span>
+            <h2 className="font-display text-2xl font-bold text-foose-text">Deactivate or delete account</h2>
+            <p className="text-sm leading-6 text-foose-muted">
+              These actions affect your profile, sign-in access, username, email, shop, listings, and community activity. We will ask for confirmation before doing anything.
+            </p>
+          </div>
+
+          <div className="grid gap-4 pt-5 md:grid-cols-2">
+            <div className="rounded-xl border border-foose-border bg-foose-surface-low p-4">
+              <h3 className="text-base font-bold text-foose-text">Deactivate account</h3>
+              <p className="mt-2 text-sm leading-6 text-foose-muted">
+                Hides your account and logs you out. To reactivate, log in with your email and use the fresh verification link. If you do not reverify within 30 days, the account is deleted.
+              </p>
+              <button
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text transition hover:border-foose-danger hover:text-foose-danger disabled:pointer-events-none disabled:bg-foose-surface-mid disabled:text-foose-faint"
+                disabled={accountAction !== null}
+                onClick={() => void handleDeactivateAccount()}
+                type="button"
+              >
+                {accountAction === 'deactivate' ? 'Deactivating...' : 'Deactivate account'}
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-foose-danger/30 bg-foose-danger/5 p-4">
+              <h3 className="text-base font-bold text-foose-danger">Delete account</h3>
+              <p className="mt-2 text-sm leading-6 text-foose-muted">
+                Soft deletes your account, removes personal profile details, logs you out, and makes your username and email available immediately. This is not reactivated by logging in.
+              </p>
+              <button
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-foose-danger bg-foose-danger px-5 text-sm font-bold text-white transition hover:brightness-95 disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint"
+                disabled={accountAction !== null}
+                onClick={() => void handleDeleteAccount()}
+                type="button"
+              >
+                {accountAction === 'delete' ? 'Deleting...' : 'Delete account'}
+              </button>
+            </div>
+          </div>
+
+          {accountError && <div className="mt-5"><ErrorState message={accountError} /></div>}
+        </section>
       </section>
     </AppShell>
   )
