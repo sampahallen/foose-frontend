@@ -47,8 +47,19 @@ export function KycPage() {
 
   const idNoInput = formRef.current?.elements.namedItem('idNo') as HTMLInputElement | null
   const dobInput = formRef.current?.elements.namedItem('dob') as HTMLInputElement | null
+  const idImgInput = formRef.current?.elements.namedItem('idImg') as HTMLInputElement | null
+  const selfieInput = formRef.current?.elements.namedItem('selfie') as HTMLInputElement | null
   const idNoInvalid = touched.idNo && !idNoInput?.value.trim()
   const dobInvalid = touched.dob && !dobInput?.value
+  const submitHint = !idNoInput?.value.trim()
+    ? 'Enter your ID number.'
+    : !dobInput?.value
+      ? 'Enter your date of birth.'
+      : !isResubmit && !idImgInput?.files?.length
+        ? 'Upload your ID document photo.'
+        : !isResubmit && !selfieInput?.files?.length
+          ? 'Upload your selfie.'
+          : ''
 
   function requiredBadge(invalid: boolean) {
     return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
@@ -205,6 +216,7 @@ export function KycPage() {
               <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting || !formReady} type="submit">
                 {submitting ? 'Submitting…' : 'Submit verification'}
               </button>
+              {!formReady && <p className="w-full text-sm font-bold text-foose-muted">{submitHint || 'Complete the required fields.'}</p>}
             </div>
           </form>
         )}

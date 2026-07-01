@@ -25,6 +25,15 @@ export function RegisterPage() {
     emailLooksValid(values.email) &&
     usernameLooksValid(values.username) &&
     passwordMeetsRequirements(values.password)
+  const submitHint = values.name.trim().length < 2
+    ? 'Enter your name.'
+    : !emailLooksValid(values.email)
+      ? 'Enter a valid email address.'
+      : !usernameLooksValid(values.username)
+        ? 'Use 3-20 letters, numbers, underscores, or dots for username.'
+        : !passwordMeetsRequirements(values.password)
+          ? 'Complete the password requirements.'
+          : ''
 
   function updateRequiredField(name: keyof typeof values, value: string) {
     setValues((current) => ({ ...current, [name]: value }))
@@ -182,6 +191,7 @@ export function RegisterPage() {
           <button className="button inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-accent bg-accent px-5 py-2.5 text-center text-sm font-bold text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full full" disabled={submitting || !canSubmit} type="submit">
             {submitting ? 'Creating...' : 'Create account'}
           </button>
+          {!canSubmit && <p className="text-center text-xs font-bold text-foose-muted">{submitHint}</p>}
           <p className="text-center text-sm text-foose-muted">
             Already have an account?{' '}
             <a className="font-display font-bold text-accent hover:underline" href={authHref('/login', redirectTarget)}>

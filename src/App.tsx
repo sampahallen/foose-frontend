@@ -5,6 +5,7 @@ import {
   AdminKycDetailPage,
   AdminKycPage,
   AdminOverviewPage,
+  AccountSettingsPage,
   AuthCallbackPage,
   BaleWholesalePage,
   BrowsePage,
@@ -147,6 +148,13 @@ function App() {
       page = (
         <AuthRequired>
           <SavedPage />
+        </AuthRequired>
+      )
+      break
+    case 'accountSettings':
+      page = (
+        <AuthRequired>
+          <AccountSettingsPage />
         </AuthRequired>
       )
       break

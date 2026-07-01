@@ -177,6 +177,17 @@ export function NewListingPage() {
     touched.bulkMinQty &&
     listingType === 'wholesale' &&
     (!minimumOrderQuantity || minimumOrderQuantity < 1 || Boolean(bulkQuantity && minimumOrderQuantity > bulkQuantity))
+  const submitHint = titleValue.trim().length < 2
+    ? 'Enter a listing title.'
+    : priceNumber === null || priceNumber < 0
+      ? 'Enter a valid price.'
+      : listingType === 'wholesale' && (!bulkQuantity || bulkQuantity < 1)
+        ? 'Enter the total available quantity.'
+        : listingType === 'wholesale' && (!minimumOrderQuantity || minimumOrderQuantity < 1)
+          ? 'Enter the minimum order quantity.'
+          : listingType === 'wholesale' && Boolean(bulkQuantity && minimumOrderQuantity && minimumOrderQuantity > bulkQuantity)
+            ? 'Minimum order quantity cannot exceed total quantity.'
+            : ''
 
   function requiredBadge(invalid: boolean) {
     return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
@@ -493,6 +504,7 @@ export function NewListingPage() {
             <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting || !canSubmitListing} type="submit">
               {submitting && submittingAction === 'active' ? 'Saving...' : editId ? 'Save item' : 'Post item'} <Icon name="plus" />
             </button>
+            {!canSubmitListing && <p className="w-full text-sm font-bold text-foose-muted">{submitHint}</p>}
           </div>
         </form>
       </section>

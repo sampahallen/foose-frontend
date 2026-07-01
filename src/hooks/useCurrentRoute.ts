@@ -38,6 +38,10 @@ function subscribe(onStoreChange: () => void) {
 }
 
 function getSnapshot() {
+  if (window.location.hash.startsWith('#/')) {
+    return window.location.hash.slice(1)
+  }
+
   return stripBasePath(window.location.pathname) + window.location.search
 }
 

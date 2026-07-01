@@ -31,6 +31,7 @@ export function OpenShopPage() {
   const [submitting, setSubmitting] = useState(false)
   const canSubmit = shopName.trim().length >= 2
   const shopNameInvalid = shopNameTouched && !canSubmit
+  const submitHint = !canSubmit ? 'Enter a shop name with at least 2 characters.' : ''
 
   function requiredBadge(invalid: boolean) {
     return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
@@ -172,6 +173,7 @@ export function OpenShopPage() {
               <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting || !canSubmit} type="submit">
                 {submitting ? 'Creating...' : 'Create DigiShop'} <Icon name="arrow" />
               </button>
+              {!canSubmit && <p className="w-full text-sm font-bold text-foose-muted">{submitHint}</p>}
             </div>
           </form>
         </section>

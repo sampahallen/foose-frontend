@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { AppShell, ButtonLink, ErrorState, Icon, ImagePreviewInput, LoadingState } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { apiPost, apiPut } from '../lib/api'
@@ -9,6 +9,7 @@ import { getErrorMessage } from '../utils/errorMessage'
 import { getCurrentAppPathname, navigateTo } from '../utils/navigation'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
+const EVENT_DESCRIPTION_MAX = 60
 const eventTypeCard =
   'flex min-h-28 w-full flex-col items-start gap-3 rounded-2xl border p-4 text-left transition hover:border-accent hover:bg-accent-light/60 focus:outline-none focus:ring-2 focus:ring-accent/20'
 const eventTypeCardActive = 'border-accent bg-accent-light text-foose-text shadow-sm shadow-accent/10'
@@ -82,10 +83,15 @@ export function CommunityEventFormPage() {
   const eventResource = useApiResource<{ event: Event }>(eventId ? `/community/events/${eventId}` : null)
   const event = eventResource.data?.event
   const [selectedType, setSelectedType] = useState<'' | 'online-pop-up' | 'in-person-pop-up'>('')
+  const [descriptionLength, setDescriptionLength] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const activeType = selectedType || (event ? (normalizedEventType(event) as 'online-pop-up' | 'in-person-pop-up') : 'in-person-pop-up')
   const onlineRequiresShop = activeType === 'online-pop-up' && user?.hasShop === false
+
+  useEffect(() => {
+    setDescriptionLength(event?.description?.length || 0)
+  }, [event?.description])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -204,7 +210,15 @@ export function CommunityEventFormPage() {
               )}
               <label className="wide">
                 Description
-                <textarea defaultValue={event?.description || ''} name="description" placeholder="Optional details for attendees" rows={5} />
+                <textarea
+                  defaultValue={event?.description || ''}
+                  maxLength={EVENT_DESCRIPTION_MAX}
+                  name="description"
+                  onChange={(input) => setDescriptionLength(input.target.value.length)}
+                  placeholder="Optional details for attendees"
+                  rows={3}
+                />
+                <span className="text-xs font-semibold text-foose-muted">{descriptionLength}/{EVENT_DESCRIPTION_MAX} characters</span>
               </label>
               </div>
             </div>

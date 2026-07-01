@@ -13,6 +13,7 @@ export function stripBasePath(pathname: string) {
 
 export function getCurrentAppPathname() {
   if (typeof window === 'undefined') return '/'
+  if (window.location.hash.startsWith('#/')) return window.location.hash.slice(1).split('?')[0] || '/'
   return stripBasePath(window.location.pathname)
 }
 

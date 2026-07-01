@@ -10,6 +10,15 @@ import { emailLooksValid } from '../utils/formValidation'
 import { navigateTo } from '../utils/navigation'
 import { startOAuth } from '../utils/oauth'
 
+function loginSearchParams() {
+  if (window.location.hash.startsWith('#/')) {
+    const queryStart = window.location.hash.indexOf('?')
+    return new URLSearchParams(queryStart === -1 ? '' : window.location.hash.slice(queryStart + 1))
+  }
+
+  return new URLSearchParams(window.location.search)
+}
+
 export function LoginPage() {
   const { login, user } = useAuth()
   const [error, setError] = useState('')
@@ -18,12 +27,22 @@ export function LoginPage() {
   const [touched, setTouched] = useState({ identifier: false, password: false })
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const loginParams = loginSearchParams()
   const redirectTarget = redirectFromSearch()
   const closeTarget = closeTargetForAuthModal(redirectTarget)
   const identifierIsEmail = identifier.includes('@')
   const canSubmit = identifier.trim().length > 0 && password.length > 0 && (!identifierIsEmail || emailLooksValid(identifier))
   const identifierInvalid = touched.identifier && (!identifier.trim() || (identifierIsEmail && !emailLooksValid(identifier)))
   const passwordInvalid = touched.password && !password
+  const submitHint = !identifier.trim()
+    ? 'Enter your email or username.'
+    : identifierIsEmail && !emailLooksValid(identifier)
+      ? 'Enter a valid email address.'
+      : !password
+        ? 'Enter your password.'
+        : ''
+  const verificationNotice = loginParams.get('verified') === '1' ? 'Email verified. Log in to continue.' : ''
+  const verificationError = loginParams.get('error') || ''
 
   function requiredBadge(invalid: boolean) {
     return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
@@ -65,6 +84,8 @@ export function LoginPage() {
             </div>
           </header>
           {user && <p className="accent-text font-bold text-accent">You are already logged in.</p>}
+          {verificationNotice && <p className="rounded-xl bg-foose-success-bg px-4 py-3 text-sm font-bold text-foose-success">{verificationNotice}</p>}
+          {verificationError && <ErrorState message={verificationError} />}
           <div className="grid gap-3 sm:grid-cols-2">
             <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light" onClick={() => startOAuth('google', redirectTarget)} type="button">
               <FcGoogle size={20} /> Sign in with Gmail
@@ -91,6 +112,7 @@ export function LoginPage() {
           <button className="button inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-accent bg-accent px-5 py-2.5 text-center text-sm font-bold text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full full" disabled={submitting || !canSubmit} type="submit">
             {submitting ? 'Logging in...' : 'Log in'}
           </button>
+          {!canSubmit && <p className="text-center text-xs font-bold text-foose-muted">{submitHint}</p>}
           <p className="text-center text-sm text-foose-muted">
             New here?{' '}
             <a className="font-display font-bold text-accent hover:underline" href={authHref('/register', redirectTarget)}>

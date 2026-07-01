@@ -150,8 +150,8 @@ export function HomePage() {
       </section>
 
       {!user?.hasShop && (
-        <section className="seller-cta mx-auto w-full max-w-[1280px] rounded-xl bg-accent p-6 text-white my-10 grid gap-6 md:grid-cols-[1fr_auto] [&_h2]:text-3xl [&_h2]:font-bold">
-          <div>
+        <section className="seller-cta digishop-cta relative isolate mx-auto my-10 grid min-h-[260px] w-full max-w-[1280px] overflow-hidden rounded-xl bg-accent p-6 text-white shadow-lg shadow-accent/15 md:min-h-[340px] md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:p-10 [&::before]:absolute [&::before]:inset-0 [&::before]:-z-20 [&::before]:bg-[url('https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=1800&q=80')] [&::before]:bg-cover [&::before]:bg-center [&::before]:content-[''] [&::after]:absolute [&::after]:inset-0 [&::after]:-z-10 [&::after]:bg-accent/78 [&::after]:content-[''] [&_h2]:max-w-3xl [&_h2]:text-3xl [&_h2]:font-bold md:[&_h2]:text-5xl [&_p]:max-w-2xl [&_p]:text-sm [&_p]:text-white/85 md:[&_p]:text-base">
+          <div className="self-end">
             <h2>Turn your closet into a business.</h2>
             <p>Create a verified DigiShop, publish listings, and manage orders from your profile.</p>
           </div>

@@ -51,3 +51,103 @@ button.bg-accent.text-white:disabled {
   color: var(--color-foose-faint);
   box-shadow: none;
 }
+
+.digishop-cta {
+  transform: translateY(0);
+  transition:
+    box-shadow 220ms ease,
+    transform 220ms ease;
+}
+
+.digishop-cta::before {
+  transform: scale(1.02);
+  transition: transform 700ms ease;
+}
+
+.digishop-cta::after {
+  transition: background-color 220ms ease;
+}
+
+.digishop-cta:hover {
+  box-shadow: 0 24px 56px rgba(38, 66, 251, 0.26);
+  transform: translateY(-3px);
+}
+
+.digishop-cta:hover::before {
+  transform: scale(1.07);
+}
+
+.digishop-cta .button {
+  position: relative;
+  overflow: hidden;
+}
+
+.digishop-cta .button::after {
+  animation: digishop-button-glare 3.8s ease-in-out infinite;
+  background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.7) 50%, transparent 80%);
+  content: "";
+  inset: -40% auto -40% -70%;
+  pointer-events: none;
+  position: absolute;
+  transform: rotate(12deg);
+  width: 55%;
+}
+
+.digishop-cta::before,
+.digishop-cta::after {
+  pointer-events: none;
+}
+
+.digishop-cta > div::after {
+  animation: digishop-card-glare 5.5s ease-in-out infinite;
+  background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.18) 48%, transparent 62%);
+  content: "";
+  height: 160%;
+  left: -45%;
+  pointer-events: none;
+  position: absolute;
+  top: -30%;
+  transform: rotate(12deg);
+  width: 36%;
+}
+
+@keyframes digishop-button-glare {
+  0%,
+  42% {
+    left: -70%;
+  }
+
+  62%,
+  100% {
+    left: 130%;
+  }
+}
+
+@keyframes digishop-card-glare {
+  0%,
+  35% {
+    left: -45%;
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  72%,
+  100% {
+    left: 112%;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .digishop-cta,
+  .digishop-cta::before,
+  .digishop-cta::after,
+  .digishop-cta .button::after,
+  .digishop-cta > div::after {
+    animation: none;
+    transition: none;
+  }
+}
