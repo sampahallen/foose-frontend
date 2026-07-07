@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { isStaffRole } from '../../constants/roles'
 import { getAppName } from '../../config/env'
 import { useAuth } from '../../hooks/useAuth'
 import { authHref, currentRedirectTarget } from '../../utils/authRedirect'
@@ -29,7 +30,7 @@ export function AuthRequired({
     return <LoadingState label="Redirecting to sign in..." />
   }
 
-  if (adminOnly && user.role !== 'admin') {
+  if (adminOnly && !isStaffRole(user.roles, user.role)) {
     return (
       <main className="page mx-auto w-full max-w-[1280px] px-4 pb-24 pt-8 md:px-6 lg:px-8 max-md:px-3 max-md:pt-5">
         <EmptyState

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AdminShell, Badge, ButtonLink, EmptyState, ErrorState, Icon, LoadingState } from '../components'
+import { roleLabels } from '../constants/roles'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiPut } from '../lib/api'
 import type { KycRecord, User } from '../types/api'
@@ -39,7 +40,7 @@ function getUserPhone(user?: User | string) {
 
 function getUserMeta(user?: User | string) {
   if (typeof user !== 'object') return []
-  return [user.username ? `@${user.username}` : undefined, user.role].filter(Boolean)
+  return [user.username ? `@${user.username}` : undefined, ...roleLabels(user.roles, user.role)].filter(Boolean)
 }
 
 function DocumentPreview({ title, url }: { title: string; url?: string }) {

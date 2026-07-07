@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from '../../config/env'
 import type { ApiEnvelope } from '../../types/api'
+import { reportTelemetry } from '../telemetry'
 import { ApiError } from './errors'
 import { getStoredTokens } from './tokens'
 
@@ -39,11 +40,23 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   const url = path.startsWith('http') ? path : `${base}${path.startsWith('/') ? path : `/${path}`}`
 
-  const response = await fetch(url, {
-    ...options,
-    body: isFormData ? options.body : options.body === undefined ? undefined : JSON.stringify(options.body),
-    headers,
-  } as RequestInit)
+  let response: Response
+  try {
+    response = await fetch(url, {
+      ...options,
+      body: isFormData ? options.body : options.body === undefined ? undefined : JSON.stringify(options.body),
+      headers,
+    } as RequestInit)
+  } catch (requestError) {
+    reportTelemetry({
+      endpoint: path,
+      message: requestError instanceof Error ? requestError.message : 'Network request failed',
+      method: options.method || 'GET',
+      severity: 'error',
+      type: 'api_failure',
+    })
+    throw requestError
+  }
 
   const payload = (await parseJsonBody(response)) as ApiEnvelope<T> | null
 
@@ -53,6 +66,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
         ? payload.error
         : response.statusText || 'Request failed'
     const details = payload && 'details' in payload ? payload.details : undefined
+    reportTelemetry({
+      endpoint: path,
+      message,
+      method: options.method || 'GET',
+      severity: response.status >= 500 ? 'critical' : 'warning',
+      statusCode: response.status,
+      type: 'api_failure',
+    })
     throw new ApiError(message, response.status, details)
   }
 

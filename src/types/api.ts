@@ -1,3 +1,5 @@
+import type { UserRole, UserRoles } from '../constants/roles'
+
 export type ApiSuccess<T> = {
   success: true
   data: T
@@ -26,7 +28,8 @@ export type User = {
   phone?: string
   bio?: string
   profilePhoto?: string
-  role: 'user' | 'admin'
+  roles?: UserRoles
+  role?: UserRole | string | number
   isEmailVerified: boolean
   isKycVerified: boolean
   hasShop: boolean
@@ -40,6 +43,8 @@ export type User = {
   }
   kycId?: KycRecord | string | null
   following?: string[]
+  createdAt?: string
+  updatedAt?: string
 }
 
 export type Shop = {
