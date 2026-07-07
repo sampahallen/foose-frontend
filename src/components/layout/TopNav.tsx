@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { getAppName } from '../../config/env'
 import { useAuth } from '../../hooks/useAuth'
 import { useApiResource } from '../../hooks/useApiResource'
+import { useMessaging } from '../../hooks/useMessaging'
 import type { ChatConversation } from '../../types/api'
 import { authHref, currentRedirectTarget } from '../../utils/authRedirect'
 import { initials } from '../../utils/format'
@@ -23,12 +24,19 @@ export function TopNav({
   const desktopProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const mobileProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const brand = getAppName()
+  const { refreshSignal } = useMessaging()
   const placeholder = searchPlaceholder ?? `Search ${brand}`
   const redirectTarget = currentRedirectTarget()
   const shopHref = user?.hasShop ? '/manage-shop' : '/open-shop'
   const shopLabel = user?.hasShop ? 'Manage shop' : 'Open shop'
   const conversationPreview = useApiResource<{ conversations: ChatConversation[] }>('/chat?page=1&limit=8', Boolean(user))
   const hasUnreadMessages = Boolean(conversationPreview.data?.conversations.some((conversation) => conversation.unreadCount > 0))
+  const refetchConversationPreview = conversationPreview.refetch
+
+  useEffect(() => {
+    if (!user || !refreshSignal) return
+    void refetchConversationPreview()
+  }, [refetchConversationPreview, refreshSignal, user])
 
   useEffect(() => {
     if (!menuOpen) return undefined

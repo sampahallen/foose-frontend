@@ -26,6 +26,20 @@ export function getApiBaseUrl(): string {
   return normalizeBaseUrl(fallbackBase)
 }
 
+export function getSocketBaseUrl(): string {
+  const fromEnv = import.meta.env.VITE_SOCKET_URL
+  if (typeof fromEnv === 'string' && fromEnv.trim()) {
+    return normalizeBaseUrl(fromEnv)
+  }
+
+  const apiBase = getApiBaseUrl()
+  if (/^https?:\/\//i.test(apiBase)) {
+    return normalizeBaseUrl(apiBase.replace(/\/api$/, ''))
+  }
+
+  return typeof window !== 'undefined' ? window.location.origin : ''
+}
+
 export function getAppName(): string {
   const name = import.meta.env.VITE_APP_NAME
   return typeof name === 'string' && name.trim() ? name.trim() : 'Foose'

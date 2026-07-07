@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useApiResource } from '../../hooks/useApiResource'
+import { useMessaging } from '../../hooks/useMessaging'
 import type { ChatConversation } from '../../types/api'
 import { authHref } from '../../utils/authRedirect'
 import { withBasePath } from '../../utils/navigation'
@@ -7,9 +9,16 @@ import { Icon } from '../icons/Icon'
 
 export function BottomTabs({ active }: { active?: 'home' | 'browse' | 'community' | 'profile' | 'saved' }) {
   const { status, user } = useAuth()
+  const { refreshSignal } = useMessaging()
   const guardedHref = (target: string) => (user || status === 'checking' ? withBasePath(target) : authHref('/login', target))
   const conversationPreview = useApiResource<{ conversations: ChatConversation[] }>('/chat?page=1&limit=8', Boolean(user))
   const hasUnreadMessages = Boolean(conversationPreview.data?.conversations.some((conversation) => conversation.unreadCount > 0))
+  const refetchConversationPreview = conversationPreview.refetch
+
+  useEffect(() => {
+    if (!user || !refreshSignal) return
+    void refetchConversationPreview()
+  }, [refetchConversationPreview, refreshSignal, user])
 
   return (
     <nav className="bottom-tabs fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 gap-1 border-t border-foose-border bg-foose-surface/95 px-2 py-2 text-xs font-semibold shadow-[0_-8px_24px_rgba(15,16,32,0.08)] backdrop-blur lg:hidden [&_a]:flex [&_a]:min-w-0 [&_a]:flex-col [&_a]:items-center [&_a]:gap-1 [&_a]:rounded-lg [&_a]:px-1 [&_a]:py-2 [&_a]:text-foose-faint [&_a.active]:bg-accent [&_a.active]:text-white" aria-label="Mobile navigation">

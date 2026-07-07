@@ -23,6 +23,11 @@ export default defineConfig(({ mode }) => {
               changeOrigin: true,
               target: apiProxyTarget,
             },
+            '/socket.io': {
+              changeOrigin: true,
+              target: apiProxyTarget,
+              ws: true,
+            },
           }
         : undefined,
     },

@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react'
 import { useEffect, useMemo } from 'react'
 import { MdVerified } from 'react-icons/md'
 import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, FavoriteButton, Icon, LightboxImage, LoadingState, ProductCard, SectionHeader, ShopReviewPanel } from '../components'
+import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useCart } from '../hooks/useCart'
 import { useNavigationMemoryStore } from '../stores/navigationMemoryStore'
@@ -24,6 +25,11 @@ function shopIdValue(shopId: Listing['shopId']) {
   if (!shopId) return ''
   if (typeof shopId === 'string') return shopId
   return shopId._id
+}
+
+function conversationIdFor(userA?: string, userB?: string) {
+  if (!userA || !userB || userA === userB) return ''
+  return `${[userA, userB].sort().join('_')}_general`
 }
 
 function clampRating(value?: number) {
@@ -76,6 +82,7 @@ function ListingBand({
 }
 
 export function RetailDetailPage() {
+  const { user } = useAuth()
   const listingId = currentListingId()
   const listingResource = useApiResource<{ listing: Listing }>(listingId ? `/listings/${listingId}` : null)
   const { addListing } = useCart()
@@ -96,10 +103,16 @@ export function RetailDetailPage() {
       ? [{ alt: listing?.title || 'Listing image', src: mainImage }]
       : []
   const sellerId = shopOwnerId(shop?.ownerId)
-  const askQuestionHref = sellerId
-    ? `/inbox?receiverId=${encodeURIComponent(sellerId)}&listingId=${encodeURIComponent(listingId)}`
+  const sellerConversationId = conversationIdFor(user?._id, sellerId)
+  const sellerConversationQuery = sellerConversationId
+    ? `conversationId=${encodeURIComponent(sellerConversationId)}`
+    : sellerId
+      ? `receiverId=${encodeURIComponent(sellerId)}`
+      : ''
+  const askQuestionHref = sellerConversationQuery
+    ? `/inbox?${sellerConversationQuery}&listingId=${encodeURIComponent(listingId)}`
     : '/inbox'
-  const messageSellerHref = sellerId ? `/inbox?receiverId=${encodeURIComponent(sellerId)}` : '/inbox'
+  const messageSellerHref = sellerConversationQuery ? `/inbox?${sellerConversationQuery}` : '/inbox'
   const sellerListings = useMemo(
     () => (sellerListingsResource.data?.listings || []).map((item) => (shop && typeof item.shopId !== 'object' ? { ...item, shopId: shop } : item)),
     [sellerListingsResource.data?.listings, shop],

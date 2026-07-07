@@ -4,6 +4,7 @@ import { getAppName } from '../config/env'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
+import { useMessaging } from '../hooks/useMessaging'
 import { apiPost, apiPut } from '../lib/api'
 import { useImagePreviewStore } from '../stores/imagePreviewStore'
 import type { ChatAttachment, ChatConversation, ChatMessagePreview, ChatReaction, ChatReactionName, Listing, Notification, User } from '../types/api'
@@ -155,6 +156,7 @@ function ReplyContextBand({ message, onDismiss }: { message: ChatMessage; onDism
 
 export function InboxPage() {
   const { user } = useAuth()
+  const { joinConversation, refreshSignal, triggerMessagingRefresh } = useMessaging()
   const brand = getAppName()
   const params = inboxParams()
   const conversationPath = useCallback((page: number) => `/chat?page=${page}&limit=40`, [])
@@ -235,6 +237,18 @@ export function InboxPage() {
   }, [params.conversationId])
 
   useEffect(() => {
+    if (!params.conversationId) return
+    joinConversation(params.conversationId)
+  }, [joinConversation, params.conversationId])
+
+  useEffect(() => {
+    if (!refreshSignal) return
+    void refetchConversations()
+    void refetchNotifications()
+    if (params.conversationId) void refetchMessages()
+  }, [params.conversationId, refetchConversations, refetchMessages, refetchNotifications, refreshSignal])
+
+  useEffect(() => {
     setDismissedListingId('')
   }, [params.listingId])
 
@@ -265,14 +279,17 @@ export function InboxPage() {
     let mounted = true
     void apiPut(`/chat/${encodeURIComponent(params.conversationId)}/read`)
       .then(async () => {
-        if (mounted) await refetchConversations()
+        if (mounted) {
+          await refetchConversations()
+          triggerMessagingRefresh()
+        }
       })
       .catch(() => undefined)
 
     return () => {
       mounted = false
     }
-  }, [activeConversation?.unreadCount, params.conversationId, refetchConversations])
+  }, [activeConversation?.unreadCount, params.conversationId, refetchConversations, triggerMessagingRefresh])
 
   useEffect(() => {
     if (!params.receiverId || params.conversationId || conversations.loading) return
@@ -341,6 +358,7 @@ export function InboxPage() {
       } else {
         navigateTo(`/inbox?conversationId=${encodeURIComponent(result.conversationId)}`)
       }
+      triggerMessagingRefresh()
     } catch (err) {
       setSendError(getErrorMessage(err, 'Could not send message'))
     }
@@ -351,6 +369,7 @@ export function InboxPage() {
       await apiPut(`/chat/messages/${encodeURIComponent(messageId)}/reaction`, { reaction })
       await refetchMessages()
       await refetchConversations()
+      triggerMessagingRefresh()
     } catch (err) {
       setSendError(getErrorMessage(err, 'Could not save reaction'))
     }
