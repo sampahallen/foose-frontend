@@ -47,7 +47,7 @@ export function BrowsePage() {
             </a>
           </div>
         </nav>
-        <TopFilterBar hideType query={query} resultLabel={`${listings.total} ${activeMode === 'wholesale' ? 'bales' : 'items'}`} />
+        <TopFilterBar hideType locationOptions={listings.data?.filters?.locations || []} query={query} resultLabel={`${listings.total} ${activeMode === 'wholesale' ? 'bales' : 'items'}`} />
       </div>
       <div className="browse-layout">
         <section className="browse-results">

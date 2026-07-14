@@ -37,7 +37,7 @@ export function BaleWholesalePage() {
         </p>
       </section>
       <div className={`sticky top-16 z-40 mb-6 transition duration-200 ${filterBandVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-full opacity-0'}`}>
-        <TopFilterBar actionPath="/bales" hideType query={query} resultLabel={`${listings.total} bales`} />
+        <TopFilterBar actionPath="/bales" hideType locationOptions={listings.data?.filters?.locations || []} query={query} resultLabel={`${listings.total} bales`} />
       </div>
       <SectionHeader title="Wholesale bales" eyebrow="Active bale listings from Foose DigiShops." />
       {listings.loading && <LoadingState label="Loading bales..." />}

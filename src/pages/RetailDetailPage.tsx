@@ -32,6 +32,29 @@ function conversationIdFor(userA?: string, userB?: string) {
   return `${[userA, userB].sort().join('_')}_general`
 }
 
+function sellerChatHref({
+  includeListing = false,
+  listingId,
+  sellerId,
+  userId,
+}: {
+  includeListing?: boolean
+  listingId: string
+  sellerId: string
+  userId?: string
+}) {
+  if (!sellerId) return '/inbox'
+
+  const query = new URLSearchParams()
+  const conversationId = conversationIdFor(userId, sellerId)
+
+  if (conversationId) query.set('conversationId', conversationId)
+  query.set('receiverId', sellerId)
+  if (includeListing && listingId) query.set('listingId', listingId)
+
+  return `/inbox?${query.toString()}`
+}
+
 function clampRating(value?: number) {
   return Math.max(0, Math.min(5, Number(value) || 0))
 }
@@ -103,16 +126,8 @@ export function RetailDetailPage() {
       ? [{ alt: listing?.title || 'Listing image', src: mainImage }]
       : []
   const sellerId = shopOwnerId(shop?.ownerId)
-  const sellerConversationId = conversationIdFor(user?._id, sellerId)
-  const sellerConversationQuery = sellerConversationId
-    ? `conversationId=${encodeURIComponent(sellerConversationId)}`
-    : sellerId
-      ? `receiverId=${encodeURIComponent(sellerId)}`
-      : ''
-  const askQuestionHref = sellerConversationQuery
-    ? `/inbox?${sellerConversationQuery}&listingId=${encodeURIComponent(listingId)}`
-    : '/inbox'
-  const messageSellerHref = sellerConversationQuery ? `/inbox?${sellerConversationQuery}` : '/inbox'
+  const askQuestionHref = sellerChatHref({ includeListing: true, listingId, sellerId, userId: user?._id })
+  const messageSellerHref = sellerChatHref({ listingId, sellerId, userId: user?._id })
   const sellerListings = useMemo(
     () => (sellerListingsResource.data?.listings || []).map((item) => (shop && typeof item.shopId !== 'object' ? { ...item, shopId: shop } : item)),
     [sellerListingsResource.data?.listings, shop],

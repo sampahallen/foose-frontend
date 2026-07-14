@@ -3,7 +3,7 @@ import { getCurrentAppPathname, stripBasePath, withBasePath } from './navigation
 export function sanitizeRedirect(value?: string | null) {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return '/'
   const target = stripBasePath(value)
-  if (target.startsWith('/login') || target.startsWith('/register')) return '/'
+  if (target.startsWith('/login') || target.startsWith('/register') || target.startsWith('/reset-password')) return '/'
   return target
 }
 

@@ -124,6 +124,7 @@ export function TopFilterBar({
   actionPath = '/browse',
   hidePriceAndSize = false,
   hideType = false,
+  locationOptions = [],
   query = new URLSearchParams(window.location.search),
   resultLabel,
   resultLabelVariant = 'pill',
@@ -132,6 +133,7 @@ export function TopFilterBar({
   actionPath?: string
   hidePriceAndSize?: boolean
   hideType?: boolean
+  locationOptions?: TopFilterOption[]
   query?: URLSearchParams
   resultLabel: string
   resultLabelVariant?: 'pill' | 'plain'
@@ -148,6 +150,15 @@ export function TopFilterBar({
   const brandOptions = LISTING_BRANDS.map((brand) => ({ label: brand, value: brand }))
   const colorOptions = LISTING_COLORS.map((color) => ({ label: color.label, swatch: color.hex, value: color.value }))
   const conditionOptions = LISTING_CONDITIONS.map((condition) => ({ label: condition[0].toUpperCase() + condition.slice(1), value: condition }))
+  const selectedLocation = query.get('location') || ''
+  const locationOptionsByValue = new Map<string, TopFilterOption>()
+  locationOptions.forEach((option) => {
+    if (option.value) locationOptionsByValue.set(option.value, option)
+  })
+  if (selectedLocation && !locationOptionsByValue.has(selectedLocation)) {
+    locationOptionsByValue.set(selectedLocation, { label: selectedLocation, value: selectedLocation })
+  }
+  const availableLocationOptions = Array.from(locationOptionsByValue.values())
   const sortOptions = [
     { label: 'Newest', value: 'newest' },
     { label: 'Price high', value: 'price_desc' },
@@ -203,7 +214,7 @@ export function TopFilterBar({
     return (
       <>
       {query.get('q') && <input name="q" type="hidden" value={query.get('q') || ''} />}
-      {(['type', 'category', 'brand', 'color', 'condition', 'sort'] as const).map((name) => (
+      {(['type', 'category', 'location', 'brand', 'color', 'condition', 'sort'] as const).map((name) => (
         query.get(name) ? <input key={name} name={name} type="hidden" value={query.get(name) || ''} /> : null
       ))}
       {showResultLabel && (
@@ -217,6 +228,8 @@ export function TopFilterBar({
       )}
       <label htmlFor="filter-category">Category</label>
       <TopFilterDropdown actionPath={actionPath} className="w-[132px]" name="category" options={categoryOptions} placeholder="Category" query={query} />
+      <label htmlFor="filter-location">Location</label>
+      <TopFilterDropdown actionPath={actionPath} className="w-[156px]" name="location" options={availableLocationOptions} placeholder="Location" query={query} />
       <label htmlFor="filter-brand">Brand</label>
       <TopFilterDropdown actionPath={actionPath} className="w-[112px]" name="brand" options={brandOptions} placeholder="Brand" query={query} />
       <label htmlFor="filter-color">Color</label>
@@ -290,12 +303,23 @@ export function TopFilterBar({
 
 export function FilterPanel({
   actionPath = '/browse',
+  locationOptions = [],
   query = new URLSearchParams(window.location.search),
 }: {
   actionPath?: string
+  locationOptions?: TopFilterOption[]
   query?: URLSearchParams
 }) {
   const selectedColor = LISTING_COLORS.find((color) => color.value === query.get('color'))
+  const selectedLocation = query.get('location') || ''
+  const locationOptionsByValue = new Map<string, TopFilterOption>()
+  locationOptions.forEach((option) => {
+    if (option.value) locationOptionsByValue.set(option.value, option)
+  })
+  if (selectedLocation && !locationOptionsByValue.has(selectedLocation)) {
+    locationOptionsByValue.set(selectedLocation, { label: selectedLocation, value: selectedLocation })
+  }
+  const availableLocationOptions = Array.from(locationOptionsByValue.values())
 
   return (
     <form action={withBasePath(actionPath)} className="filter-panel sticky top-44 flex max-h-[calc(100dvh-12rem)] flex-col gap-4 overflow-y-auto rounded-xl border border-foose-border bg-foose-surface p-4 [scrollbar-width:thin] [&_h2]:font-display [&_h2]:text-xl [&_fieldset]:border-0 [&_fieldset]:p-0 [&_legend]:text-sm [&_legend]:font-semibold [&_legend]:text-foose-text [&_label]:flex [&_label]:items-center [&_label]:gap-2 [&_label]:py-1 [&_label]:text-sm [&_label]:text-foose-muted [&_input[type='range']]:w-full [&_input[type='range']]:accent-accent [&_.button]:w-full" method="get">
@@ -318,6 +342,17 @@ export function FilterPanel({
           {LISTING_CATEGORIES.map((category) => (
             <option key={category.label} value={category.label}>
               {category.label}
+            </option>
+          ))}
+        </select>
+      </fieldset>
+      <fieldset>
+        <legend>Location</legend>
+        <select className={dropdownControl} defaultValue={selectedLocation} name="location">
+          <option value="">All locations</option>
+          {availableLocationOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>

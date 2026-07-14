@@ -7,22 +7,14 @@ import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
 import { useMessaging } from '../hooks/useMessaging'
 import { apiPost, apiPut } from '../lib/api'
 import { useImagePreviewStore } from '../stores/imagePreviewStore'
-import type { ChatAttachment, ChatConversation, ChatMessagePreview, ChatReaction, ChatReactionName, Listing, Notification, User } from '../types/api'
+import type { ChatConversation, ChatMessage, ChatReactionName, Listing, Notification, User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDateTime, formatMoney, getListingImage, initials } from '../utils/format'
 import { navigateTo, withBasePath } from '../utils/navigation'
 
-type ChatMessage = {
-  _id: string
-  attachments?: ChatAttachment[]
-  content: string
-  createdAt?: string
-  isRead?: boolean
-  reactions?: ChatReaction[]
-  replyTo?: ChatMessagePreview | string
-  senderId?: User | string
-  receiverId?: User | string
-  listingId?: Listing | string
+type InboxChatMessage = ChatMessage & {
+  clientMessageId?: string
+  deliveryStatus?: 'failed' | 'sending' | 'sent'
 }
 
 type DraftAttachment = {
@@ -34,37 +26,40 @@ type DraftAttachment = {
 
 type PaginatedMessages = {
   contactVisible?: boolean
-  messages: ChatMessage[]
+  messages: InboxChatMessage[]
   page: number
   pages: number
+  participant?: User | string | null
   total: number
 }
 
-type PaginatedConversations = {
-  conversations: ChatConversation[]
-  page: number
-  pages: number
-  total: number
-}
-
-function senderIdValue(sender: User | string | undefined): string {
+function senderIdValue(sender: User | string | null | undefined): string {
   if (!sender) return ''
   return typeof sender === 'string' ? sender : sender._id
 }
 
-function userIdValue(user: User | string | undefined): string {
+function userIdValue(user: User | string | null | undefined): string {
   if (!user) return ''
   return typeof user === 'string' ? user : user._id
 }
 
-function displayUser(user: User | string | undefined) {
+function isUserProfile(user: User | string | null | undefined): user is User {
+  return Boolean(user) && typeof user === 'object'
+}
+
+function displayUser(user: User | string | null | undefined) {
   if (!user) return 'Foose member'
   if (typeof user === 'string') return 'Foose member'
   return user.name || user.username || 'Foose member'
 }
 
-function userPhoto(user: User | string | undefined) {
-  return typeof user === 'object' ? user.profilePhoto : undefined
+function displayUsername(user: User | string | null | undefined) {
+  if (!user || typeof user === 'string' || !user.username) return ''
+  return `@${user.username}`
+}
+
+function userPhoto(user: User | string | null | undefined) {
+  return user && typeof user === 'object' ? user.profilePhoto : undefined
 }
 
 function listingTitle(listing: Listing | string | undefined) {
@@ -110,6 +105,42 @@ function inboxParams() {
   }
 }
 
+function conversationIdFor(userA?: string, userB?: string) {
+  if (!userA || !userB || userA === userB) return ''
+  return `${[userA, userB].sort().join('_')}_general`
+}
+
+function messageIdentity(message: InboxChatMessage) {
+  return message._id || message.clientMessageId || ''
+}
+
+function mergeMessageList(current: InboxChatMessage[], incoming: InboxChatMessage) {
+  const incomingId = messageIdentity(incoming)
+  const incomingClientId = incoming.clientMessageId
+  const index = current.findIndex((message) => {
+    if (incomingClientId && message.clientMessageId === incomingClientId) return true
+    return incomingId && messageIdentity(message) === incomingId
+  })
+
+  if (index === -1) return [...current, incoming]
+
+  const next = [...current]
+  next[index] = {
+    ...next[index],
+    ...incoming,
+    deliveryStatus: incoming.deliveryStatus || 'sent',
+  }
+  return next
+}
+
+function mergeMessagePage(current: InboxChatMessage[], pageMessages: InboxChatMessage[]) {
+  return pageMessages.reduce((nextMessages, message) => mergeMessageList(nextMessages, message), current)
+}
+
+function tempMessageId() {
+  return `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
 function ListingContextBand({ listing, onDismiss }: { listing?: Listing | string; onDismiss?: () => void }) {
   const title = listingTitle(listing)
   if (!title) return null
@@ -136,7 +167,7 @@ function ListingContextBand({ listing, onDismiss }: { listing?: Listing | string
   )
 }
 
-function ReplyContextBand({ message, onDismiss }: { message: ChatMessage; onDismiss: () => void }) {
+function ReplyContextBand({ message, onDismiss }: { message: InboxChatMessage; onDismiss: () => void }) {
   const text = message.content?.trim() || attachmentLabel(message.attachments?.length || 0) || listingTitle(message.listingId) || 'Message'
   return (
     <div className="relative mx-3 mb-2 rounded-xl border-l-4 border-accent bg-accent-light p-3 pr-10 text-sm">
@@ -156,29 +187,35 @@ function ReplyContextBand({ message, onDismiss }: { message: ChatMessage; onDism
 
 export function InboxPage() {
   const { user } = useAuth()
-  const { joinConversation, refreshSignal, triggerMessagingRefresh } = useMessaging()
+  const {
+    conversations: conversationItems,
+    joinConversation,
+    markConversationRead,
+    markNotificationRead,
+    messageConfirmedEvent,
+    messageEvent,
+    messagesReadEvent,
+    notificationError,
+    notificationLoading,
+    notifications,
+    sendMessage: sendSocketMessage,
+  } = useMessaging()
   const brand = getAppName()
   const params = inboxParams()
-  const conversationPath = useCallback((page: number) => `/chat?page=${page}&limit=40`, [])
   const messagePath = useCallback(
     (page: number) => (params.conversationId ? `/chat/${encodeURIComponent(params.conversationId)}?page=${page}&limit=30` : null),
     [params.conversationId],
   )
-  const extractConversations = useCallback((data: PaginatedConversations) => data.conversations || [], [])
   const extractMessages = useCallback((data: PaginatedMessages) => data.messages || [], [])
   const messages = useInfiniteApiResource(messagePath, extractMessages, [params.conversationId])
-  const conversations = useInfiniteApiResource(conversationPath, extractConversations, [])
   const listingContext = useApiResource<{ listing: Listing }>(params.listingId ? `/listings/${encodeURIComponent(params.listingId)}` : null, Boolean(params.listingId))
-  const notifications = useApiResource<{ notifications: Notification[] }>('/notifications?limit=20')
-  const refetchConversations = conversations.refetch
-  const refetchMessages = messages.refetch
-  const refetchNotifications = notifications.refetch
   const [sendError, setSendError] = useState('')
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null)
+  const [liveMessages, setLiveMessages] = useState<InboxChatMessage[]>([])
   const [olderMessagesEnabled, setOlderMessagesEnabled] = useState(false)
   const [selectedAttachments, setSelectedAttachments] = useState<DraftAttachment[]>([])
   const [dismissedListingId, setDismissedListingId] = useState('')
-  const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null)
+  const [replyTarget, setReplyTarget] = useState<InboxChatMessage | null>(null)
   const selectedAttachmentsRef = useRef<DraftAttachment[]>([])
   const messageInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<HTMLDivElement | null>(null)
@@ -186,19 +223,17 @@ export function InboxPage() {
   const lastNewestMessageRef = useRef('')
   const openPreview = useImagePreviewStore((store) => store.openPreview)
   const myId = user?._id || ''
-  const conversationItems = conversations.items
   const orderedConversations = [...conversationItems].sort((first, second) => {
     const firstDate = Date.parse(first.latestMessage.createdAt || '') || 0
     const secondDate = Date.parse(second.latestMessage.createdAt || '') || 0
     return secondDate - firstDate
   })
   const activeConversation = orderedConversations.find((conversation) => conversation.conversationId === params.conversationId)
-  const activeParticipant = activeConversation?.participant
   const canCompose = Boolean(params.conversationId || params.receiverId)
-  const notificationItems = notifications.data?.notifications || []
+  const notificationItems = notifications
   const unreadNotifications = notificationItems.filter((notification) => !notification.isRead)
   const seenNotifications = notificationItems.filter((notification) => notification.isRead)
-  const productMessages = messages.items
+  const productMessages = liveMessages
   const orderedMessages = [...productMessages].sort((first, second) => {
     const firstDate = Date.parse(first.createdAt || '') || 0
     const secondDate = Date.parse(second.createdAt || '') || 0
@@ -210,6 +245,15 @@ export function InboxPage() {
   const activeContact = productMessages
     .flatMap((message) => [message.senderId, message.receiverId])
     .find((participant) => typeof participant === 'object' && participant._id !== myId) as User | undefined
+  const activeParticipant = activeConversation?.participant || messages.data?.participant || activeContact
+  const activeParticipantProfile = isUserProfile(activeParticipant) ? activeParticipant : undefined
+  const hasActiveThreadTarget = Boolean(params.conversationId || params.receiverId)
+  const activeThreadTitle = activeParticipantProfile ? displayUser(activeParticipantProfile) : hasActiveThreadTarget ? 'Starting chat' : 'Select a conversation'
+  const activeThreadSubtitle = activeParticipantProfile
+    ? displayUsername(activeParticipantProfile) || 'Username unavailable'
+    : canCompose
+      ? 'Loading seller profile...'
+      : 'Open a thread or message a seller from a listing.'
   const contactPhone = productChat ? activeContact?.phone : ''
 
   const scrollToLatestMessage = useCallback(() => {
@@ -234,7 +278,12 @@ export function InboxPage() {
   useEffect(() => {
     setOlderMessagesEnabled(false)
     setReplyTarget(null)
+    setLiveMessages([])
   }, [params.conversationId])
+
+  useEffect(() => {
+    setLiveMessages((current) => mergeMessagePage(current, messages.items))
+  }, [messages.items])
 
   useEffect(() => {
     if (!params.conversationId) return
@@ -242,11 +291,35 @@ export function InboxPage() {
   }, [joinConversation, params.conversationId])
 
   useEffect(() => {
-    if (!refreshSignal) return
-    void refetchConversations()
-    void refetchNotifications()
-    if (params.conversationId) void refetchMessages()
-  }, [params.conversationId, refetchConversations, refetchMessages, refetchNotifications, refreshSignal])
+    if (!messageEvent || messageEvent.conversationId !== params.conversationId) return
+
+    const incoming = senderIdValue(messageEvent.message.senderId) !== myId && senderIdValue(messageEvent.message.receiverId) === myId
+    setLiveMessages((current) => mergeMessageList(current, { ...messageEvent.message, deliveryStatus: 'sent' }))
+
+    if (incoming) {
+      markConversationRead(messageEvent.conversationId)
+    }
+  }, [markConversationRead, messageEvent, myId, params.conversationId])
+
+  useEffect(() => {
+    if (!messageConfirmedEvent || messageConfirmedEvent.conversationId !== params.conversationId) return
+    setLiveMessages((current) =>
+      mergeMessageList(current, {
+        ...messageConfirmedEvent.message,
+        clientMessageId: messageConfirmedEvent.clientMessageId,
+        deliveryStatus: 'sent',
+      }),
+    )
+  }, [messageConfirmedEvent, params.conversationId])
+
+  useEffect(() => {
+    if (!messagesReadEvent || messagesReadEvent.conversationId !== params.conversationId || messagesReadEvent.readBy === myId) return
+    setLiveMessages((current) =>
+      current.map((message) =>
+        senderIdValue(message.senderId) === myId ? { ...message, isRead: true } : message,
+      ),
+    )
+  }, [messagesReadEvent, myId, params.conversationId])
 
   useEffect(() => {
     setDismissedListingId('')
@@ -275,32 +348,21 @@ export function InboxPage() {
 
   useEffect(() => {
     if (!params.conversationId || !activeConversation?.unreadCount) return
-
-    let mounted = true
-    void apiPut(`/chat/${encodeURIComponent(params.conversationId)}/read`)
-      .then(async () => {
-        if (mounted) {
-          await refetchConversations()
-          triggerMessagingRefresh()
-        }
-      })
-      .catch(() => undefined)
-
-    return () => {
-      mounted = false
-    }
-  }, [activeConversation?.unreadCount, params.conversationId, refetchConversations, triggerMessagingRefresh])
+    markConversationRead(params.conversationId)
+  }, [activeConversation?.unreadCount, markConversationRead, params.conversationId])
 
   useEffect(() => {
-    if (!params.receiverId || params.conversationId || conversations.loading) return
+    if (!params.receiverId || params.conversationId || !myId) return
     const existingConversation = orderedConversations.find((conversation) => userIdValue(conversation.participant) === params.receiverId)
-    if (!existingConversation) return
+    const conversationId = existingConversation?.conversationId || conversationIdFor(myId, params.receiverId)
+    if (!conversationId) return
 
     const query = new URLSearchParams()
-    query.set('conversationId', existingConversation.conversationId)
+    query.set('conversationId', conversationId)
+    query.set('receiverId', params.receiverId)
     if (params.listingId) query.set('listingId', params.listingId)
     navigateTo(`/inbox?${query.toString()}`)
-  }, [conversations.loading, orderedConversations, params.conversationId, params.listingId, params.receiverId])
+  }, [myId, orderedConversations, params.conversationId, params.listingId, params.receiverId])
 
   function handleAttachmentChange(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
@@ -330,35 +392,92 @@ export function InboxPage() {
     const formData = new FormData(form)
     const content = String(formData.get('content') || '').trim()
     const fallbackReceiverId = String(formData.get('receiverId') || '').trim()
-    const receiverId = params.receiverId || fallbackReceiverId
+    const receiverId = params.receiverId || userIdValue(activeParticipant) || fallbackReceiverId
 
     if ((!content && !selectedAttachments.length) || (!params.conversationId && !receiverId)) return
 
     setSendError('')
     try {
-      const payload = new FormData()
-      if (content) payload.append('content', content)
-      if (params.conversationId) payload.append('conversationId', params.conversationId)
-      if (activeComposerListing && params.listingId && dismissedListingId !== params.listingId) {
-        payload.append('listingId', params.listingId)
-      }
-      if (replyTarget?._id) payload.append('replyTo', replyTarget._id)
-      if (!params.conversationId && receiverId) payload.append('receiverId', receiverId)
-      selectedAttachments.forEach((attachment) => payload.append('attachments', attachment.file))
+      const listingId = activeComposerListing && params.listingId && dismissedListingId !== params.listingId ? params.listingId : ''
 
-      const result = await apiPost<{ conversationId: string; message: ChatMessage }>('/chat', payload)
+      if (selectedAttachments.length) {
+        const payload = new FormData()
+        if (content) payload.append('content', content)
+        if (params.conversationId) payload.append('conversationId', params.conversationId)
+        if (listingId) payload.append('listingId', listingId)
+        if (replyTarget?._id) payload.append('replyTo', replyTarget._id)
+        if (!params.conversationId && receiverId) payload.append('receiverId', receiverId)
+        selectedAttachments.forEach((attachment) => payload.append('attachments', attachment.file))
+
+        const result = await apiPost<{ conversationId: string; message: InboxChatMessage }>('/chat', payload)
+        setLiveMessages((current) => mergeMessageList(current, { ...result.message, deliveryStatus: 'sent' }))
+        if (!params.conversationId) {
+          const query = new URLSearchParams()
+          query.set('conversationId', result.conversationId)
+          if (receiverId) query.set('receiverId', receiverId)
+          if (listingId) query.set('listingId', listingId)
+          navigateTo(`/inbox?${query.toString()}`)
+        }
+      } else {
+        const clientMessageId = tempMessageId()
+        const conversationId = params.conversationId || conversationIdFor(myId, receiverId)
+        const optimisticMessage: InboxChatMessage = {
+          _id: clientMessageId,
+          clientMessageId,
+          content,
+          conversationId,
+          createdAt: new Date().toISOString(),
+          deliveryStatus: 'sending',
+          listingId: activeComposerListing,
+          receiverId: activeParticipantProfile || receiverId,
+          replyTo: replyTarget || undefined,
+          senderId: user || myId,
+        }
+
+        setLiveMessages((current) => mergeMessageList(current, optimisticMessage))
+
+        const ack = await sendSocketMessage({
+          clientMessageId,
+          content,
+          conversationId: params.conversationId || undefined,
+          listingId: listingId || undefined,
+          receiverId: receiverId || undefined,
+          replyTo: replyTarget?._id,
+        })
+
+        if (!ack.success || !ack.message || !ack.conversationId) {
+          setLiveMessages((current) =>
+            current.map((message) =>
+              message.clientMessageId === clientMessageId ? { ...message, deliveryStatus: 'failed' } : message,
+            ),
+          )
+          setSendError(ack.error || 'Could not send message')
+          return
+        }
+
+        const confirmedMessage = ack.message
+        setLiveMessages((current) =>
+          mergeMessageList(current, {
+            ...confirmedMessage,
+            clientMessageId,
+            deliveryStatus: 'sent',
+          }),
+        )
+
+        if (!params.conversationId) {
+          const query = new URLSearchParams()
+          query.set('conversationId', ack.conversationId)
+          if (receiverId) query.set('receiverId', receiverId)
+          if (listingId) query.set('listingId', listingId)
+          navigateTo(`/inbox?${query.toString()}`)
+        }
+      }
+
       form.reset()
       selectedAttachments.forEach((attachment) => URL.revokeObjectURL(attachment.url))
       setSelectedAttachments([])
       setReplyTarget(null)
-      if (params.listingId) setDismissedListingId(params.listingId)
-      await refetchConversations()
-      if (params.conversationId) {
-        await refetchMessages()
-      } else {
-        navigateTo(`/inbox?conversationId=${encodeURIComponent(result.conversationId)}`)
-      }
-      triggerMessagingRefresh()
+      if (listingId) setDismissedListingId(listingId)
     } catch (err) {
       setSendError(getErrorMessage(err, 'Could not send message'))
     }
@@ -366,16 +485,14 @@ export function InboxPage() {
 
   async function reactToMessage(messageId: string, reaction: ChatReactionName) {
     try {
-      await apiPut(`/chat/messages/${encodeURIComponent(messageId)}/reaction`, { reaction })
-      await refetchMessages()
-      await refetchConversations()
-      triggerMessagingRefresh()
+      const result = await apiPut<{ message: InboxChatMessage }>(`/chat/messages/${encodeURIComponent(messageId)}/reaction`, { reaction })
+      setLiveMessages((current) => mergeMessageList(current, result.message))
     } catch (err) {
       setSendError(getErrorMessage(err, 'Could not save reaction'))
     }
   }
 
-  function startReply(message: ChatMessage) {
+  function startReply(message: InboxChatMessage) {
     setReplyTarget(message)
     window.requestAnimationFrame(() => {
       messageInputRef.current?.focus()
@@ -392,8 +509,7 @@ export function InboxPage() {
     setSelectedNotification(notification)
     if (notification.isRead) return
 
-    void apiPut(`/notifications/${notification._id}/read`)
-      .then(() => refetchNotifications())
+    void markNotificationRead(notification._id)
       .catch(() => undefined)
   }
 
@@ -416,9 +532,9 @@ export function InboxPage() {
           </div>
           <section className="conversation-stack flex flex-col">
             <h2>Conversations</h2>
-            {conversations.loading && <LoadingState label="Loading conversations..." />}
-            {conversations.error && <ErrorState message={conversations.error} retry={conversations.refetch} />}
-            {!conversations.loading && !conversations.error && !orderedConversations.length && (
+            {notificationLoading && <LoadingState label="Loading conversations..." />}
+            {notificationError && <ErrorState message={notificationError} />}
+            {!notificationLoading && !notificationError && !orderedConversations.length && (
               <EmptyState body="Message a seller from any listing page to start a thread." title="No conversations yet" />
             )}
             {!!orderedConversations.length &&
@@ -446,15 +562,12 @@ export function InboxPage() {
                   </a>
                 )
               })}
-            <div ref={conversations.sentinelRef} className="flex min-h-12 items-center justify-center py-2">
-              {conversations.loadingMore && <span className="size-5 animate-spin rounded-full border-2 border-foose-border border-t-accent" aria-label="Loading more conversations" />}
-            </div>
           </section>
           <section className="system-notifications border-t border-foose-border p-4">
             <h2>System notifications</h2>
-            {notifications.loading && <LoadingState label="Loading notifications..." />}
-            {notifications.error && <ErrorState message={notifications.error} retry={notifications.refetch} />}
-            {!notifications.loading && !notifications.error && !notifications.data?.notifications.length && (
+            {notificationLoading && <LoadingState label="Loading notifications..." />}
+            {notificationError && <ErrorState message={notificationError} />}
+            {!notificationLoading && !notificationError && !notificationItems.length && (
               <EmptyState body={`${brand} will show follows, reviews, orders, and other alerts here.`} title="No notifications" />
             )}
             {!!unreadNotifications.length &&
@@ -482,11 +595,19 @@ export function InboxPage() {
           </section>
         </aside>
         <section className="thread flex min-h-[70dvh] flex-col bg-foose-bg lg:h-full lg:min-h-0 lg:overflow-hidden">
+          {!canCompose ? (
+            <div className="flex min-h-[70dvh] flex-1 items-center justify-center p-6 text-center lg:min-h-0">
+              <p className="max-w-sm text-sm font-semibold leading-6 text-foose-muted">
+                Select a conversation, or message someone to start a new chat.
+              </p>
+            </div>
+          ) : (
+            <>
           <header className="thread-header sticky top-0 z-20 flex min-h-14 shrink-0 items-center gap-3 border-b border-foose-border bg-foose-surface px-4 py-2 shadow-sm [&_img]:size-10 [&_img]:shrink-0 [&_img]:rounded-lg [&_img]:object-cover [&_h2]:truncate [&_h2]:text-sm [&_h2]:font-bold [&_p]:truncate [&_p]:text-xs [&_p]:text-foose-muted [&_a]:text-xs [&_a]:font-semibold [&_a]:text-accent">
-            {userPhoto(activeParticipant) ? <img alt="" src={userPhoto(activeParticipant)} /> : <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-light text-sm font-bold text-accent">{initials(displayUser(activeParticipant))}</span>}
+            {userPhoto(activeParticipantProfile) ? <img alt="" src={userPhoto(activeParticipantProfile)} /> : <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-light text-sm font-bold text-accent">{initials(activeThreadTitle)}</span>}
             <div className="min-w-0 flex-1">
-              <h2>{params.conversationId ? displayUser(activeParticipant) : params.receiverId ? 'New seller message' : 'Select a conversation'}</h2>
-              <p>{canCompose ? 'Write your message below' : 'Open a thread or message a seller from a listing.'}</p>
+              <h2>{activeThreadTitle}</h2>
+              <p>{activeThreadSubtitle}</p>
               {contactPhone && (
                 <a className="chat-contact-phone" href={`tel:${contactPhone}`}>
                   {contactPhone}
@@ -502,9 +623,6 @@ export function InboxPage() {
             )}
             {messages.loading && <LoadingState label="Loading conversation..." />}
             {messages.error && <ErrorState message={messages.error} retry={messages.refetch} />}
-            {!params.conversationId && !params.receiverId && (
-              <EmptyState body="Choose a conversation on the left, or open a listing and message its seller." title="No thread selected" />
-            )}
             {!params.conversationId && params.receiverId && (
               <EmptyState body="Send the first message to start this seller conversation." title="Ready to message" />
             )}
@@ -584,6 +702,8 @@ export function InboxPage() {
               <Icon name="send" />
             </button>
           </form>
+            </>
+          )}
         </section>
         {selectedNotification && (
           <div className="fixed inset-0 z-100 flex items-center justify-center p-4">

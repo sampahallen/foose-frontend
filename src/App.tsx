@@ -33,6 +33,7 @@ import {
   ProfilePage,
   ProfileSettingsPage,
   RegisterPage,
+  ResetPasswordPage,
   RetailDetailPage,
   SavedPage,
   SellerDashboardPage,
@@ -56,6 +57,9 @@ function App() {
       break
     case 'register':
       page = <RegisterPage />
+      break
+    case 'resetPassword':
+      page = <ResetPasswordPage />
       break
     case 'adminKyc':
       page = (

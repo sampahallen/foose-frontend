@@ -56,6 +56,10 @@ export type Shop = {
   logoUrl?: string
   bannerUrl?: string
   category?: 'retail' | 'wholesale' | 'both'
+  location?: {
+    city?: string
+    region?: string
+  }
   isLive?: boolean
   rating?: number
   totalReviews?: number
@@ -238,20 +242,23 @@ export type WeeklyTopSeller = Shop & {
   revenue: number
 }
 
+export type ChatMessage = {
+  _id: string
+  attachments?: ChatAttachment[]
+  content: string
+  conversationId?: string
+  createdAt?: string
+  isRead?: boolean
+  reactions?: ChatReaction[]
+  replyTo?: ChatMessagePreview | string
+  senderId?: User | string
+  receiverId?: User | string
+  listingId?: Listing | string
+}
+
 export type ChatConversation = {
   conversationId: string
-  latestMessage: {
-    _id: string
-    attachments?: ChatAttachment[]
-    content: string
-    createdAt?: string
-    isRead?: boolean
-    reactions?: ChatReaction[]
-    replyTo?: ChatMessagePreview | string
-    senderId?: User | string
-    receiverId?: User | string
-    listingId?: Listing | string
-  }
+  latestMessage: ChatMessage
   unreadCount: number
   participant?: User | string
   listing?: Listing | string
@@ -290,6 +297,12 @@ export type PaginatedListings = {
   total: number
   page: number
   pages: number
+  filters?: {
+    locations?: Array<{
+      label: string
+      value: string
+    }>
+  }
 }
 
 export type PaginatedReviews = {

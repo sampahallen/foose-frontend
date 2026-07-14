@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { getAppName } from '../../config/env'
 import { useAuth } from '../../hooks/useAuth'
-import { useApiResource } from '../../hooks/useApiResource'
 import { useMessaging } from '../../hooks/useMessaging'
-import type { ChatConversation } from '../../types/api'
 import { authHref, currentRedirectTarget } from '../../utils/authRedirect'
 import { initials } from '../../utils/format'
 import { navigateTo, withBasePath } from '../../utils/navigation'
@@ -24,19 +22,12 @@ export function TopNav({
   const desktopProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const mobileProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const brand = getAppName()
-  const { refreshSignal } = useMessaging()
+  const { unreadMessageCount, unreadNotificationCount } = useMessaging()
   const placeholder = searchPlaceholder ?? `Search ${brand}`
   const redirectTarget = currentRedirectTarget()
   const shopHref = user?.hasShop ? '/manage-shop' : '/open-shop'
   const shopLabel = user?.hasShop ? 'Manage shop' : 'Open shop'
-  const conversationPreview = useApiResource<{ conversations: ChatConversation[] }>('/chat?page=1&limit=8', Boolean(user))
-  const hasUnreadMessages = Boolean(conversationPreview.data?.conversations.some((conversation) => conversation.unreadCount > 0))
-  const refetchConversationPreview = conversationPreview.refetch
-
-  useEffect(() => {
-    if (!user || !refreshSignal) return
-    void refetchConversationPreview()
-  }, [refetchConversationPreview, refreshSignal, user])
+  const hasSystemNotificationDot = unreadMessageCount === 0 && unreadNotificationCount > 0
 
   useEffect(() => {
     if (!menuOpen) return undefined
@@ -194,7 +185,13 @@ export function TopNav({
               <>
                 <a aria-label="Inbox" className="icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent" href={withBasePath('/inbox')}>
                   <Icon name="mail" />
-                  {hasUnreadMessages && <span aria-hidden className="absolute right-2 top-2 size-2.5 rounded-full bg-red-500 ring-2 ring-accent" />}
+                  {unreadMessageCount > 0 ? (
+                    <span aria-label={`${unreadMessageCount} unread messages`} className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black leading-none text-white ring-2 ring-accent">
+                      {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                    </span>
+                  ) : hasSystemNotificationDot && (
+                    <span aria-label="Unread system notification" className="absolute right-2 top-2 size-2.5 rounded-full bg-red-500 ring-2 ring-accent" />
+                  )}
                 </a>
                 <a aria-label={shopLabel} className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent" href={withBasePath(shopHref)}>
                   <Icon name="store" />

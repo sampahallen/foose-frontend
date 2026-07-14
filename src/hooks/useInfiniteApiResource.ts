@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiGet } from '../lib/api'
 import { getErrorMessage } from '../utils/errorMessage'
 
-type InfiniteState<T> = {
+type InfiniteState<T, R extends PageMeta> = {
+  data: R | null
   error: string
   hasMore: boolean
   items: T[]
@@ -29,8 +30,9 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
   buildPath: (page: number) => string | null,
   extractItems: (data: R) => T[],
   deps: readonly unknown[] = [],
-): InfiniteState<T> {
+): InfiniteState<T, R> {
   const [items, setItems] = useState<T[]>([])
+  const [data, setData] = useState<R | null>(null)
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
   const [total, setTotal] = useState(0)
@@ -51,15 +53,19 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
       setError('')
 
       try {
-        const data = await apiGet<R>(path)
-        const nextItems = extractItems(data)
+        const pageData = await apiGet<R>(path)
+        const nextItems = extractItems(pageData)
+        setData(pageData)
         setItems((current) => (append ? [...current, ...nextItems] : nextItems))
-        setPage(data.page || nextPage)
-        setPages(inferPages(data, nextPage, nextItems.length))
-        setTotal(data.total ?? (append ? items.length + nextItems.length : nextItems.length))
+        setPage(pageData.page || nextPage)
+        setPages(inferPages(pageData, nextPage, nextItems.length))
+        setTotal(pageData.total ?? (append ? items.length + nextItems.length : nextItems.length))
       } catch (requestError) {
         setError(getErrorMessage(requestError, 'Unable to load data'))
-        if (!append) setItems([])
+        if (!append) {
+          setData(null)
+          setItems([])
+        }
       } finally {
         loadingRef.current = false
         setLoading(false)
@@ -102,6 +108,7 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
   )
 
   return {
+    data,
     error,
     hasMore: page < pages,
     items,

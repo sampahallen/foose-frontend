@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import blueLogo from '../assets/foose-logo-blue.png'
-import { AppShell, ErrorState } from '../components'
+import { AppShell } from '../components'
 import { FaApple, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa'
 import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../hooks/useAuth'
@@ -8,6 +8,17 @@ import { authHref, closeTargetForAuthModal, redirectFromSearch } from '../utils/
 import { getErrorMessage } from '../utils/errorMessage'
 import { emailLooksValid, normalizePhone, passwordMeetsRequirements, passwordRules, usernameLooksValid } from '../utils/formValidation'
 import { startOAuth } from '../utils/oauth'
+
+const DUPLICATE_ACCOUNT_MESSAGE = 'A user with that email or username already exists'
+
+function registerErrorMessage(error: unknown) {
+  const message = getErrorMessage(error, 'Unable to register')
+  const normalizedMessage = message.toLowerCase()
+  if (normalizedMessage.includes('duplicate') || normalizedMessage.includes('already exists')) {
+    return DUPLICATE_ACCOUNT_MESSAGE
+  }
+  return message
+}
 
 export function RegisterPage() {
   const { register } = useAuth()
@@ -18,6 +29,8 @@ export function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [verificationEmail, setVerificationEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+  const errorRef = useRef<HTMLParagraphElement>(null)
   const redirectTarget = redirectFromSearch()
   const closeTarget = closeTargetForAuthModal(redirectTarget)
   const canSubmit =
@@ -56,6 +69,14 @@ export function RegisterPage() {
     return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
   }
 
+  function showFormError(message: string) {
+    setError(message)
+    window.requestAnimationFrame(() => {
+      formRef.current?.scrollTo({ behavior: 'smooth', top: 0 })
+      errorRef.current?.focus({ preventScroll: true })
+    })
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!canSubmit) return
@@ -78,7 +99,7 @@ export function RegisterPage() {
       })
       setVerificationEmail(email)
     } catch (requestError) {
-      setError(getErrorMessage(requestError, 'Unable to register'))
+      showFormError(registerErrorMessage(requestError))
     } finally {
       setSubmitting(false)
     }
@@ -105,7 +126,7 @@ export function RegisterPage() {
             </a>
           </div>
         ) : (
-        <form className="form-card auth-card auth-modal-card relative z-10 mx-auto flex max-h-[92dvh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-2xl border border-accent/20 bg-white p-4 shadow-2xl shadow-black/20 sm:p-6 md:max-w-2xl md:p-8 [&_h1]:font-display [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-accent sm:[&_h1]:text-4xl [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-accent/25 [&_input]:bg-accent-light/20 [&_input]:px-3 [&_input]:py-3 [&_input]:text-foose-text [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:bg-white [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15" noValidate onSubmit={(event) => void handleSubmit(event)}>
+        <form className="form-card auth-card auth-modal-card relative z-10 mx-auto flex max-h-[92dvh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-2xl border border-accent/20 bg-white p-4 shadow-2xl shadow-black/20 sm:p-6 md:max-w-2xl md:p-8 [&_h1]:font-display [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-accent sm:[&_h1]:text-4xl [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-accent/25 [&_input]:bg-accent-light/20 [&_input]:px-3 [&_input]:py-3 [&_input]:text-foose-text [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:bg-white [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15" noValidate onSubmit={(event) => void handleSubmit(event)} ref={formRef}>
           <a aria-label="Close sign up" className="modal-close-button absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white hover:bg-black" href={closeTarget}>
             x
           </a>
@@ -124,6 +145,16 @@ export function RegisterPage() {
               <FaApple size={20} /> Sign up with iCloud
             </button>
           </div>
+          {error && (
+            <p
+              className="rounded-xl border border-foose-danger/30 bg-foose-danger-bg px-4 py-3 text-sm font-bold text-foose-danger"
+              ref={errorRef}
+              role="alert"
+              tabIndex={-1}
+            >
+              {error}
+            </p>
+          )}
           <label>
             <span className="flex items-center gap-2">Name {requiredBadge(fieldInvalid.name)}</span>
             <input autoComplete="name" name="name" onBlur={() => markTouched('name')} onChange={(event) => updateRequiredField('name', event.target.value)} required />
@@ -187,7 +218,6 @@ export function RegisterPage() {
               </ul>
             )}
           </label>
-          {error && <ErrorState message={error} />}
           <button className="button inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-accent bg-accent px-5 py-2.5 text-center text-sm font-bold text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full full" disabled={submitting || !canSubmit} type="submit">
             {submitting ? 'Creating...' : 'Create account'}
           </button>
