@@ -1,6 +1,6 @@
 import { useCallback, useState, type MouseEvent } from 'react'
 import { IoMegaphone } from 'react-icons/io5'
-import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, FavoriteButton, Icon, LoadingState, SectionHeader } from '../components'
+import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, FavoriteButton, FinspoLikeButton, Icon, LoadingState, SectionHeader, SelectControl } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
@@ -98,11 +98,11 @@ export function CommunityPage() {
   }
 
   function addEventHref() {
-    return user || status === 'checking' ? withBasePath('/community/events/new') : authHref('/login', '/community/events/new')
+    return user || status === 'checking' ? withBasePath('/community/events/new') : authHref('/login', '/community/events/new', { closeToHome: true })
   }
 
   function addFinspoHref() {
-    return user || status === 'checking' ? withBasePath('/community/finspo/new') : authHref('/login', '/community/finspo/new')
+    return user || status === 'checking' ? withBasePath('/community/finspo/new') : authHref('/login', '/community/finspo/new', { closeToHome: true })
   }
 
   function renderFloatingCreateButton() {
@@ -181,7 +181,7 @@ export function CommunityPage() {
               ) : (
                 <div className="grid w-full gap-2">
                   <label className="relative block">
-                    <select
+                    <SelectControl
                       aria-label="Event promotion package"
                       className="h-11 w-full appearance-none rounded-xl border border-accent/20 bg-accent-light/70 px-3 pr-10 text-xs font-black text-accent outline-none transition hover:border-accent focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/15"
                       onChange={(input) => setEventPromotionPackage(input.target.value as PromotionPackageName)}
@@ -192,10 +192,7 @@ export function CommunityPage() {
                           {item.label}
                         </option>
                       ))}
-                    </select>
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-accent">
-                      <Icon name="chevron" size={16} />
-                    </span>
+                    </SelectControl>
                   </label>
                   <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" disabled={promotingEventId === event._id} onClick={() => void promoteEvent(event)} type="button">
                     <IoMegaphone /> {promotingEventId === event._id ? 'Opening Paystack...' : 'Promote'}
@@ -230,7 +227,7 @@ export function CommunityPage() {
         >
           <img alt="" src={post.imageUrl} />
         </a>
-        {!owned && <FavoriteButton className="floating-round inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent absolute right-2 top-2 z-10 bg-white/90 shadow favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" targetId={post._id} targetType="finspo" />}
+        {!owned && <FinspoLikeButton className="floating-round inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent absolute right-2 top-2 z-10 bg-white/90 shadow favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" initialCount={post.likes?.length} targetId={post._id} />}
         {!owned && (
           <a className="finspo-author-link mt-1 flex items-center gap-2 text-xs font-semibold text-foose-muted" href={finspoAuthorHref(post)}>
             {finspoAuthor(post)}
@@ -367,15 +364,11 @@ export function CommunityPage() {
 
         {finspoScope !== 'mine' && (
           <>
-            <SectionHeader
-              action={
-                <a className="button hidden min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 lg:inline-flex [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addFinspoHref()}>
-                  Post Finspo
-                </a>
-              }
-              title={finspoScope === 'following' ? 'Following Finspo' : 'Public Finspo'}
-              eyebrow={finspoScope === 'following' ? 'Posts from people you follow' : 'Liked posts are collected in Saved'}
-            />
+            <div className="mb-5 hidden justify-end lg:flex">
+              <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={addFinspoHref()}>
+                Post Finspo
+              </a>
+            </div>
             {activeFinspoLoading && <LoadingState label="Loading Finspo..." />}
             {activeFinspoError && <ErrorState message={activeFinspoError} retry={activeFinspoRefetch} />}
             {!activeFinspoLoading && !activeFinspoError && !finspoItems.length && (

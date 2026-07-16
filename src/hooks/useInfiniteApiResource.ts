@@ -26,6 +26,23 @@ function inferPages(data: PageMeta, page: number, itemCount: number) {
   return page
 }
 
+function resourceId(value: unknown) {
+  if (!value || typeof value !== 'object' || !('_id' in value)) return ''
+  return String(value._id || '')
+}
+
+function appendUnique<T>(current: T[], next: T[]) {
+  const seen = new Set(current.map(resourceId).filter(Boolean))
+
+  return next.reduce((results, item) => {
+    const id = resourceId(item)
+    if (id && seen.has(id)) return results
+    if (id) seen.add(id)
+    results.push(item)
+    return results
+  }, [...current])
+}
+
 export function useInfiniteApiResource<T, R extends PageMeta>(
   buildPath: (page: number) => string | null,
   extractItems: (data: R) => T[],
@@ -41,6 +58,7 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
   const [loadingMore, setLoadingMore] = useState(false)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const loadingRef = useRef(false)
+  const itemsRef = useRef<T[]>([])
 
   const loadPage = useCallback(
     async (nextPage: number, append: boolean) => {
@@ -55,15 +73,18 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
       try {
         const pageData = await apiGet<R>(path)
         const nextItems = extractItems(pageData)
+        const mergedItems = append ? appendUnique(itemsRef.current, nextItems) : nextItems
+        itemsRef.current = mergedItems
         setData(pageData)
-        setItems((current) => (append ? [...current, ...nextItems] : nextItems))
+        setItems(mergedItems)
         setPage(pageData.page || nextPage)
         setPages(inferPages(pageData, nextPage, nextItems.length))
-        setTotal(pageData.total ?? (append ? items.length + nextItems.length : nextItems.length))
+        setTotal(pageData.total ?? mergedItems.length)
       } catch (requestError) {
         setError(getErrorMessage(requestError, 'Unable to load data'))
         if (!append) {
           setData(null)
+          itemsRef.current = []
           setItems([])
         }
       } finally {
@@ -83,6 +104,7 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
   }, [loadPage])
 
   useEffect(() => {
+    itemsRef.current = []
     setItems([])
     setPage(1)
     setPages(1)

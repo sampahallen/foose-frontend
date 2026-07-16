@@ -1,12 +1,13 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { IoMegaphone, IoReceiptOutline } from 'react-icons/io5'
-import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, Icon, ImagePreviewInput, LoadingState, SectionHeader, StatCard } from '../components'
+import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, Icon, ImagePreviewInput, LoadingState, SectionHeader, SelectControl, StatCard } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiDelete, apiPut } from '../lib/api'
-import type { Listing, Order, Shop } from '../types/api'
+import type { Listing, Order, Shop, User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDateTime, formatMoney, getListingImage } from '../utils/format'
+import { canonicalGhanaRegion, GHANA_REGIONS } from '../utils/ghanaRegions'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
 import { canSellerMarkPickupReady, isHistoricalOrder, orderAddress, orderProgressLabel, participantContact, participantName } from '../utils/orderStatus'
 import { isActiveTopPick } from '../utils/promotions'
@@ -86,9 +87,11 @@ function ShopManagementSidebar({
 }
 
 function ShopSettingsPanel({
+  defaultLocation,
   onSaved,
   shop,
 }: {
+  defaultLocation?: User['location']
   onSaved: () => Promise<unknown>
   shop?: Shop
 }) {
@@ -145,6 +148,8 @@ function ShopSettingsPanel({
       'shopName',
       'bio',
       'category',
+      'city',
+      'region',
       'instagram',
       'whatsapp',
       'payoutMethodType',
@@ -173,6 +178,10 @@ function ShopSettingsPanel({
     return <LoadingState label="Loading shop settings..." />
   }
 
+  const city = shop.location?.city?.trim() || defaultLocation?.city?.trim() || ''
+  const region = canonicalGhanaRegion(shop.location?.region) || canonicalGhanaRegion(defaultLocation?.region)
+  const hasLegacyRegion = Boolean(region && !GHANA_REGIONS.some((option) => option === region))
+
   return (
     <section>
       <form className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-foose-border [&_input]:bg-white [&_input]:px-3 [&_input]:py-3 [&_input]:outline-none [&_input]:transition [&_input]:disabled:bg-accent-light/50 [&_input]:disabled:text-foose-muted [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_select]:w-full [&_select]:rounded-xl [&_select]:border [&_select]:border-foose-border [&_select]:bg-white [&_select]:px-3 [&_select]:py-3 [&_select]:outline-none [&_select]:disabled:bg-accent-light/50 [&_textarea]:w-full [&_textarea]:rounded-xl [&_textarea]:border [&_textarea]:border-foose-border [&_textarea]:bg-white [&_textarea]:px-3 [&_textarea]:py-3 [&_textarea]:outline-none [&_textarea]:disabled:bg-accent-light/50" encType="multipart/form-data" onSubmit={(event) => void saveShop(event)}>
@@ -192,15 +201,39 @@ function ShopSettingsPanel({
               {fieldFrame(
                 'category',
                 'Primary category',
-                <select defaultValue={shop.category || 'both'} disabled={!isEditable('category')} id="category" name="category">
+                <SelectControl defaultValue={shop.category || 'both'} disabled={!isEditable('category')} id="category" name="category">
                   <option value="retail">Retail</option>
                   <option value="wholesale">Wholesale</option>
                   <option value="both">Both</option>
-                </select>,
+                </SelectControl>,
               )}
               <div className="md:col-span-2">
                 {fieldFrame('bio', 'Shop bio', <textarea defaultValue={shop.bio || ''} disabled={!isEditable('bio')} id="bio" name="bio" rows={5} />)}
               </div>
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-foose-border bg-foose-surface shadow-sm">
+            <header className="flex items-center justify-between gap-3 border-b border-foose-border bg-accent-light/50 px-4 py-4 md:px-6">
+              <div>
+                <h2 className="text-xl font-black text-foose-text">Shop location</h2>
+                <p className="text-sm text-foose-muted">Used to tag every item and power marketplace location filters.</p>
+              </div>
+              <button className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-black text-accent hover:bg-white" onClick={() => setEditable(new Set(['city', 'region']))} type="button">
+                <Icon name="pencil" size={16} /> Edit
+              </button>
+            </header>
+            <div className="grid gap-4 p-4 md:grid-cols-2 md:p-6">
+              {fieldFrame('city', 'City or town', <input defaultValue={city} disabled={!isEditable('city')} id="city" name="city" placeholder="e.g. Accra" required />)}
+              {fieldFrame(
+                'region',
+                'Region',
+                <SelectControl defaultValue={region} disabled={!isEditable('region')} id="region" name="region" required>
+                  <option value="">Select region</option>
+                  {hasLegacyRegion && <option value={region}>{region}</option>}
+                  {GHANA_REGIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                </SelectControl>,
+              )}
             </div>
           </section>
 
@@ -234,10 +267,10 @@ function ShopSettingsPanel({
               {fieldFrame(
                 'payoutMethodType',
                 'Method',
-                <select defaultValue={shop.payoutMethod?.type || 'mobile_money'} disabled={!isEditable('payoutMethodType')} id="payoutMethodType" name="payoutMethodType">
+                <SelectControl defaultValue={shop.payoutMethod?.type || 'mobile_money'} disabled={!isEditable('payoutMethodType')} id="payoutMethodType" name="payoutMethodType">
                   <option value="mobile_money">Mobile money</option>
                   <option value="bank_transfer">Bank transfer</option>
-                </select>,
+                </SelectControl>,
               )}
               {fieldFrame('payoutProvider', 'Provider', <input defaultValue={shop.payoutMethod?.provider || ''} disabled={!isEditable('payoutProvider')} id="payoutProvider" name="payoutProvider" placeholder="MTN, Vodafone, bank..." />)}
               {fieldFrame('payoutAccountName', 'Account name', <input defaultValue={shop.payoutMethod?.accountName || ''} disabled={!isEditable('payoutAccountName')} id="payoutAccountName" name="payoutAccountName" />)}
@@ -444,7 +477,7 @@ export function SellerDashboardPage() {
         )}
         {deleteError && <ErrorState message={deleteError} />}
         {activePanel === 'settings' ? (
-          <ShopSettingsPanel onSaved={shop.refetch} shop={shop.data?.shop} />
+          <ShopSettingsPanel defaultLocation={user?.location} onSaved={shop.refetch} shop={shop.data?.shop} />
         ) : activePanel === 'sold' ? (
           <section className="rounded-2xl bg-foose-surface p-3 shadow-sm md:p-5">
             <SectionHeader
@@ -620,30 +653,32 @@ export function SellerDashboardPage() {
                       value={listingQuery}
                     />
                   </label>
-                  <select
+                  <SelectControl
                     aria-label="Filter by type"
                     onChange={(event) => {
                       setListingTypeFilter(event.target.value)
                       setListingPage(1)
                     }}
                     value={listingTypeFilter}
+                    variant="filter"
                   >
                     <option value="">All types</option>
                     <option value="retail">Retail</option>
                     <option value="wholesale">Wholesale</option>
-                  </select>
-                  <select
+                  </SelectControl>
+                  <SelectControl
                     aria-label="Filter by status"
                     onChange={(event) => {
                       setListingStatus(event.target.value)
                       setListingPage(1)
                     }}
                     value={listingStatus}
+                    variant="filter"
                   >
                     <option value="">All statuses</option>
                     <option value="active">Active</option>
                     <option value="draft">Draft</option>
-                  </select>
+                  </SelectControl>
                   <label>
                     <span>Start date</span>
                     <input

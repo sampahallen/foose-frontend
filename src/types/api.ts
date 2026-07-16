@@ -80,8 +80,13 @@ export type Shop = {
 export type Listing = {
   _id: string
   shopId?: Shop | string
+  location?: {
+    city?: string
+    region?: string
+  }
   title: string
   description?: string
+  hashtags?: string[]
   category?: string
   brand?: string
   size?: string
@@ -106,6 +111,16 @@ export type Listing = {
   views?: number
   createdAt?: string
   updatedAt?: string
+}
+
+export type HashtagSuggestion = {
+  name: string
+  hashtag: string
+  postCount: number
+}
+
+export type HashtagSuggestionsResponse = {
+  suggestions: HashtagSuggestion[]
 }
 
 export type Order = {
@@ -302,6 +317,18 @@ export type PaginatedListings = {
       label: string
       value: string
     }>
+  }
+  feed?: {
+    allocations: {
+      new: number
+      promoted: number
+      suggested: number
+    }
+    candidateLimit: number
+    pageSize: number
+    personalized: boolean
+    promotedGap: number
+    requestedPromotedGap: number
   }
 }
 

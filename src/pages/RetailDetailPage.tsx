@@ -1,10 +1,11 @@
 import type { MouseEvent } from 'react'
 import { useEffect, useMemo } from 'react'
 import { MdVerified } from 'react-icons/md'
-import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, FavoriteButton, Icon, LightboxImage, LoadingState, ProductCard, SectionHeader, ShopReviewPanel } from '../components'
+import { AppShell, Badge, ButtonLink, DropdownChevron, EmptyState, ErrorState, FavoriteButton, Icon, LightboxImage, LoadingState, ProductCard, SectionHeader, ShopReviewPanel } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useCart } from '../hooks/useCart'
+import { useListingRecommendationSignals } from '../hooks/useListingRecommendationSignals'
 import { useNavigationMemoryStore } from '../stores/navigationMemoryStore'
 import type { Listing, PaginatedListings } from '../types/api'
 import { formatMoney, getListingImage, getShop, getShopName, initials, listingMeta } from '../utils/format'
@@ -141,6 +142,7 @@ export function RetailDetailPage() {
     [listing?._id, relatedListingsResource.data?.results, shopId],
   )
   const isModal = Boolean(listingReturn)
+  useListingRecommendationSignals(listing?._id, Boolean(user))
 
   useEffect(() => {
     if (!isModal) return undefined
@@ -247,6 +249,19 @@ export function RetailDetailPage() {
                   {listingMeta(listing)}
                   {listing.color ? ` - ${listing.color}` : ''}
                 </p>
+                {!!listing.hashtags?.length && (
+                  <div className="mt-3 flex flex-wrap gap-2" aria-label="Item vibe hashtags">
+                    {listing.hashtags.map((tag) => (
+                      <a
+                        className="rounded-full bg-accent-light px-3 py-1 text-xs font-black text-accent transition hover:bg-accent hover:text-white"
+                        href={withBasePath(`/browse?q=${encodeURIComponent(tag)}&type=${listing.type}`)}
+                        key={tag}
+                      >
+                        #{tag}
+                      </a>
+                    ))}
+                  </div>
+                )}
                 {listing.type === 'wholesale' && (
                   <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-foose-muted">
                     {listing.bulkMinQty !== undefined && <span className="rounded-full bg-foose-surface-mid px-3 py-1">Min. {listing.bulkMinQty}</span>}
@@ -298,8 +313,12 @@ export function RetailDetailPage() {
                     <p>Delivery and pickup options are confirmed at checkout.</p>
                   </div>
                 </div>
-                <details className="pt-4 text-sm" open>
-                  <summary className="cursor-pointer font-bold text-foose-text">Description</summary>
+                <details className="group pt-4 text-sm" open>
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-bold text-foose-text [&::-webkit-details-marker]:hidden">
+                    <span>Description</span>
+                    <DropdownChevron className="text-xs text-accent group-open:hidden" />
+                    <DropdownChevron className="hidden text-xs text-accent group-open:block" open />
+                  </summary>
                   <p className="mt-3 leading-6 text-foose-muted">{listing.description || 'No description has been added for this listing yet.'}</p>
                 </details>
               </section>

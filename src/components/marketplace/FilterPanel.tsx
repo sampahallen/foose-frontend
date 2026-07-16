@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { IoChevronDown, IoFunnelOutline } from 'react-icons/io5'
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
+import { IoFunnelOutline } from 'react-icons/io5'
 import { useFilterDropdownStore } from '../../stores/filterDropdownStore'
+import { GHANA_REGION_OPTIONS } from '../../utils/ghanaRegions'
 import { LISTING_BRANDS, LISTING_CATEGORIES, LISTING_COLORS, LISTING_CONDITIONS } from '../../utils/listingTaxonomy'
 import { navigateTo, withBasePath } from '../../utils/navigation'
+import { DropdownChevron, SelectControl } from '../ui/SelectControl'
 
 const dropdownControl =
   'h-11 w-full rounded-lg border border-accent/30 bg-accent-light/30 px-3 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
@@ -16,6 +19,10 @@ type TopFilterOption = {
   swatch?: string
   value: string
 }
+
+type FilterDrawerState = 'closed' | 'closing' | 'open' | 'opening'
+
+const FILTER_DRAWER_TRANSITION_MS = 200
 
 function formQuery(form: HTMLFormElement) {
   const data = new FormData(form)
@@ -41,6 +48,18 @@ function filterHref(actionPath: string, query: URLSearchParams, name: string, va
 
   const nextQuery = params.toString()
   return withBasePath(nextQuery ? `${actionPath}?${nextQuery}` : actionPath)
+}
+
+function locationFilterOptions(locationOptions: TopFilterOption[], selectedLocation: string) {
+  if (!selectedLocation || GHANA_REGION_OPTIONS.some((option) => option.value === selectedLocation)) {
+    return GHANA_REGION_OPTIONS
+  }
+
+  const selectedOption = locationOptions.find((option) => option.value === selectedLocation)
+  return [
+    ...GHANA_REGION_OPTIONS,
+    selectedOption || { label: selectedLocation, value: selectedLocation },
+  ]
 }
 
 function TopFilterDropdown({
@@ -70,7 +89,7 @@ function TopFilterDropdown({
   const label = selected?.label || placeholder
 
   return (
-    <div className={`top-filter-dropdown relative z-[80] shrink-0 ${className}`}>
+    <div className={`top-filter-dropdown relative shrink-0 ${isOpen ? 'z-[200]' : 'z-[80]'} ${className}`}>
       <button
         aria-expanded={isOpen}
         className={`${topFilterControl} w-full`}
@@ -83,10 +102,10 @@ function TopFilterDropdown({
           )}
           <span className="truncate">{label}</span>
         </span>
-        <IoChevronDown aria-hidden className={`shrink-0 text-sm text-accent transition ${isOpen ? 'rotate-180' : ''}`} />
+        <DropdownChevron className="shrink-0 text-xs text-accent" open={isOpen} />
       </button>
       {isOpen && (
-        <div className="absolute left-0 top-11 z-[120] max-h-80 w-56 overflow-y-auto rounded-xl border border-foose-border bg-white p-1 shadow-2xl [scrollbar-width:thin]">
+        <div className="absolute left-0 top-11 z-[120] max-h-80 w-full overflow-y-auto rounded-xl border border-foose-border bg-white p-1 shadow-2xl [scrollbar-width:thin] lg:w-56">
           <a
             className={`flex min-h-10 items-center justify-between gap-3 rounded-lg px-3 text-sm font-semibold text-foose-text transition hover:bg-accent-light ${!selectedValue ? 'bg-accent-light text-accent' : ''}`}
             href={filterHref(actionPath, query, name, '')}
@@ -122,6 +141,7 @@ function TopFilterDropdown({
 
 export function TopFilterBar({
   actionPath = '/browse',
+  hideLocation = false,
   hidePriceAndSize = false,
   hideType = false,
   locationOptions = [],
@@ -131,6 +151,7 @@ export function TopFilterBar({
   showResultLabel = true,
 }: {
   actionPath?: string
+  hideLocation?: boolean
   hidePriceAndSize?: boolean
   hideType?: boolean
   locationOptions?: TopFilterOption[]
@@ -139,9 +160,16 @@ export function TopFilterBar({
   resultLabelVariant?: 'pill' | 'plain'
   showResultLabel?: boolean
 }) {
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [drawerState, setDrawerState] = useState<FilterDrawerState>('closed')
   const debounceRef = useRef<number | undefined>(undefined)
+  const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null)
+  const drawerExitTimerRef = useRef<number | undefined>(undefined)
+  const drawerPanelRef = useRef<HTMLElement | null>(null)
+  const drawerTriggerRef = useRef<HTMLButtonElement | null>(null)
   const closeDropdown = useFilterDropdownStore((store) => store.closeDropdown)
+  const drawerId = useId()
+  const drawerMounted = drawerState !== 'closed'
+  const drawerVisible = drawerState === 'open'
   const typeOptions = [
     { label: 'Retail', value: 'retail' },
     { label: 'Wholesale', value: 'wholesale' },
@@ -151,20 +179,91 @@ export function TopFilterBar({
   const colorOptions = LISTING_COLORS.map((color) => ({ label: color.label, swatch: color.hex, value: color.value }))
   const conditionOptions = LISTING_CONDITIONS.map((condition) => ({ label: condition[0].toUpperCase() + condition.slice(1), value: condition }))
   const selectedLocation = query.get('location') || ''
-  const locationOptionsByValue = new Map<string, TopFilterOption>()
-  locationOptions.forEach((option) => {
-    if (option.value) locationOptionsByValue.set(option.value, option)
-  })
-  if (selectedLocation && !locationOptionsByValue.has(selectedLocation)) {
-    locationOptionsByValue.set(selectedLocation, { label: selectedLocation, value: selectedLocation })
-  }
-  const availableLocationOptions = Array.from(locationOptionsByValue.values())
+  const availableLocationOptions = locationFilterOptions(locationOptions, selectedLocation)
   const sortOptions = [
     { label: 'Newest', value: 'newest' },
     { label: 'Price high', value: 'price_desc' },
     { label: 'Price low', value: 'price_asc' },
     { label: 'Popular', value: 'popular' },
   ]
+
+  const openDrawer = useCallback(() => {
+    window.clearTimeout(drawerExitTimerRef.current)
+    setDrawerState('opening')
+  }, [setDrawerState])
+
+  const closeDrawer = useCallback(() => {
+    window.clearTimeout(drawerExitTimerRef.current)
+    closeDropdown()
+    setDrawerState('closing')
+    drawerExitTimerRef.current = window.setTimeout(() => {
+      setDrawerState('closed')
+      drawerTriggerRef.current?.focus()
+    }, FILTER_DRAWER_TRANSITION_MS)
+  }, [closeDropdown, setDrawerState])
+
+  useEffect(() => {
+    if (drawerState !== 'opening') return undefined
+
+    const frame = window.requestAnimationFrame(() => {
+      setDrawerState('open')
+      drawerCloseButtonRef.current?.focus()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [drawerState])
+
+  useEffect(() => {
+    if (!drawerMounted) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    const desktopViewport = window.matchMedia('(min-width: 1024px)')
+    document.body.style.overflow = 'hidden'
+
+    function handleDrawerKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeDrawer()
+        return
+      }
+
+      if (event.key !== 'Tab' || !drawerPanelRef.current) return
+      const focusableElements = Array.from(
+        drawerPanelRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      )
+      const firstFocusable = focusableElements[0]
+      const lastFocusable = focusableElements.at(-1)
+
+      if (!firstFocusable || !lastFocusable) {
+        event.preventDefault()
+        drawerPanelRef.current.focus()
+        return
+      }
+
+      const activeElement = document.activeElement
+      if (event.shiftKey && (activeElement === firstFocusable || !drawerPanelRef.current.contains(activeElement))) {
+        event.preventDefault()
+        lastFocusable.focus()
+      } else if (!event.shiftKey && (activeElement === lastFocusable || !drawerPanelRef.current.contains(activeElement))) {
+        event.preventDefault()
+        firstFocusable.focus()
+      }
+    }
+
+    function closeOnDesktop(event: MediaQueryListEvent) {
+      if (event.matches) closeDrawer()
+    }
+
+    document.addEventListener('keydown', handleDrawerKeyDown)
+    desktopViewport.addEventListener('change', closeOnDesktop)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', handleDrawerKeyDown)
+      desktopViewport.removeEventListener('change', closeOnDesktop)
+    }
+  }, [closeDrawer, drawerMounted])
+
+  useEffect(() => () => window.clearTimeout(drawerExitTimerRef.current), [])
 
   function applyFilters(form: HTMLFormElement) {
     window.clearTimeout(debounceRef.current)
@@ -215,7 +314,7 @@ export function TopFilterBar({
       <>
       {query.get('q') && <input name="q" type="hidden" value={query.get('q') || ''} />}
       {(['type', 'category', 'location', 'brand', 'color', 'condition', 'sort'] as const).map((name) => (
-        query.get(name) ? <input key={name} name={name} type="hidden" value={query.get(name) || ''} /> : null
+        query.get(name) && !(hideLocation && name === 'location') ? <input key={name} name={name} type="hidden" value={query.get(name) || ''} /> : null
       ))}
       {showResultLabel && (
         <span className={resultLabelVariant === 'plain' ? 'shrink-0 px-1 text-sm font-black text-foose-text' : 'shrink-0 rounded-full bg-white px-3 py-2 text-xs font-black text-accent ring-1 ring-accent/20'}>{resultLabel}</span>
@@ -228,8 +327,12 @@ export function TopFilterBar({
       )}
       <label htmlFor="filter-category">Category</label>
       <TopFilterDropdown actionPath={actionPath} className="w-[132px]" name="category" options={categoryOptions} placeholder="Category" query={query} />
-      <label htmlFor="filter-location">Location</label>
-      <TopFilterDropdown actionPath={actionPath} className="w-[156px]" name="location" options={availableLocationOptions} placeholder="Location" query={query} />
+      {!hideLocation && (
+        <>
+          <label htmlFor="filter-location">Location</label>
+          <TopFilterDropdown actionPath={actionPath} className="w-[156px]" name="location" options={availableLocationOptions} placeholder="Location" query={query} />
+        </>
+      )}
       <label htmlFor="filter-brand">Brand</label>
       <TopFilterDropdown actionPath={actionPath} className="w-[112px]" name="brand" options={brandOptions} placeholder="Brand" query={query} />
       <label htmlFor="filter-color">Color</label>
@@ -257,17 +360,20 @@ export function TopFilterBar({
 
   const formProps = {
     action: withBasePath(actionPath),
-    key: query.toString(),
     method: 'get',
     onChange: handleAutoApply,
     onSubmit: handleSubmit,
   } as const
+  const formKey = query.toString()
 
   return (
     <>
       <button
+        aria-controls={drawerId}
+        aria-expanded={drawerState === 'open' || drawerState === 'opening'}
         className="inline-flex min-h-10 items-center gap-2 rounded-full bg-accent px-4 text-sm font-black text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover lg:hidden"
-        onClick={() => setDrawerOpen(true)}
+        onClick={openDrawer}
+        ref={drawerTriggerRef}
         type="button"
       >
         <IoFunnelOutline /> Filters
@@ -275,27 +381,43 @@ export function TopFilterBar({
       <form
         {...formProps}
         className="top-filter-bar relative z-[70] hidden w-full flex-wrap items-center gap-2 rounded-2xl bg-accent-light/70 p-2 shadow-sm backdrop-blur lg:flex lg:flex-nowrap [&_label]:sr-only"
+        key={`desktop-${formKey}`}
       >
         {renderControls()}
       </form>
-      {drawerOpen && (
-        <div className="fixed inset-0 z-100 lg:hidden">
-          <button aria-label="Close filters" className="absolute inset-0 bg-black/45" onClick={() => setDrawerOpen(false)} type="button" />
-          <aside className="absolute left-0 top-0 h-full w-[min(22rem,88vw)] overflow-y-auto bg-foose-surface p-4 shadow-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {drawerMounted && createPortal(
+        <div className="fixed inset-0 z-[1000] lg:hidden">
+          <button
+            aria-label="Close filters"
+            className={`absolute inset-0 bg-black/45 transition-opacity duration-200 motion-reduce:transition-none ${drawerVisible ? 'opacity-100' : 'opacity-0'}`}
+            onClick={closeDrawer}
+            type="button"
+          />
+          <aside
+            aria-labelledby={`${drawerId}-title`}
+            aria-modal="true"
+            className={`absolute left-0 top-0 z-10 h-full w-[min(22rem,88vw)] overflow-y-auto bg-foose-surface p-4 shadow-2xl transition-transform duration-200 ease-out motion-reduce:transition-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${drawerVisible ? 'translate-x-0' : '-translate-x-full'}`}
+            id={drawerId}
+            ref={drawerPanelRef}
+            role="dialog"
+            tabIndex={-1}
+          >
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-black text-foose-text">Filters</h2>
-              <button className="inline-flex size-9 items-center justify-center rounded-full border border-foose-border bg-white text-foose-text" onClick={() => setDrawerOpen(false)} type="button">
+              <h2 className="text-lg font-black text-foose-text" id={`${drawerId}-title`}>Filters</h2>
+              <button aria-label="Close filters" className="inline-flex size-9 items-center justify-center rounded-full border border-foose-border bg-white text-foose-text" onClick={closeDrawer} ref={drawerCloseButtonRef} type="button">
                 x
               </button>
             </div>
             <form
               {...formProps}
               className="top-filter-bar relative z-[70] flex w-full flex-col items-stretch gap-3 rounded-2xl bg-accent-light/60 p-3 shadow-sm [&_.top-filter-dropdown]:w-full [&_.top-filter-dropdown_button]:h-11 [&_.top-filter-dropdown_button]:rounded-xl [&_a.ml-auto]:ml-0 [&_a.ml-auto]:w-full [&_input]:h-11 [&_input]:w-full [&_input]:rounded-xl [&_input]:px-4 [&_label]:sr-only"
+              key={`mobile-${formKey}`}
             >
               {renderControls()}
             </form>
           </aside>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )
@@ -312,14 +434,7 @@ export function FilterPanel({
 }) {
   const selectedColor = LISTING_COLORS.find((color) => color.value === query.get('color'))
   const selectedLocation = query.get('location') || ''
-  const locationOptionsByValue = new Map<string, TopFilterOption>()
-  locationOptions.forEach((option) => {
-    if (option.value) locationOptionsByValue.set(option.value, option)
-  })
-  if (selectedLocation && !locationOptionsByValue.has(selectedLocation)) {
-    locationOptionsByValue.set(selectedLocation, { label: selectedLocation, value: selectedLocation })
-  }
-  const availableLocationOptions = Array.from(locationOptionsByValue.values())
+  const availableLocationOptions = locationFilterOptions(locationOptions, selectedLocation)
 
   return (
     <form action={withBasePath(actionPath)} className="filter-panel sticky top-44 flex max-h-[calc(100dvh-12rem)] flex-col gap-4 overflow-y-auto rounded-xl border border-foose-border bg-foose-surface p-4 [scrollbar-width:thin] [&_h2]:font-display [&_h2]:text-xl [&_fieldset]:border-0 [&_fieldset]:p-0 [&_legend]:text-sm [&_legend]:font-semibold [&_legend]:text-foose-text [&_label]:flex [&_label]:items-center [&_label]:gap-2 [&_label]:py-1 [&_label]:text-sm [&_label]:text-foose-muted [&_input[type='range']]:w-full [&_input[type='range']]:accent-accent [&_.button]:w-full" method="get">
@@ -337,34 +452,34 @@ export function FilterPanel({
       </fieldset>
       <fieldset>
         <legend>Category</legend>
-        <select className={dropdownControl} defaultValue={query.get('category') || ''} name="category">
+        <SelectControl className={dropdownControl} defaultValue={query.get('category') || ''} name="category" variant="filter">
           <option value="">All categories</option>
           {LISTING_CATEGORIES.map((category) => (
             <option key={category.label} value={category.label}>
               {category.label}
             </option>
           ))}
-        </select>
+        </SelectControl>
       </fieldset>
       <fieldset>
         <legend>Location</legend>
-        <select className={dropdownControl} defaultValue={selectedLocation} name="location">
+        <SelectControl className={dropdownControl} defaultValue={selectedLocation} name="location" variant="filter">
           <option value="">All locations</option>
           {availableLocationOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
-        </select>
+        </SelectControl>
       </fieldset>
       <fieldset>
         <legend>Brand</legend>
-        <input defaultValue={query.get('brand') || ''} list="filter-brands" name="brand" placeholder="Nike, Adidas, Levi's..." />
-        <datalist id="filter-brands">
+        <SelectControl className={dropdownControl} defaultValue={query.get('brand') || ''} name="brand" variant="filter">
+          <option value="">All brands</option>
           {LISTING_BRANDS.map((brand) => (
-            <option key={brand} value={brand} />
+            <option key={brand} value={brand}>{brand}</option>
           ))}
-        </datalist>
+        </SelectControl>
       </fieldset>
       <fieldset>
         <legend>Condition</legend>
@@ -389,7 +504,8 @@ export function FilterPanel({
               )}
               <span className="truncate">{selectedColor?.label || 'All colors'}</span>
             </span>
-            <IoChevronDown aria-hidden className="text-accent transition group-open:rotate-180" />
+            <DropdownChevron className="text-sm text-accent group-open:hidden" />
+            <DropdownChevron className="hidden text-sm text-accent group-open:block" open />
           </summary>
           <div className="absolute left-0 right-0 top-12 z-20 max-h-72 overflow-y-auto rounded-xl border border-foose-border bg-white p-1 shadow-xl [scrollbar-width:thin]">
             <label className="justify-between rounded-lg px-3 py-2 hover:bg-accent-light">

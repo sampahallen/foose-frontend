@@ -1,12 +1,13 @@
 import { useRef, useState, type FormEvent } from 'react'
 import blueLogo from '../assets/foose-logo-blue.png'
-import { AppShell } from '../components'
+import { AppShell, SelectControl } from '../components'
 import { FaApple, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa'
 import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../hooks/useAuth'
 import { authHref, closeTargetForAuthModal, redirectFromSearch } from '../utils/authRedirect'
 import { getErrorMessage } from '../utils/errorMessage'
 import { emailLooksValid, normalizePhone, passwordMeetsRequirements, passwordRules, usernameLooksValid } from '../utils/formValidation'
+import { GHANA_REGIONS } from '../utils/ghanaRegions'
 import { startOAuth } from '../utils/oauth'
 
 const DUPLICATE_ACCOUNT_MESSAGE = 'A user with that email or username already exists'
@@ -177,7 +178,10 @@ export function RegisterPage() {
           <div className="form-grid grid gap-4 sm:grid-cols-2 [&_.wide]:sm:col-span-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3">
             <label>
               Region
-              <input name="region" />
+              <SelectControl name="region">
+                <option value="">Select region</option>
+                {GHANA_REGIONS.map((region) => <option key={region} value={region}>{region}</option>)}
+              </SelectControl>
             </label>
             <label>
               City

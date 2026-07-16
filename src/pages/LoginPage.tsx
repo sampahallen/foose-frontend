@@ -1,6 +1,6 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import blueLogo from '../assets/foose-logo-blue.png'
-import { AppShell } from '../components'
+import { AppShell, Icon } from '../components'
 import { FaApple } from 'react-icons/fa'
 import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../hooks/useAuth'
@@ -8,7 +8,7 @@ import { apiPost } from '../lib/api'
 import { authHref, closeTargetForAuthModal, redirectFromSearch } from '../utils/authRedirect'
 import { getErrorMessage } from '../utils/errorMessage'
 import { emailLooksValid } from '../utils/formValidation'
-import { navigateTo } from '../utils/navigation'
+import { navigateTo, withBasePath } from '../utils/navigation'
 import { startOAuth } from '../utils/oauth'
 
 function loginSearchParams() {
@@ -32,6 +32,15 @@ function ForgotPasswordDialog({
   const [sent, setSent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const canSubmit = emailLooksValid(email)
+
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose()
+    }
+
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -127,6 +136,8 @@ export function LoginPage() {
   const loginParams = loginSearchParams()
   const redirectTarget = redirectFromSearch()
   const closeTarget = closeTargetForAuthModal(redirectTarget)
+  const closeHref = withBasePath(closeTarget)
+  const closeLabel = closeTarget === '/' ? 'Close login and return to home' : 'Close login'
   const identifierIsEmail = identifier.includes('@')
   const canSubmit = identifier.trim().length > 0 && password.length > 0 && (!identifierIsEmail || emailLooksValid(identifier))
   const identifierInvalid = touched.identifier && (!identifier.trim() || (identifierIsEmail && !emailLooksValid(identifier)))
@@ -141,8 +152,24 @@ export function LoginPage() {
   const verificationNotice = loginParams.get('verified') === '1' ? 'Email verified. Log in to continue.' : ''
   const verificationError = loginParams.get('error') || ''
 
+  useEffect(() => {
+    if (forgotPasswordOpen) return undefined
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') navigateTo(closeTarget, { replace: true })
+    }
+
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [closeTarget, forgotPasswordOpen])
+
   function requiredBadge(invalid: boolean) {
     return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
+  }
+
+  function handleClose(event: ReactMouseEvent<HTMLAnchorElement>) {
+    event.preventDefault()
+    navigateTo(closeTarget, { replace: true })
   }
 
   function showFormError(message: string) {
@@ -165,7 +192,7 @@ export function LoginPage() {
         identifier: String(formData.get('identifier') || ''),
         password: String(formData.get('password') || ''),
       })
-      navigateTo(redirectTarget)
+      navigateTo(redirectTarget, { replace: true })
     } catch (requestError) {
       showFormError(getErrorMessage(requestError, 'Unable to log in'))
     } finally {
@@ -178,10 +205,10 @@ export function LoginPage() {
   return (
     <AppShell flush>
       <section className="auth-modal-shell fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-4">
-        <a aria-label="Close login" className="auth-modal-backdrop absolute inset-0 bg-black/45" href={closeTarget} />
+        <a aria-label={closeLabel} className="auth-modal-backdrop absolute inset-0 bg-black/45" href={closeHref} onClick={handleClose} />
         <form className="form-card auth-card auth-modal-card relative z-10 mx-auto flex max-h-[92dvh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-2xl border border-accent/20 bg-white p-4 shadow-2xl shadow-black/20 sm:p-6 md:max-w-lg md:p-8 [&_h1]:font-display [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-accent sm:[&_h1]:text-4xl [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-accent/25 [&_input]:bg-accent-light/20 [&_input]:px-3 [&_input]:py-3 [&_input]:text-foose-text [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:bg-white [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15" noValidate onSubmit={(event) => void handleSubmit(event)} ref={formRef}>
-          <a aria-label="Close login" className="modal-close-button absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white hover:bg-black" href={closeTarget}>
-            x
+          <a aria-label={closeLabel} className="modal-close-button absolute right-3 top-3 inline-flex size-10 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white transition hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black" href={closeHref} onClick={handleClose}>
+            <Icon name="close" size={18} />
           </a>
           <header className="flex flex-col gap-3 border-b border-foose-border pb-4 pt-2">
             <img alt="Foose" className="h-auto w-32 sm:w-36" src={blueLogo} />

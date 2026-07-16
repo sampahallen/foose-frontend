@@ -6,7 +6,7 @@ import { FavoriteButton } from '../ui/FavoriteButton'
 import { MdVerified } from 'react-icons/md'
 import type { MouseEvent } from 'react'
 
-export function ProductCard({ listing }: { listing: Listing }) {
+export function ProductCard({ className = '', listing }: { className?: string; listing: Listing }) {
   const image = getListingImage(listing)
   const setListingReturn = useNavigationMemoryStore((state) => state.setListingReturn)
   const brand = listing.brand || 'Other'
@@ -48,7 +48,7 @@ export function ProductCard({ listing }: { listing: Listing }) {
   )
 
   return (
-    <article className="product-card relative flex min-h-full flex-col overflow-hidden bg-transparent transition hover:-translate-y-0.5">
+    <article className={`product-card relative flex min-h-full flex-col overflow-hidden bg-transparent transition hover:-translate-y-0.5 ${className}`}>
       <a className="product-card-link flex flex-1 flex-col" href={withBasePath(`/listing/${listing._id}`)} onClick={openListing}>
         {content}
       </a>

@@ -1,4 +1,4 @@
-import { AppShell, EmptyState, ErrorState, FavoriteButton, LoadingState, ProductCard, SectionHeader } from '../components'
+import { AppShell, EmptyState, ErrorState, FavoriteButton, FinspoLikeButton, LoadingState, ProductCard, SectionHeader } from '../components'
 import { useApiResource } from '../hooks/useApiResource'
 import type { FavoriteCollections, GalleryPost } from '../types/api'
 import { formatDate } from '../utils/format'
@@ -129,13 +129,13 @@ export function SavedPage() {
                   <a className="finspo-author-link mt-1 flex items-center gap-2 text-xs font-semibold text-foose-muted" href={authorHref(post)}>
                     {authorName(post)}
                   </a>
-                  <FavoriteButton
+                  <FinspoLikeButton
                     className="floating-round inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent absolute right-2 top-2 z-10 bg-white/90 shadow favorite-button [&.is-active]:bg-accent [&.is-active]:text-white"
-                    onChange={(active) => {
-                      if (!active) void favorites.refetch()
+                    initialCount={post.likes?.length}
+                    onChange={(liked) => {
+                      if (!liked) void favorites.refetch()
                     }}
                     targetId={post._id}
-                    targetType="finspo"
                   />
                 </article>
               ))}

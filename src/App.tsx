@@ -38,6 +38,7 @@ import {
   SavedPage,
   SellerDashboardPage,
   ShopPage,
+  SuggestedForYouPage,
   TopPicksPage,
   WalletPage,
 } from './pages'
@@ -91,6 +92,13 @@ function App() {
       break
     case 'browse':
       page = <BrowsePage />
+      break
+    case 'suggestedForYou':
+      page = (
+        <AuthRequired>
+          <SuggestedForYouPage />
+        </AuthRequired>
+      )
       break
     case 'freshDrops':
       page = <FreshDropsPage />

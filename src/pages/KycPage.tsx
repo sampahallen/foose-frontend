@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { ButtonLink, EmptyState, ErrorState, Icon, ImagePreviewInput, LightboxImage, LoadingState } from '../components'
+import { ButtonLink, EmptyState, ErrorState, Icon, ImagePreviewInput, LightboxImage, LoadingState, SelectControl } from '../components'
 import { getAppName } from '../config/env'
 import { apiPost, apiPut } from '../lib/api'
 import { useApiResource } from '../hooks/useApiResource'
@@ -132,13 +132,13 @@ export function KycPage() {
               </h2>
               <label>
                 <span className="flex items-center gap-2">ID type {requiredBadge(false)}</span>
-                <select defaultValue={kyc.data.kyc.idType || 'Ghana Card'} name="idType" required>
+                <SelectControl defaultValue={kyc.data.kyc.idType || 'Ghana Card'} name="idType" required>
                   {ID_TYPES.map((t) => (
                     <option key={t} value={t}>
                       {t}
                     </option>
                   ))}
-                </select>
+                </SelectControl>
               </label>
               <label>
                 <span className="flex items-center gap-2">ID number {requiredBadge(idNoInvalid)}</span>

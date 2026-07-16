@@ -1,5 +1,5 @@
 import { useMemo, type MouseEvent } from 'react'
-import { AppShell, EmptyState, ErrorState, FavoriteButton, Icon, LightboxImage, LoadingState } from '../components'
+import { AppShell, EmptyState, ErrorState, FinspoLikeButton, Icon, LightboxImage, LoadingState } from '../components'
 import { useApiResource } from '../hooks/useApiResource'
 import type { GalleryPost } from '../types/api'
 import { formatDate } from '../utils/format'
@@ -76,7 +76,7 @@ export function CommunityFinspoDetailPage() {
                 <a href={authorHref(post)}>
                   <strong>{authorName(post)}</strong>
                 </a>
-                <FavoriteButton className="button inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" showText targetId={post._id} targetType="finspo" />
+                <FinspoLikeButton className="button inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" initialCount={post.likes?.length} showCount showText targetId={post._id} />
               </div>
               {post.caption && <p>{post.caption}</p>}
               {!!post.tags?.length && <p className="muted-copy text-sm leading-6 text-foose-muted md:text-base">{post.tags.map((tag) => `#${tag}`).join(' ')}</p>}

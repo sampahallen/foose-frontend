@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { IoMegaphone } from 'react-icons/io5'
-import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, Icon, LightboxImage, LoadingState, SectionHeader } from '../components'
+import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, Icon, LightboxImage, LoadingState, SectionHeader, SelectControl } from '../components'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiDelete, apiPost } from '../lib/api'
 import type { Event, Listing } from '../types/api'
@@ -168,7 +168,7 @@ export function EventManagementPage() {
                 ) : (
                   <span className="grid gap-2 sm:min-w-56">
                     <label className="relative block">
-                      <select
+                      <SelectControl
                         aria-label="Event promotion package"
                         className="h-11 w-full appearance-none rounded-xl border border-accent/20 bg-accent-light/70 px-3 pr-10 text-sm font-black text-accent outline-none transition hover:border-accent focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/15"
                         onChange={(input) => setEventPromotionPackage(input.target.value as PromotionPackageName)}
@@ -179,10 +179,7 @@ export function EventManagementPage() {
                             {item.label}
                           </option>
                         ))}
-                      </select>
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-accent">
-                        <Icon name="chevron" size={16} />
-                      </span>
+                      </SelectControl>
                     </label>
                     <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void promoteEvent()} type="button">
                       <IoMegaphone /> Promote
@@ -206,14 +203,14 @@ export function EventManagementPage() {
               <div className="event-catalog-picker flex flex-col gap-3 sm:flex-row [&_select]:h-11 [&_select]:flex-1 [&_select]:px-3">
                 <label>
                   Add existing listing
-                  <select onChange={(input) => setSelectedListingId(input.target.value)} value={selectedListingId}>
+                  <SelectControl onChange={(input) => setSelectedListingId(input.target.value)} value={selectedListingId}>
                     <option value="">Choose from your catalog</option>
                     {availableListings.map((listing) => (
                       <option key={listing._id} value={listing._id}>
                         {listing.title}
                       </option>
                     ))}
-                  </select>
+                  </SelectControl>
                 </label>
                 <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={!selectedListingId} onClick={() => void attachListing()} type="button">
                   Add to pop-up

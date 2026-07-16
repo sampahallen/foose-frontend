@@ -20,7 +20,7 @@ export function AuthRequired({
 
   useEffect(() => {
     if (status === 'guest' && !user) {
-      navigateTo(authHref('/login', redirectTarget))
+      navigateTo(authHref('/login', redirectTarget, { closeToHome: true }), { replace: true })
     }
   }, [redirectTarget, status, user])
 

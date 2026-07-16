@@ -9,9 +9,9 @@ import { withoutOwnListings } from '../utils/listingOwnership'
 function balePath(page: number, search: string) {
   const query = new URLSearchParams(search)
   query.set('type', 'wholesale')
-  if (!query.has('limit')) query.set('limit', '20')
+  if (!query.has('limit')) query.set('limit', '85')
   query.set('page', String(page))
-  return `/search?${query.toString()}`
+  return `/recommendations/feed?${query.toString()}`
 }
 
 export function BaleWholesalePage() {

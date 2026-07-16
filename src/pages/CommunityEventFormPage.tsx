@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, ErrorState, Icon, ImagePreviewInput, LoadingState } from '../components'
+import { AppShell, ButtonLink, DropdownChevron, ErrorState, Icon, ImagePreviewInput, LoadingState } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { apiPost, apiPut } from '../lib/api'
 import { useApiResource } from '../hooks/useApiResource'
@@ -71,7 +71,7 @@ function StyledPickerInput({ defaultValue = '', name, required = false, type }: 
         onClick={openPicker}
         type="button"
       >
-        <Icon name="chevron" size={15} />
+        <DropdownChevron className="text-xs" />
       </button>
     </span>
   )

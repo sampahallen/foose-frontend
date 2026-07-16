@@ -1,5 +1,6 @@
 export * from './HomePage'
 export * from './BrowsePage'
+export * from './SuggestedForYouPage'
 export * from './FreshDropsPage'
 export * from './DigiShopsPage'
 export * from './BaleWholesalePage'

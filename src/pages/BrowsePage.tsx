@@ -10,10 +10,10 @@ import { withBasePath } from '../utils/navigation'
 function searchPath(page: number, search: string) {
   const query = new URLSearchParams(search)
   if (!query.has('page')) query.set('page', '1')
-  if (!query.has('limit')) query.set('limit', '20')
+  if (!query.has('limit')) query.set('limit', '85')
   if (!query.has('type')) query.set('type', 'retail')
   query.set('page', String(page))
-  return `/search?${query.toString()}`
+  return `/recommendations/feed?${query.toString()}`
 }
 
 function modeHref(mode: 'retail' | 'wholesale', search: string) {
@@ -33,12 +33,14 @@ export function BrowsePage() {
   const listings = useInfiniteApiResource(buildPath, extractListings, [search])
   const filterBandVisible = useScrollRevealBand()
   const feedListings = useMemo(() => withoutOwnListings(listings.items, user), [listings.items, user])
+  const hasSearchQuery = Boolean(query.get('q')?.trim())
+  const resultCount = listings.total > 50 ? '50+' : String(listings.total)
 
   return (
     <AppShell active="browse" searchPlaceholder="Search curated thrift...">
       <div className={`sticky top-16 z-40 mb-6 space-y-3 transition duration-200 ${filterBandVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-full opacity-0'}`}>
         <nav className="flex items-center justify-center border-b border-foose-border bg-foose-bg/95 py-2 backdrop-blur" aria-label="Browse listing type">
-          <div className="flex w-full max-w-md items-center justify-between gap-4 text-sm font-black">
+          <div className="flex w-full max-w-md items-center justify-center gap-4 text-sm font-black md:justify-between">
             <a className={`border-b-2 px-4 py-2 transition ${activeMode === 'retail' ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:text-accent'}`} href={modeHref('retail', search)}>
               Retail
             </a>
@@ -47,7 +49,13 @@ export function BrowsePage() {
             </a>
           </div>
         </nav>
-        <TopFilterBar hideType locationOptions={listings.data?.filters?.locations || []} query={query} resultLabel={`${listings.total} ${activeMode === 'wholesale' ? 'bales' : 'items'}`} />
+        <TopFilterBar
+          hideType
+          locationOptions={listings.data?.filters?.locations || []}
+          query={query}
+          resultLabel={`${resultCount} ${activeMode === 'wholesale' ? 'bales' : 'items'}`}
+          showResultLabel={hasSearchQuery && !listings.loading && !listings.error}
+        />
       </div>
       <div className="browse-layout">
         <section className="browse-results">

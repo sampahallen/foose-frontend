@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { getCartStorageKey } from '../config/env'
 import type { Listing } from '../types/api'
 import { getListingImage, getShop, getShopName } from '../utils/format'
+import { recordListingSignal } from '../utils/recommendations'
 
 export type CartItem = {
   listingId: string
@@ -83,6 +84,7 @@ export function useCart() {
         : [...currentItems, nextItem]
 
       commit(nextItems)
+      void recordListingSignal(listing._id, 'add_to_cart')
     },
     [commit],
   )

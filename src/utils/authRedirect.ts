@@ -1,5 +1,23 @@
 import { getCurrentAppPathname, stripBasePath, withBasePath } from './navigation'
 
+type AuthHrefOptions = {
+  closeToHome?: boolean
+}
+
+function currentAuthSearchParams() {
+  if (typeof window === 'undefined') return new URLSearchParams()
+  if (window.location.hash.startsWith('#/')) {
+    const queryStart = window.location.hash.indexOf('?')
+    return new URLSearchParams(queryStart === -1 ? '' : window.location.hash.slice(queryStart + 1))
+  }
+
+  return new URLSearchParams(window.location.search)
+}
+
+export function shouldCloseAuthModalToHome() {
+  return currentAuthSearchParams().get('close') === 'home'
+}
+
 export function sanitizeRedirect(value?: string | null) {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return '/'
   const target = stripBasePath(value)
@@ -15,11 +33,13 @@ export function currentRedirectTarget() {
 
 export function redirectFromSearch(fallback = '/') {
   if (typeof window === 'undefined') return fallback
-  const params = new URLSearchParams(window.location.search)
+  const params = currentAuthSearchParams()
   return sanitizeRedirect(params.get('redirect') || fallback)
 }
 
 export function closeTargetForAuthModal(redirect = redirectFromSearch()) {
+  if (shouldCloseAuthModalToHome()) return '/'
+
   const target = sanitizeRedirect(redirect)
   const protectedPrefixes = [
     '/admin',
@@ -32,6 +52,7 @@ export function closeTargetForAuthModal(redirect = redirectFromSearch()) {
     '/order-confirmed',
     '/orders',
     '/saved',
+    '/suggested-for-you',
     '/wallet',
   ]
 
@@ -43,6 +64,13 @@ export function closeTargetForAuthModal(redirect = redirectFromSearch()) {
   return target
 }
 
-export function authHref(path: '/login' | '/register' = '/login', redirect = currentRedirectTarget()) {
-  return withBasePath(`${path}?redirect=${encodeURIComponent(sanitizeRedirect(redirect))}`)
+export function authHref(
+  path: '/login' | '/register' = '/login',
+  redirect = currentRedirectTarget(),
+  options: AuthHrefOptions = {},
+) {
+  const params = new URLSearchParams({ redirect: sanitizeRedirect(redirect) })
+  const closeToHome = options.closeToHome ?? shouldCloseAuthModalToHome()
+  if (closeToHome) params.set('close', 'home')
+  return withBasePath(`${path}?${params.toString()}`)
 }

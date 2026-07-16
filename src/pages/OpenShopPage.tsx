@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import fooseLogo from '../assets/foose-logo-white.png'
-import { ButtonLink, EmptyState, ErrorState, Icon, ImagePreviewInput } from '../components'
+import { ButtonLink, EmptyState, ErrorState, Icon, ImagePreviewInput, SelectControl } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { apiPost } from '../lib/api'
 import type { Shop } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
+import { canonicalGhanaRegion, GHANA_REGIONS } from '../utils/ghanaRegions'
 import { normalizePhone } from '../utils/formValidation'
 import { navigateTo } from '../utils/navigation'
 
@@ -34,12 +35,15 @@ export function OpenShopPage() {
   const [error, setError] = useState('')
   const [shopName, setShopName] = useState('')
   const [shopNameTouched, setShopNameTouched] = useState(false)
-  const [city, setCity] = useState('')
+  const [cityInput, setCityInput] = useState<string>()
   const [cityTouched, setCityTouched] = useState(false)
-  const [region, setRegion] = useState('')
+  const [regionInput, setRegionInput] = useState<string>()
   const [regionTouched, setRegionTouched] = useState(false)
   const [bioLength, setBioLength] = useState(0)
   const [submitting, setSubmitting] = useState(false)
+  const city = cityInput ?? user?.location?.city?.trim() ?? ''
+  const region = regionInput ?? canonicalGhanaRegion(user?.location?.region)
+  const hasLegacyRegion = Boolean(region && !GHANA_REGIONS.some((option) => option === region))
   const shopNameValid = shopName.trim().length >= 2
   const cityValid = city.trim().length >= 2
   const regionValid = region.trim().length >= 2
@@ -139,11 +143,11 @@ export function OpenShopPage() {
             </label>
             <label>
               Primary category
-              <select defaultValue="both" name="category">
+              <SelectControl defaultValue="both" name="category">
                 <option value="retail">Retail</option>
                 <option value="wholesale">Wholesale</option>
                 <option value="both">Both</option>
-              </select>
+              </SelectControl>
             </label>
             <fieldset className="field-section space-y-4 rounded-xl border border-foose-border bg-foose-surface-low p-4">
               <legend>Shop location</legend>
@@ -153,13 +157,35 @@ export function OpenShopPage() {
               <div className="form-grid grid gap-4 sm:grid-cols-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3">
                 <label>
                   <span className="flex items-center gap-2">City or town {requiredBadge(cityInvalid)}</span>
-                  <input name="city" onBlur={() => setCityTouched(true)} onChange={(event) => setCity(event.target.value)} placeholder="e.g. Accra" required />
+                  <input
+                    name="city"
+                    onBlur={() => {
+                      setCityInput(city)
+                      setCityTouched(true)
+                    }}
+                    onChange={(event) => setCityInput(event.target.value)}
+                    placeholder="e.g. Accra"
+                    required
+                    value={city}
+                  />
                   {cityInvalid && <span className="text-xs font-semibold text-foose-danger">Enter at least 2 characters.</span>}
                 </label>
                 <label>
                   <span className="flex items-center gap-2">Region {requiredBadge(regionInvalid)}</span>
-                  <input name="region" onBlur={() => setRegionTouched(true)} onChange={(event) => setRegion(event.target.value)} placeholder="e.g. Greater Accra" required />
-                  {regionInvalid && <span className="text-xs font-semibold text-foose-danger">Enter at least 2 characters.</span>}
+                  <SelectControl
+                    name="region"
+                    onChange={(event) => {
+                      setRegionInput(event.target.value)
+                      setRegionTouched(true)
+                    }}
+                    required
+                    value={region}
+                  >
+                    <option value="">Select region</option>
+                    {hasLegacyRegion && <option value={region}>{region}</option>}
+                    {GHANA_REGIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </SelectControl>
+                  {regionInvalid && <span className="text-xs font-semibold text-foose-danger">Select a region.</span>}
                 </label>
               </div>
             </fieldset>
@@ -169,10 +195,10 @@ export function OpenShopPage() {
               <div className="form-grid grid gap-4 sm:grid-cols-2 [&_.wide]:sm:col-span-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3">
                 <label>
                   Method
-                  <select defaultValue="mobile_money" name="payoutMethodType">
+                  <SelectControl defaultValue="mobile_money" name="payoutMethodType">
                     <option value="mobile_money">Mobile money</option>
                     <option value="bank_transfer">Bank transfer</option>
-                  </select>
+                  </SelectControl>
                 </label>
                 <label>
                   Account name

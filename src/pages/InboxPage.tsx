@@ -33,6 +33,8 @@ type PaginatedMessages = {
   total: number
 }
 
+type InboxSection = 'inbox' | 'system'
+
 function senderIdValue(sender: User | string | null | undefined): string {
   if (!sender) return ''
   return typeof sender === 'string' ? sender : sender._id
@@ -92,8 +94,19 @@ function draftAttachmentId(file: File, index: number) {
 
 function conversationPreview(message: ChatConversation['latestMessage']) {
   const text = message.content?.trim() || attachmentLabel(message.attachments?.length || 0) || 'Message'
-  const preview = text.length > 46 ? text.slice(0, 43).trimEnd() : text
-  return `${preview}...`
+  return text.length > 46 ? `${text.slice(0, 43).trimEnd()}...` : text
+}
+
+function conversationTimestamp(value?: string) {
+  if (!value) return ''
+
+  const date = new Date(value)
+  const today = new Date()
+  const sameDay = date.toDateString() === today.toDateString()
+
+  return new Intl.DateTimeFormat('en-GH', sameDay
+    ? { hour: '2-digit', minute: '2-digit' }
+    : { day: '2-digit', month: 'short' }).format(date)
 }
 
 function inboxParams() {
@@ -102,6 +115,7 @@ function inboxParams() {
     conversationId: params.get('conversationId') || '',
     listingId: params.get('listingId') || '',
     receiverId: params.get('receiverId') || '',
+    section: (params.get('view') === 'system' ? 'system' : 'inbox') as InboxSection,
   }
 }
 
@@ -230,9 +244,9 @@ export function InboxPage() {
   })
   const activeConversation = orderedConversations.find((conversation) => conversation.conversationId === params.conversationId)
   const canCompose = Boolean(params.conversationId || params.receiverId)
+  const compactThreadOpen = params.section === 'inbox' && canCompose
+  const unreadConversationCount = orderedConversations.reduce((total, conversation) => total + (conversation.unreadCount || 0), 0)
   const notificationItems = notifications
-  const unreadNotifications = notificationItems.filter((notification) => !notification.isRead)
-  const seenNotifications = notificationItems.filter((notification) => notification.isRead)
   const productMessages = liveMessages
   const orderedMessages = [...productMessages].sort((first, second) => {
     const firstDate = Date.parse(first.createdAt || '') || 0
@@ -260,6 +274,7 @@ export function InboxPage() {
     const node = messagesRef.current
     if (!node) return
 
+    node.scrollTop = node.scrollHeight
     window.requestAnimationFrame(() => {
       node.scrollTo({ top: node.scrollHeight })
       window.requestAnimationFrame(() => {
@@ -331,11 +346,12 @@ export function InboxPage() {
     const node = messagesRef.current
     if (!node) return undefined
     const conversationChanged = lastConversationRef.current !== params.conversationId
+    const initialMessagesArrived = !lastNewestMessageRef.current && Boolean(newestMessageId)
     const newestChanged = Boolean(lastNewestMessageRef.current && newestMessageId && lastNewestMessageRef.current !== newestMessageId)
     lastConversationRef.current = params.conversationId
     lastNewestMessageRef.current = newestMessageId
 
-    if (!conversationChanged && !newestChanged) return undefined
+    if (!conversationChanged && !initialMessagesArrived && !newestChanged) return undefined
 
     scrollToLatestMessage()
 
@@ -524,14 +540,39 @@ export function InboxPage() {
   }, [])
 
   return (
-    <AppShell searchPlaceholder="Search messages..." flush showFooter={false}>
-      <main className="inbox-shell grid min-h-[calc(100dvh-4rem)] border-x border-foose-border bg-foose-surface lg:h-[calc(100dvh-4rem)] lg:min-h-0 lg:grid-cols-[340px_minmax(0,1fr)] lg:overflow-hidden max-md:grid-cols-1">
-        <aside className="conversation-list flex min-h-0 flex-col overflow-y-auto border-b border-foose-border lg:h-full lg:border-b-0 lg:border-r">
-          <div className="inbox-heading flex shrink-0 flex-col gap-2 border-b border-foose-border p-4 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-3xl">
-            <h1>Messages</h1>
+    <AppShell compactImmersive={compactThreadOpen} searchPlaceholder="Search messages..." flush showFooter={false}>
+      <main className={`inbox-shell grid min-h-[calc(100dvh-4rem)] border-x border-foose-border bg-foose-surface xl:h-[calc(100dvh-4rem)] xl:min-h-0 xl:grid-cols-[360px_minmax(0,1fr)] xl:overflow-hidden ${compactThreadOpen ? 'max-xl:h-dvh max-xl:min-h-0 max-xl:overflow-hidden' : 'max-lg:pb-20'}`}>
+        <aside className={`conversation-list flex min-h-0 flex-col border-b border-foose-border xl:h-full xl:border-b-0 xl:border-r ${compactThreadOpen ? 'max-xl:hidden' : ''}`}>
+          <div className="inbox-heading shrink-0 border-b border-foose-border bg-foose-surface px-4 pb-3 pt-4">
+            <h1 className="text-2xl font-bold">Messages</h1>
+            <nav className="mt-3 grid grid-cols-2 gap-2" aria-label="Message sections">
+              <a
+                aria-current={params.section === 'inbox' ? 'page' : undefined}
+                className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-full border px-4 text-sm font-bold transition ${params.section === 'inbox' ? 'border-accent bg-accent text-white' : 'border-foose-border bg-foose-surface-low text-foose-muted hover:border-accent hover:text-accent'}`}
+                href={withBasePath('/inbox')}
+              >
+                Inbox
+                {unreadConversationCount > 0 && (
+                  <span className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black leading-none ${params.section === 'inbox' ? 'bg-white text-accent' : 'bg-red-500 text-white'}`}>
+                    {unreadConversationCount > 99 ? '99+' : unreadConversationCount}
+                  </span>
+                )}
+              </a>
+              <a
+                aria-current={params.section === 'system' ? 'page' : undefined}
+                className={`relative inline-flex min-h-10 items-center justify-center gap-2 rounded-full border px-4 text-sm font-bold transition ${params.section === 'system' ? 'border-accent bg-accent text-white' : 'border-foose-border bg-foose-surface-low text-foose-muted hover:border-accent hover:text-accent'}`}
+                href={withBasePath('/inbox?view=system')}
+              >
+                System
+                {notificationItems.some((notification) => !notification.isRead) && (
+                  <span aria-label="Unread system notification" className={`size-2.5 rounded-full ${params.section === 'system' ? 'bg-white' : 'bg-red-500'}`} />
+                )}
+              </a>
+            </nav>
           </div>
-          <section className="conversation-stack flex flex-col">
-            <h2>Conversations</h2>
+          {params.section === 'inbox' && (
+          <section className="conversation-stack flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label="Inbox conversations">
+            <h2 className="sr-only">Inbox</h2>
             {notificationLoading && <LoadingState label="Loading conversations..." />}
             {notificationError && <ErrorState message={notificationError} />}
             {!notificationLoading && !notificationError && !orderedConversations.length && (
@@ -545,77 +586,76 @@ export function InboxPage() {
 
                 return (
                   <a
-                    className={`conversation grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 border-b border-foose-border px-4 py-3 text-left transition hover:bg-foose-surface-low [&.active]:bg-accent-light [&_img]:size-11 [&_img]:rounded-lg [&_img]:object-cover [&_p]:truncate [&_p]:text-sm [&_p]:text-foose-muted [&_small]:truncate [&_small]:text-sm [&_small]:text-foose-muted [&_strong]:truncate [&_strong]:text-sm [&_strong]:font-bold [&_time]:text-xs [&_time]:text-foose-faint [&_b]:inline-flex [&_b]:size-5 [&_b]:items-center [&_b]:justify-center [&_b]:rounded-full [&_b]:bg-accent [&_b]:text-xs [&_b]:text-white ${active ? 'active' : ''} `}
+                    className={`conversation grid min-h-[76px] grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 border-b border-foose-border px-4 py-3 text-left transition hover:bg-foose-surface-low ${active ? 'bg-accent-light' : ''}`}
                     href={withBasePath(`/inbox?conversationId=${encodeURIComponent(conversation.conversationId)}`)}
                     key={conversation.conversationId}
                     onClick={prepareConversationOpen}
                   >
-                    {image ? <img alt="" src={image} /> : <span className="conversation-avatar inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-light text-sm font-bold text-accent">{initials(displayUser(participant))}</span>}
-                    <span>
-                      <strong>{displayUser(participant)}</strong>
-                      <p title={conversation.latestMessage.content || attachmentLabel(conversation.latestMessage.attachments?.length || 0)}>
+                    {image ? <img alt="" className="size-13 rounded-full object-cover" src={image} /> : <span className="conversation-avatar inline-flex size-13 shrink-0 items-center justify-center rounded-full bg-accent-light text-sm font-bold text-accent">{initials(displayUser(participant))}</span>}
+                    <span className="min-w-0">
+                      <strong className="block truncate text-sm font-bold text-foose-text">{displayUser(participant)}</strong>
+                      <p className={`truncate text-sm ${conversation.unreadCount > 0 ? 'font-semibold text-foose-text' : 'text-foose-muted'}`} title={conversation.latestMessage.content || attachmentLabel(conversation.latestMessage.attachments?.length || 0)}>
                         {conversationPreview(conversation.latestMessage)}
                       </p>
                     </span>
-                    {conversation.latestMessage.createdAt && <time>{formatDateTime(conversation.latestMessage.createdAt)}</time>}
-                    {conversation.unreadCount > 0 && <b>{conversation.unreadCount}</b>}
+                    <span className="flex min-w-12 flex-col items-end gap-1">
+                      {conversation.latestMessage.createdAt && <time className={`whitespace-nowrap text-xs ${conversation.unreadCount > 0 ? 'font-bold text-accent' : 'text-foose-faint'}`}>{conversationTimestamp(conversation.latestMessage.createdAt)}</time>}
+                      {conversation.unreadCount > 0 && <b className="inline-flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-black leading-none text-white">{conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</b>}
+                    </span>
                   </a>
                 )
               })}
           </section>
-          <section className="system-notifications border-t border-foose-border p-4">
-            <h2>System notifications</h2>
+          )}
+          {params.section === 'system' && (
+          <section className="system-notifications flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label="System notifications">
+            <h2 className="sr-only">System notifications</h2>
             {notificationLoading && <LoadingState label="Loading notifications..." />}
             {notificationError && <ErrorState message={notificationError} />}
             {!notificationLoading && !notificationError && !notificationItems.length && (
               <EmptyState body={`${brand} will show follows, reviews, orders, and other alerts here.`} title="No notifications" />
             )}
-            {!!unreadNotifications.length &&
-              unreadNotifications.map((notification) => (
-                <button className="notification-item unread mb-2 w-full rounded-lg border border-accent bg-accent-light p-3 text-left text-sm transition hover:border-accent-hover hover:bg-white" key={notification._id} onClick={() => openNotificationDetails(notification)} type="button">
-                  <strong>{notification.title}</strong>
-                  <p>{notification.body || 'System update'}</p>
-                  {notification.createdAt && <span>{formatDateTime(notification.createdAt)}</span>}
-                </button>
-              ))}
-            {!!seenNotifications.length && (
-              <details className="seen-notifications [&_summary]:cursor-pointer [&_summary]:text-sm [&_summary]:font-semibold [&_summary]:text-foose-muted">
-                <summary>Seen notifications ({seenNotifications.length})</summary>
-                <div>
-                  {seenNotifications.map((notification) => (
-                    <button className="notification-item seen mb-2 w-full rounded-lg border border-foose-border bg-foose-surface p-3 text-left text-sm opacity-75 transition hover:border-accent hover:opacity-100" key={notification._id} onClick={() => openNotificationDetails(notification)} type="button">
-                      <strong>{notification.title}</strong>
-                      <p>{notification.body || 'System update'}</p>
-                      {notification.createdAt && <span>{formatDateTime(notification.createdAt)}</span>}
-                    </button>
-                  ))}
-                </div>
-              </details>
-            )}
+            {notificationItems.map((notification) => (
+              <button className={`notification-item grid min-h-[76px] w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 border-b border-foose-border px-4 py-3 text-left transition hover:bg-foose-surface-low ${notification.isRead ? 'bg-foose-surface' : 'bg-accent-light/55'}`} key={notification._id} onClick={() => openNotificationDetails(notification)} type="button">
+                <span className="inline-flex size-11 items-center justify-center rounded-full bg-accent-light text-accent">
+                  <Icon name="bell" />
+                </span>
+                <span className="min-w-0">
+                  <strong className="block truncate text-sm font-bold text-foose-text">{notification.title}</strong>
+                  <p className="line-clamp-2 text-sm leading-5 text-foose-muted">{notification.body || 'System update'}</p>
+                  {notification.createdAt && <time className="mt-1 block text-xs text-foose-faint">{conversationTimestamp(notification.createdAt)}</time>}
+                </span>
+                {!notification.isRead && <span aria-label="Unread" className="size-2.5 rounded-full bg-red-500" />}
+              </button>
+            ))}
           </section>
+          )}
         </aside>
-        <section className="thread flex min-h-[70dvh] flex-col bg-foose-bg lg:h-full lg:min-h-0 lg:overflow-hidden">
+        <section className={`thread flex min-h-0 flex-col bg-foose-bg xl:h-full xl:overflow-hidden ${compactThreadOpen ? 'max-xl:h-dvh' : 'max-xl:hidden'}`}>
           {!canCompose ? (
-            <div className="flex min-h-[70dvh] flex-1 items-center justify-center p-6 text-center lg:min-h-0">
+            <div className="flex min-h-[70dvh] flex-1 items-center justify-center p-6 text-center xl:min-h-0">
               <p className="max-w-sm text-sm font-semibold leading-6 text-foose-muted">
-                Select a conversation, or message someone to start a new chat.
+                Choose a conversation or message someone to start chatting.
               </p>
             </div>
           ) : (
             <>
-          <header className="thread-header sticky top-0 z-20 flex min-h-14 shrink-0 items-center gap-3 border-b border-foose-border bg-foose-surface px-4 py-2 shadow-sm [&_img]:size-10 [&_img]:shrink-0 [&_img]:rounded-lg [&_img]:object-cover [&_h2]:truncate [&_h2]:text-sm [&_h2]:font-bold [&_p]:truncate [&_p]:text-xs [&_p]:text-foose-muted [&_a]:text-xs [&_a]:font-semibold [&_a]:text-accent">
+          <header className="thread-header sticky top-0 z-20 flex min-h-16 shrink-0 items-center gap-3 border-b border-foose-border bg-foose-surface px-4 py-2 shadow-sm max-xl:px-3 [&_img]:size-10 [&_img]:shrink-0 [&_img]:rounded-full [&_img]:object-cover [&_h2]:truncate [&_h2]:text-sm [&_h2]:font-bold [&_p]:truncate [&_p]:text-xs [&_p]:text-foose-muted">
+            <a aria-label="Back to inbox" className="inline-flex size-10 shrink-0 items-center justify-center rounded-full text-foose-text transition hover:bg-foose-surface-low xl:hidden" href={withBasePath('/inbox')}>
+              <span className="rotate-180"><Icon name="arrow" /></span>
+            </a>
             {userPhoto(activeParticipantProfile) ? <img alt="" src={userPhoto(activeParticipantProfile)} /> : <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-light text-sm font-bold text-accent">{initials(activeThreadTitle)}</span>}
             <div className="min-w-0 flex-1">
               <h2>{activeThreadTitle}</h2>
               <p>{activeThreadSubtitle}</p>
               {contactPhone && (
-                <a className="chat-contact-phone" href={`tel:${contactPhone}`}>
+                <a className="chat-contact-phone text-xs font-semibold text-accent" href={`tel:${contactPhone}`}>
                   {contactPhone}
                 </a>
               )}
             </div>
           </header>
-          <div className="messages flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 pb-6" ref={messagesRef}>
+          <div className="messages flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 pb-6 max-md:px-3" ref={messagesRef}>
             {params.conversationId && olderMessagesEnabled && (
               <div ref={messages.sentinelRef} className="flex min-h-10 items-center justify-center py-2">
                 {messages.loadingMore && <span className="size-5 animate-spin rounded-full border-2 border-foose-border border-t-accent" aria-label="Loading older messages" />}
@@ -649,13 +689,13 @@ export function InboxPage() {
                 )
               })}
           </div>
-          {sendError && <p className="danger-text font-semibold text-foose-danger inbox-send-error">{sendError}</p>}
+          {sendError && <p className="danger-text px-3 py-2 text-sm font-semibold text-foose-danger inbox-send-error">{sendError}</p>}
           {replyTarget && <ReplyContextBand message={replyTarget} onDismiss={() => setReplyTarget(null)} />}
           <ListingContextBand listing={activeComposerListing} onDismiss={() => setDismissedListingId(params.listingId)} />
-          <form className={`message-composer sticky bottom-0 flex items-end gap-2 bg-foose-surface p-3 [&_input]:h-12 [&_input]:w-full [&_input]:px-4 ${canCompose ? 'single-line' : ''} `} onSubmit={(event) => void sendMessage(event)}>
+          <form className={`message-composer sticky bottom-0 flex shrink-0 items-end gap-2 border-t border-foose-border bg-foose-surface p-3 max-md:gap-1.5 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&_input]:h-12 [&_input]:w-full [&_input]:px-4 ${canCompose ? 'single-line' : ''} `} onSubmit={(event) => void sendMessage(event)}>
             {!params.conversationId && !params.receiverId && <input aria-label="Receiver user ID" name="receiverId" placeholder="Receiver user ID" />}
-            <div className="composer-main flex-1 [&_input]:h-12 [&_input]:w-full [&_input]:px-4">
-              <input aria-label="Write message" autoComplete="off" name="content" placeholder={activeComposerListing ? 'Ask a question about this product...' : 'Write a message...'} ref={messageInputRef} />
+            <div className="composer-main min-w-0 flex-1 [&_input]:h-12 [&_input]:w-full [&_input]:rounded-full [&_input]:border [&_input]:border-foose-border [&_input]:bg-foose-surface-low [&_input]:px-4 [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:bg-white">
+              <input aria-label="Write message" autoComplete="off" name="content" placeholder={activeComposerListing ? 'Ask a question about this product...' : 'Message'} ref={messageInputRef} />
               {!!selectedAttachments.length && (
                 <div className="composer-media-previews flex flex-wrap gap-2">
                   {selectedAttachments.map((attachment, index) => (
@@ -690,15 +730,15 @@ export function InboxPage() {
                 </div>
               )}
             </div>
-            <label className="attachment-button inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-foose-border bg-foose-surface text-accent hover:bg-accent-light [&_input]:sr-only" title="Attach images or videos">
+            <label className="attachment-button inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-accent hover:bg-accent-light [&_input]:sr-only" title="Attach images or videos">
               <Icon name="upload" />
               <input accept="image/*,video/*" multiple name="attachments" onChange={handleAttachmentChange} type="file" />
             </label>
-            <label className="attachment-button inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-foose-border bg-foose-surface text-accent hover:bg-accent-light [&_input]:sr-only" title="Open camera">
+            <label className="attachment-button inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-accent hover:bg-accent-light max-sm:hidden [&_input]:sr-only" title="Open camera">
               <Icon name="camera" />
               <input accept="image/*,video/*" capture="environment" multiple onChange={handleAttachmentChange} type="file" />
             </label>
-            <button aria-label="Send message" className="message-send-button inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-foose-border bg-foose-surface text-accent hover:bg-accent-light border-accent bg-accent text-white hover:bg-accent-hover" type="submit">
+            <button aria-label="Send message" className="message-send-button inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-accent bg-accent text-white transition hover:bg-accent-hover" type="submit">
               <Icon name="send" />
             </button>
           </form>

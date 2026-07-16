@@ -25,8 +25,13 @@ export function withBasePath(path: string) {
   return path.startsWith('/') ? `${base}${path}` : `${base}/${path}`
 }
 
-export function navigateTo(path: string) {
-  window.history.pushState(null, '', withBasePath(path))
+export function navigateTo(path: string, options: { replace?: boolean } = {}) {
+  const target = withBasePath(path)
+  if (options.replace) {
+    window.history.replaceState(null, '', target)
+  } else {
+    window.history.pushState(null, '', target)
+  }
   window.dispatchEvent(new PopStateEvent('popstate'))
   window.scrollTo({ top: 0 })
 }

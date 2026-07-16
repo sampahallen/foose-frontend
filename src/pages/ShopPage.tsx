@@ -76,6 +76,7 @@ export function ShopPage() {
               </p>
               <TopFilterBar
                 actionPath={`/shops/${slug}`}
+                hideLocation
                 hidePriceAndSize
                 query={query}
                 resultLabel={`${filteredListings.length} ${filteredListings.length === 1 ? 'item' : 'items'}`}

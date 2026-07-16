@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, ErrorState, Icon, ImagePreviewInput, LightboxImage, LoadingState } from '../components'
+import { AppShell, ButtonLink, ErrorState, HashtagInput, Icon, ImagePreviewInput, LightboxImage, LoadingState } from '../components'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiPost, apiPut } from '../lib/api'
 import type { GalleryPost } from '../types/api'
@@ -37,7 +37,7 @@ export function CommunityFinspoFormPage() {
     const sourceData = new FormData(form)
     const payload = new FormData()
     appendText(payload, 'caption', sourceData.get('caption'))
-    appendText(payload, 'tags', sourceData.get('tags'))
+    payload.append('tags', String(sourceData.get('tags') || '').trim())
     appendSelectedFile(payload, form, 'image')
 
     setSubmitting(true)
@@ -89,10 +89,9 @@ export function CommunityFinspoFormPage() {
                 Caption
                 <textarea defaultValue={post?.caption || ''} name="caption" rows={5} />
               </label>
-              <label className="wide">
-                Tags
-                <input defaultValue={post?.tags?.join(', ') || ''} name="tags" placeholder="streetwear, accra" />
-              </label>
+              <div className="wide">
+                <HashtagInput initialTags={post?.tags} label="Hashtags" name="tags" placeholder="#streetwear" />
+              </div>
             </div>
 
             {error && <ErrorState message={error} />}

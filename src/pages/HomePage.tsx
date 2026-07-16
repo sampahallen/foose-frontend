@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import kantamantoMarketHero from '../assets/kantamanto-market-hero.jpg'
 import { AppShell, ButtonLink, EmptyState, ErrorState, Icon, LoadingState, ProductCard, PromotedEventCarousel, SectionHeader } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import type { Event, PaginatedListings, PopularSearch, WeeklyTopSeller } from '../types/api'
+import { authHref } from '../utils/authRedirect'
 import { initials } from '../utils/format'
 import { withoutOwnListings } from '../utils/listingOwnership'
 import { withBasePath } from '../utils/navigation'
@@ -11,11 +13,20 @@ const homeListingGrid =
   "grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 [&_.product-card]:min-w-0 [&_.product-card]:rounded-lg [&_.product-card]:p-1.5 [&_.product-body]:gap-1 [&_.product-body]:p-2 [&_.product-body_h3]:text-xs [&_.product-foot_strong]:text-base"
 const searchItems = ['jackets', 'Adidas', 'denim', 'graphic tees', 'sneakers', 'bales']
 
+function threeRowVisibility(index: number) {
+  if (index < 6) return ''
+  if (index < 9) return 'hidden sm:flex'
+  if (index < 12) return 'hidden md:flex'
+  if (index < 15) return 'hidden lg:flex'
+  return 'hidden xl:flex'
+}
+
 export function HomePage() {
   const { user } = useAuth()
   const freshDrops = useApiResource<PaginatedListings>('/search?page=1&limit=21&sort=newest')
   const promotedEvents = useApiResource<{ events: Event[] }>('/community/events/featured')
   const topPicks = useApiResource<PaginatedListings>('/search/top-picks?page=1&limit=21&sort=newest')
+  const suggested = useApiResource<PaginatedListings>(user ? '/recommendations/suggested?page=1&limit=50&type=retail' : null, Boolean(user))
   const freshBales = useApiResource<PaginatedListings>('/search?page=1&limit=21&sort=newest&type=wholesale')
   const popularSearches = useApiResource<{ searches: PopularSearch[] }>('/search/popular-searches?limit=8')
   const topSellers = useApiResource<{ sellers: WeeklyTopSeller[] }>('/search/top-sellers?limit=3')
@@ -27,6 +38,7 @@ export function HomePage() {
   const typedSearchItem = currentSearchItem.slice(0, searchCharacterCount) || currentSearchItem.slice(0, 1)
   const topPickItems = useMemo(() => withoutOwnListings(topPicks.data?.results || [], user), [topPicks.data?.results, user])
   const freshDropItems = useMemo(() => withoutOwnListings(freshDrops.data?.results || [], user), [freshDrops.data?.results, user])
+  const suggestedItems = useMemo(() => withoutOwnListings(suggested.data?.results || [], user), [suggested.data?.results, user])
   const freshBaleItems = useMemo(() => withoutOwnListings(freshBales.data?.results || [], user), [freshBales.data?.results, user])
 
   useEffect(() => {
@@ -59,8 +71,10 @@ export function HomePage() {
 
   return (
     <AppShell active="home" flush searchPlaceholder="Search curated finds...">
-      <section className="hero relative isolate flex min-h-[360px] flex-col justify-end overflow-hidden bg-accent px-4 py-10 text-white md:min-h-[430px] md:px-8 lg:px-12 [&::before]:absolute [&::before]:inset-0 [&::before]:-z-10 [&::before]:bg-[url('https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1800&q=80')] [&::before]:bg-cover [&::before]:bg-center [&::before]:opacity-45 [&::before]:content-[''] [&::after]:absolute [&::after]:inset-0 [&::after]:-z-10 [&::after]:bg-accent/70 [&::after]:content-[''] [&_h1]:text-4xl [&_h1]:font-bold [&_h1]:md:text-6xl [&_p]:max-w-2xl [&_p]:text-sm [&_p]:text-white/85 [&_p]:md:text-base max-md:[&_h1]:text-3xl">
-        <div className="hero-content mx-auto flex w-full max-w-4xl flex-col items-center gap-5 text-center">
+      <section className="hero relative isolate flex min-h-[360px] flex-col justify-end overflow-hidden bg-accent px-4 py-10 text-white md:min-h-[430px] md:px-8 lg:px-12 [&_h1]:text-4xl [&_h1]:font-bold [&_h1]:md:text-6xl [&_p]:max-w-2xl [&_p]:text-sm [&_p]:text-white/85 [&_p]:md:text-base max-md:[&_h1]:text-3xl">
+        <img alt="" aria-hidden="true" className="absolute inset-0 z-0 h-full w-full object-cover object-center" src={kantamantoMarketHero} />
+        <div aria-hidden="true" className="absolute inset-0 z-0 bg-accent/70" />
+        <div className="hero-content relative z-10 mx-auto flex w-full max-w-4xl flex-col items-center gap-5 text-center">
           <h1>Thrift smarter.</h1>
           <p>Ghana's digital hub for curated second-hand street style. Authenticity verified, speed guaranteed.</p>
           <form action={withBasePath('/browse')} className="hero-search mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-2xl bg-white/95 p-2 text-foose-text shadow-xl sm:flex-row sm:items-center [&_input]:h-11 [&_input]:min-w-0 [&_input]:flex-1 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0 [&_input]:text-sm [&_input]:outline-none [&_input]:placeholder:text-foose-muted [&_input]:focus:ring-0 [&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-accent [&_button]:px-6 [&_button]:text-sm [&_button]:font-bold [&_button]:text-white [&_button]:hover:bg-accent-hover home-hero-search" method="get">
@@ -73,7 +87,7 @@ export function HomePage() {
             <button type="submit">Search</button>
           </form>
         </div>
-        <div className="hero-greeting mt-8 flex w-full max-w-[1280px] flex-col items-start gap-1 self-center text-left [&_span]:text-xs [&_span]:uppercase [&_span]:tracking-widest [&_span]:text-white/75 [&_strong]:font-display [&_strong]:text-2xl [&_strong]:md:text-4xl">
+        <div className="hero-greeting relative z-10 mt-8 flex w-full max-w-[1280px] flex-col items-start gap-1 self-center text-left [&_span]:text-xs [&_span]:uppercase [&_span]:tracking-widest [&_span]:text-white/75 [&_strong]:font-display [&_strong]:text-2xl [&_strong]:md:text-4xl">
           <span>{user ? 'Welcome back' : 'Welcome to Foose'}</span>
           <strong>{user ? `Hey, ${greetingName}` : 'Find your next curated piece.'}</strong>
         </div>
@@ -89,21 +103,20 @@ export function HomePage() {
         {!!promotedEvents.data?.events.length && <PromotedEventCarousel events={promotedEvents.data.events} />}
       </section>
 
-      <section className="home-section mx-auto w-full max-w-[1280px] my-8 rounded-xl bg-foose-surface p-4 md:p-6 [&.no-pad]:p-0 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:md:text-4xl [&_a]:font-bold [&_a]:text-accent max-lg:rounded-lg max-lg:p-3 max-md:[&>h2]:text-2xl top-picks-section">
-        <SectionHeader title="Top picks" eyebrow="Paid placements for standout finds." action={<a href={withBasePath('/top-picks')}>View more</a>} />
-        {topPicks.loading && <LoadingState label="Loading top picks..." />}
-        {topPicks.error && <ErrorState message={topPicks.error} retry={topPicks.refetch} />}
-        {!topPicks.loading && !topPicks.error && !topPickItems.length && (
-          <EmptyState body="Top Picks will appear when promoted listings are active." title="No top picks yet" />
-        )}
-        {!!topPickItems.length && (
-          <div className={homeListingGrid}>
-            {topPickItems.slice(0, 21).map((listing) => (
-              <ProductCard key={listing._id} listing={listing} />
-            ))}
-          </div>
-        )}
-      </section>
+      {(topPicks.loading || topPicks.error || topPickItems.length > 0) && (
+        <section className="home-section mx-auto w-full max-w-[1280px] my-8 rounded-xl bg-foose-surface p-4 md:p-6 [&.no-pad]:p-0 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:md:text-4xl [&_a]:font-bold [&_a]:text-accent max-lg:rounded-lg max-lg:p-3 max-md:[&>h2]:text-2xl top-picks-section">
+          <SectionHeader title="Top picks" eyebrow="Paid placements for standout finds." action={<a href={withBasePath('/top-picks')}>View more</a>} />
+          {topPicks.loading && <LoadingState label="Loading top picks..." />}
+          {topPicks.error && <ErrorState message={topPicks.error} retry={topPicks.refetch} />}
+          {!!topPickItems.length && (
+            <div className={homeListingGrid}>
+              {topPickItems.slice(0, 21).map((listing) => (
+                <ProductCard key={listing._id} listing={listing} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="home-section mx-auto w-full max-w-[1280px] my-8 rounded-xl bg-foose-surface p-4 md:p-6 [&.no-pad]:p-0 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:md:text-4xl [&_a]:font-bold [&_a]:text-accent max-lg:rounded-lg max-lg:p-3 max-md:[&>h2]:text-2xl">
         <SectionHeader
@@ -124,6 +137,37 @@ export function HomePage() {
           <div className={homeListingGrid}>
             {freshDropItems.slice(0, 21).map((listing) => (
               <ProductCard key={listing._id} listing={listing} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="home-section mx-auto w-full max-w-[1280px] my-8 rounded-xl bg-foose-surface p-4 md:p-6 [&.no-pad]:p-0 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:md:text-4xl [&_a]:font-bold [&_a]:text-accent max-lg:rounded-lg max-lg:p-3 max-md:[&>h2]:text-2xl suggested-section">
+        <SectionHeader
+          title="Suggested for you"
+          eyebrow="Personalized from the styles, shops, and details you enjoy."
+          action={user ? <a href={withBasePath('/suggested-for-you')}>See more</a> : undefined}
+        />
+        {!user && (
+          <EmptyState
+            action={<ButtonLink to={authHref('/login', '/suggested-for-you')}>Sign in</ButtonLink>}
+            body="Sign in to build recommendations from the pieces and creators you interact with."
+            title="Make this feed yours"
+          />
+        )}
+        {user && suggested.loading && <LoadingState label="Loading your suggestions..." />}
+        {user && suggested.error && <ErrorState message={suggested.error} retry={suggested.refetch} />}
+        {user && !suggested.loading && !suggested.error && !suggestedItems.length && (
+          <EmptyState
+            action={<ButtonLink to="/browse">Explore the marketplace</ButtonLink>}
+            body="Browse, save, and shop a few pieces so Foose can learn what fits your style."
+            title="Your suggestions are warming up"
+          />
+        )}
+        {!!suggestedItems.length && (
+          <div className={homeListingGrid}>
+            {suggestedItems.slice(0, 18).map((listing, index) => (
+              <ProductCard className={threeRowVisibility(index)} key={listing._id} listing={listing} />
             ))}
           </div>
         )}

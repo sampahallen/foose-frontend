@@ -6,7 +6,7 @@ import { getErrorMessage } from '../../utils/errorMessage'
 import { navigateTo } from '../../utils/navigation'
 import { Icon } from '../icons/Icon'
 
-type FavoriteTarget = 'event' | 'finspo' | 'listing'
+type FavoriteTarget = 'event' | 'listing'
 
 type FavoriteButtonProps = {
   activeLabel?: string
@@ -20,7 +20,6 @@ type FavoriteButtonProps = {
 
 function defaultLabel(targetType: FavoriteTarget) {
   if (targetType === 'event') return 'Save event'
-  if (targetType === 'finspo') return 'Like'
   return 'Favorite'
 }
 
@@ -38,7 +37,7 @@ export function FavoriteButton({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const displayLabel = label || defaultLabel(targetType)
-  const displayActiveLabel = activeLabel || (targetType === 'finspo' ? 'Liked' : 'Saved')
+  const displayActiveLabel = activeLabel || 'Saved'
 
   useEffect(() => {
     let mounted = true
@@ -78,11 +77,7 @@ export function FavoriteButton({
     setError('')
 
     try {
-      if (targetType === 'finspo') {
-        const result = await apiPost<{ liked: boolean }>(`/community/gallery/${targetId}/like`)
-        setActive(result.liked)
-        onChange?.(result.liked)
-      } else if (active) {
+      if (active) {
         const result = await apiDelete<{ active: boolean }>(`/favorites/${targetType}/${targetId}`)
         setActive(result.active)
         onChange?.(result.active)
@@ -92,7 +87,7 @@ export function FavoriteButton({
         onChange?.(result.active)
       }
     } catch (requestError) {
-      setError(getErrorMessage(requestError, 'Could not update saved item'))
+      setError(getErrorMessage(requestError, 'Could not update favorite'))
     } finally {
       setBusy(false)
     }

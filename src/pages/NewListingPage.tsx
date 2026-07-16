@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, EmptyState, ErrorState, Icon, ImagePreviewInput, LoadingState } from '../components'
+import { AppShell, ButtonLink, DropdownChevron, EmptyState, ErrorState, HashtagInput, Icon, ImagePreviewInput, LoadingState, SelectControl } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiPost, apiPut } from '../lib/api'
@@ -25,7 +25,7 @@ function appendText(formData: FormData, name: string, value: string | number | u
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 const listingSelectControl =
-  'h-12 w-full appearance-none rounded-xl border border-foose-border bg-foose-surface bg-[linear-gradient(45deg,transparent_50%,#5e5f5c_50%),linear-gradient(135deg,#5e5f5c_50%,transparent_50%)] bg-[length:5px_5px,5px_5px] bg-[position:calc(100%-18px)_50%,calc(100%-13px)_50%] bg-no-repeat px-3 pr-10 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
+  'h-12 w-full appearance-none rounded-xl border border-foose-border bg-foose-surface px-3 pr-10 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
 
 type ListingDropdownOption = {
   label: string
@@ -91,7 +91,9 @@ function ListingDropdown({
         <span className="min-w-0 truncate">{selectedOption?.label || placeholder}</span>
         <span className="flex items-center gap-3">
           {selectedOption?.swatch && <span aria-hidden className="size-5 rounded-full border border-black/15" style={{ background: selectedOption.swatch }} />}
-          <span aria-hidden className={`text-xs text-foose-muted transition ${open ? 'rotate-180' : ''}`}>v</span>
+          <span className="inline-flex text-accent">
+            <DropdownChevron className="text-[15px]" open={open} />
+          </span>
         </span>
       </button>
       {open && (
@@ -262,6 +264,7 @@ export function NewListingPage() {
     if (sourceData.has('keptImagesTouched')) appendText(uploadData, 'keptImagesTouched', '1')
 
     appendText(uploadData, 'description', needsFlawProof ? `${readFormText(sourceData, 'description')}\n\nFlaws: ${flawNote}`.trim() : readFormText(sourceData, 'description'))
+    uploadData.append('hashtags', readFormText(sourceData, 'hashtags'))
     ;['category', 'brand', 'condition', 'color'].forEach((field) => {
       appendText(uploadData, field, readFormText(sourceData, field))
     })
@@ -370,9 +373,13 @@ export function NewListingPage() {
               <textarea defaultValue={listing?.description || ''} maxLength={1200} name="description" onChange={(event) => setDescriptionLength(event.target.value.length)} placeholder="Condition, fit, measurements, and pickup notes" rows={5} />
               <span className="text-xs font-semibold text-foose-muted">{descriptionLength}/1200 characters</span>
             </label>
+            <div className="wide flex flex-col gap-2 text-sm font-semibold text-foose-text">
+              <span>Vibe hashtags</span>
+              <HashtagInput initialTags={listing?.hashtags} />
+            </div>
             <label>
               <span className="flex items-center gap-2">Listing type {requiredBadge(false)}</span>
-              <select
+              <SelectControl
                 className={listingSelectControl}
                 name="type"
                 onChange={(event) => setSelectedListingType(event.target.value as 'retail' | 'wholesale')}
@@ -381,7 +388,7 @@ export function NewListingPage() {
               >
                 <option value="retail">Retail</option>
                 <option value="wholesale">Wholesale</option>
-              </select>
+              </SelectControl>
               <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">
                 {listingType === 'retail'
                   ? 'Retail listings are single items. Upload a separate listing for each extra piece.'
@@ -396,7 +403,7 @@ export function NewListingPage() {
             </label>
             <label>
               Category
-              <select
+              <SelectControl
                 className={listingSelectControl}
                 name="category"
                 onChange={(event) => setSelectedCategory(event.target.value)}
@@ -408,7 +415,7 @@ export function NewListingPage() {
                     {category.label}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             </label>
             <label>
               Brand
@@ -422,26 +429,26 @@ export function NewListingPage() {
                 </label>
                 <label>
                   Gender
-                  <select className={listingSelectControl} defaultValue={listing?.gender || ''} name="gender">
+                  <SelectControl className={listingSelectControl} defaultValue={listing?.gender || ''} name="gender">
                     <option value="">Select gender</option>
                     <option value="men">Men</option>
                     <option value="women">Women</option>
                     <option value="unisex">Unisex</option>
                     <option value="kids">Kids</option>
-                  </select>
+                  </SelectControl>
                 </label>
               </>
             )}
             <label>
               Condition
-              <select className={listingSelectControl} name="condition" onChange={(event) => setSelectedCondition(event.target.value)} value={conditionValue}>
+              <SelectControl className={listingSelectControl} name="condition" onChange={(event) => setSelectedCondition(event.target.value)} value={conditionValue}>
                 <option value="">Select condition</option>
                 {LISTING_CONDITIONS.map((condition) => (
                   <option key={condition} value={condition}>
                     {condition[0].toUpperCase() + condition.slice(1)}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             </label>
             {needsFlawProof && (
               <label className="wide rounded-xl border border-amber-200 bg-amber-50 p-4">
