@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
-import { AppShell, ButtonLink, EmptyState, ErrorState, Icon, LoadingState } from '../components'
+import { AppShell, ButtonLink, Icon, StatePanel, SuccessState, useToast } from '../components'
+import { OrderDetailSkeleton } from '../components/operational/OperationalStates'
 import { useCart } from '../hooks/useCart'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiPut } from '../lib/api'
@@ -25,6 +26,7 @@ function paymentReference() {
 }
 
 export function OrderConfirmedPage() {
+  const { showToast } = useToast()
   const ids = orderIds()
   const reference = paymentReference()
   const { clearCart } = useCart()
@@ -42,8 +44,13 @@ export function OrderConfirmedPage() {
   )
 
   async function confirmReceived(id: string) {
-    await apiPut(`/orders/${id}/confirm-delivery`)
-    await orders.refetch()
+    try {
+      await apiPut(`/orders/${id}/confirm-delivery`)
+      await orders.refetch()
+      showToast({ message: 'Receipt was confirmed for this order.', title: 'Order updated', tone: 'success' })
+    } catch (error) {
+      showToast({ message: error instanceof Error ? error.message : 'Unable to confirm receipt', title: 'Confirmation failed', tone: 'error' })
+    }
   }
 
   useEffect(() => {
@@ -59,25 +66,23 @@ export function OrderConfirmedPage() {
     <AppShell flush>
       <section className="confirmation-page min-h-dvh bg-foose-bg">
         {!ids.length && !reference && (
-          <EmptyState
+          <StatePanel
             action={<ButtonLink to="/browse">Continue shopping</ButtonLink>}
             body="Open this page from checkout with a valid order link."
-            title="No order selected"
+            layout="page"
+            title="Order link unavailable"
+            tone="unavailable"
           />
         )}
-        {orders.loading && <LoadingState label="Loading order..." />}
-        {orders.error && <ErrorState message={orders.error} retry={orders.refetch} />}
+        {orders.initialLoading && <OrderDetailSkeleton label="Confirming your order" />}
+        {orders.error && !orders.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void orders.refetch()} type="button">Retry</button>} body={orders.error} layout="page" title="Order confirmation unavailable" tone="error" />}
         {!!displayedOrders.length && (
           <div className="confirmation-card mx-auto mt-16 flex w-full max-w-3xl flex-col items-center gap-6 rounded-xl border border-foose-border bg-foose-surface p-6 text-center shadow-lg md:p-10 [&_h1]:text-4xl [&_h1]:font-bold">
-            <div className="success-icon inline-flex size-11 items-center justify-center rounded-full border border-foose-border bg-foose-surface font-bold border-accent bg-accent text-white">
-              <Icon name="check" size={56} />
-            </div>
-            <h1>Order placed!</h1>
-            <p>
-              {firstOrder?.paymentStatus === 'cash_on_pickup'
-                ? 'Your pickup request was sent to the seller.'
-                : 'Payment confirmed. Funds are held in escrow until delivery is confirmed.'}
-            </p>
+            <SuccessState
+              layout="compact"
+              message={firstOrder?.paymentStatus === 'cash_on_pickup' ? 'Your pickup request was sent to the seller.' : 'Payment confirmed. Funds are held in escrow until delivery is confirmed.'}
+              title="Order placed!"
+            />
             <div className="order-number flex flex-wrap items-center justify-between gap-4 rounded-lg border border-foose-border bg-foose-surface-low p-4 [&_img]:size-12 [&_img]:rounded-lg [&_img]:object-cover [&_b]:size-12 [&_b]:rounded-lg [&_b]:object-cover">
               <div>
                 <span>Order records</span>

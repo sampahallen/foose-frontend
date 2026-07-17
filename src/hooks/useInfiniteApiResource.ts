@@ -1,20 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiGet } from '../lib/api'
-import { getErrorMessage } from '../utils/errorMessage'
+import { toResourceErrorMeta, type ResourceErrorMeta } from './useApiResource'
 
-type InfiniteState<T, R extends PageMeta> = {
+export type InfiniteState<T, R extends PageMeta> = {
   data: R | null
   error: string
+  errorMeta: ResourceErrorMeta | null
   hasMore: boolean
+  initialLoading: boolean
   items: T[]
   loading: boolean
   loadingMore: boolean
+  loadMoreError: string
+  loadMoreErrorMeta: ResourceErrorMeta | null
   refetch: () => Promise<void>
+  refreshing: boolean
+  retryLoadMore: () => Promise<void>
   sentinelRef: (node: HTMLElement | null) => void
   total: number
 }
 
-type PageMeta = {
+export type PageMeta = {
   page?: number
   pages?: number
   total?: number
@@ -43,6 +49,39 @@ function appendUnique<T>(current: T[], next: T[]) {
   }, [...current])
 }
 
+type LoadMode = 'initial' | 'refresh' | 'append'
+
+const objectDependencyIds = new WeakMap<object, number>()
+const symbolDependencyIds = new Map<symbol, number>()
+let nextDependencyId = 1
+
+function dependencyValueKey(value: unknown) {
+  if ((typeof value === 'object' && value !== null) || typeof value === 'function') {
+    const objectValue = value as object
+    let id = objectDependencyIds.get(objectValue)
+    if (!id) {
+      id = nextDependencyId
+      nextDependencyId += 1
+      objectDependencyIds.set(objectValue, id)
+    }
+    return `object:${id}`
+  }
+  if (typeof value === 'symbol') {
+    let id = symbolDependencyIds.get(value)
+    if (!id) {
+      id = nextDependencyId
+      nextDependencyId += 1
+      symbolDependencyIds.set(value, id)
+    }
+    return `symbol:${id}`
+  }
+  return `${typeof value}:${String(value)}`
+}
+
+function dependencyListKey(dependencies: readonly unknown[]) {
+  return JSON.stringify(dependencies.map(dependencyValueKey))
+}
+
 export function useInfiniteApiResource<T, R extends PageMeta>(
   buildPath: (page: number) => string | null,
   extractItems: (data: R) => T[],
@@ -53,64 +92,117 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const [error, setError] = useState('')
+  const [errorMeta, setErrorMeta] = useState<ResourceErrorMeta | null>(null)
+  const [loadMoreErrorMeta, setLoadMoreErrorMeta] = useState<ResourceErrorMeta | null>(null)
   const [loading, setLoading] = useState(Boolean(buildPath(1)))
+  const [initialLoading, setInitialLoading] = useState(Boolean(buildPath(1)))
+  const [refreshing, setRefreshing] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const loadingRef = useRef(false)
   const itemsRef = useRef<T[]>([])
+  const dataRef = useRef<R | null>(null)
+  const generationRef = useRef(0)
+  const dependencyKey = dependencyListKey(deps)
 
   const loadPage = useCallback(
-    async (nextPage: number, append: boolean) => {
+    async (nextPage: number, mode: LoadMode) => {
       const path = buildPath(nextPage)
       if (!path || loadingRef.current) return
 
+      const generation = generationRef.current
       loadingRef.current = true
-      if (append) setLoadingMore(true)
-      else setLoading(true)
-      setError('')
+      if (mode === 'append') {
+        setLoadingMore(true)
+        setLoadMoreErrorMeta(null)
+      } else {
+        setLoading(true)
+        setInitialLoading(mode === 'initial')
+        setRefreshing(mode === 'refresh')
+        setErrorMeta(null)
+      }
 
       try {
         const pageData = await apiGet<R>(path)
+        if (generationRef.current !== generation) return
         const nextItems = extractItems(pageData)
-        const mergedItems = append ? appendUnique(itemsRef.current, nextItems) : nextItems
+        const mergedItems = mode === 'append' ? appendUnique(itemsRef.current, nextItems) : nextItems
         itemsRef.current = mergedItems
+        dataRef.current = pageData
         setData(pageData)
         setItems(mergedItems)
         setPage(pageData.page || nextPage)
         setPages(inferPages(pageData, nextPage, nextItems.length))
         setTotal(pageData.total ?? mergedItems.length)
       } catch (requestError) {
-        setError(getErrorMessage(requestError, 'Unable to load data'))
-        if (!append) {
-          setData(null)
-          itemsRef.current = []
-          setItems([])
+        if (generationRef.current !== generation) return
+        const requestErrorMeta = toResourceErrorMeta(requestError)
+        if (mode === 'append') {
+          setLoadMoreErrorMeta(requestErrorMeta)
+        } else {
+          setErrorMeta(requestErrorMeta)
+          if (mode === 'initial') {
+            dataRef.current = null
+            itemsRef.current = []
+            setData(null)
+            setItems([])
+            setTotal(0)
+          }
         }
       } finally {
-        loadingRef.current = false
-        setLoading(false)
-        setLoadingMore(false)
+        if (generationRef.current === generation) {
+          loadingRef.current = false
+          setLoading(false)
+          setInitialLoading(false)
+          setRefreshing(false)
+          setLoadingMore(false)
+        }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [buildPath, extractItems, ...deps],
+    [buildPath, extractItems],
   )
 
   const refetch = useCallback(async () => {
-    setPage(1)
-    setPages(1)
-    await loadPage(1, false)
+    const mode: LoadMode = dataRef.current !== null ? 'refresh' : 'initial'
+    await loadPage(1, mode)
   }, [loadPage])
 
+  const retryLoadMore = useCallback(async () => {
+    if (page >= pages) return
+    await loadPage(page + 1, 'append')
+  }, [loadPage, page, pages])
+
   useEffect(() => {
-    itemsRef.current = []
-    setItems([])
-    setPage(1)
-    setPages(1)
-    void loadPage(1, false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
+    generationRef.current += 1
+    const generation = generationRef.current
+    loadingRef.current = false
+    observerRef.current?.disconnect()
+
+    queueMicrotask(() => {
+      if (generationRef.current !== generation) return
+      itemsRef.current = []
+      dataRef.current = null
+      setItems([])
+      setData(null)
+      setPage(1)
+      setPages(1)
+      setTotal(0)
+      setErrorMeta(null)
+      setLoadMoreErrorMeta(null)
+      setRefreshing(false)
+      setLoadingMore(false)
+      const hasInitialPath = Boolean(buildPath(1))
+      setLoading(hasInitialPath)
+      setInitialLoading(hasInitialPath)
+      if (hasInitialPath) void loadPage(1, 'initial')
+    })
+
+    return () => {
+      if (generationRef.current === generation) generationRef.current += 1
+      loadingRef.current = false
+      observerRef.current?.disconnect()
+    }
+  }, [buildPath, dependencyKey, loadPage])
 
   const sentinelRef = useCallback(
     (node: HTMLElement | null) => {
@@ -119,24 +211,30 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
 
       observerRef.current = new IntersectionObserver(
         (entries) => {
-          if (!entries[0]?.isIntersecting || loadingRef.current || page >= pages) return
-          void loadPage(page + 1, true)
+          if (!entries[0]?.isIntersecting || loadingRef.current || loadMoreErrorMeta || page >= pages) return
+          void loadPage(page + 1, 'append')
         },
         { rootMargin: '360px 0px' },
       )
       observerRef.current.observe(node)
     },
-    [loadPage, page, pages],
+    [loadMoreErrorMeta, loadPage, page, pages],
   )
 
   return {
     data,
-    error,
+    error: errorMeta?.message || '',
+    errorMeta,
     hasMore: page < pages,
+    initialLoading,
     items,
     loading,
     loadingMore,
+    loadMoreError: loadMoreErrorMeta?.message || '',
+    loadMoreErrorMeta,
     refetch,
+    refreshing,
+    retryLoadMore,
     sentinelRef,
     total,
   }

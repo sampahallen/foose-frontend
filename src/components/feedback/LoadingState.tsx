@@ -1,4 +1,8 @@
-type LoadingVariant =
+import type { ReactNode } from 'react'
+import { LoadingRegion, type FeedbackLayout } from './LoadingRegion'
+import { SkeletonBlock } from './SkeletonBlock'
+
+export type LoadingVariant =
   | 'admin'
   | 'cards'
   | 'detail'
@@ -9,10 +13,6 @@ type LoadingVariant =
   | 'orders'
   | 'profile'
   | 'spinner'
-
-function SkeletonBlock({ className = '' }: { className?: string }) {
-  return <span aria-hidden className={`block animate-pulse rounded-lg bg-foose-surface-mid ${className}`} />
-}
 
 function ProductCardSkeleton() {
   return (
@@ -173,38 +173,40 @@ function InboxSkeleton() {
   )
 }
 
-function SpinnerState({ label }: { label: string }) {
+function SpinnerState({ className, label, layout }: { className: string; label: string; layout: FeedbackLayout }) {
   return (
-    <div className="state-panel mx-auto my-10 flex max-w-xl flex-col items-center gap-4 rounded-xl border border-foose-border bg-foose-surface p-8 text-center">
-      <span className="loading-dot size-8 animate-spin rounded-full border-4 border-foose-surface-high border-t-accent" />
-      <p>{label}</p>
-    </div>
+    <LoadingRegion className={className} label={label} layout={layout}>
+      <div className="state-panel mx-auto flex max-w-xl flex-col items-center gap-4 rounded-xl border border-foose-border bg-foose-surface p-8 text-center">
+        <span className="loading-dot size-8 animate-spin rounded-full border-4 border-foose-surface-high border-t-accent motion-reduce:animate-none" />
+        <p>{label}</p>
+      </div>
+    </LoadingRegion>
   )
 }
 
-function variantForLabel(label: string): LoadingVariant {
-  const normalized = label.toLowerCase()
-
-  if (/(finishing|redirecting|checking|verifying promotion|payment)/.test(normalized)) return 'spinner'
-  if (/(marketplace|top picks|fresh drops|bales|listings|saved items|your listings)/.test(normalized)) return 'cards'
-  if (/(listing|event|order details|shop|finspo)/.test(normalized) && !normalized.includes('listings')) return 'detail'
-  if (/(form|settings|kyc status|catalog)/.test(normalized)) return 'form'
-  if (/(admin|kyc records|disputes)/.test(normalized)) return 'admin'
-  if (/(orders|order\.\.\.)/.test(normalized)) return 'orders'
-  if (/(conversations|conversation|notifications|inbox)/.test(normalized)) return 'inbox'
-  if (/(profile)/.test(normalized)) return 'profile'
-  if (/(featured|popular|sellers)/.test(normalized)) return 'home'
-  return 'list'
+export type LoadingStateProps = {
+  children?: ReactNode
+  className?: string
+  label?: string
+  layout?: FeedbackLayout
+  variant?: LoadingVariant
 }
 
-export function LoadingState({ label = 'Loading...' }: { label?: string }) {
-  const variant = variantForLabel(label)
+export function LoadingState({
+  children,
+  className = '',
+  label = 'Loading...',
+  layout = 'section',
+  variant = 'list',
+}: LoadingStateProps) {
+  if (children) {
+    return <LoadingRegion className={className} label={label} layout={layout}>{children}</LoadingRegion>
+  }
 
-  if (variant === 'spinner') return <SpinnerState label={label} />
+  if (variant === 'spinner') return <SpinnerState className={className} label={label} layout={layout} />
 
   return (
-    <section aria-label={label} aria-busy="true" className="my-6" role="status">
-      <span className="sr-only">{label}</span>
+    <LoadingRegion className={className} label={label} layout={layout}>
       {variant !== 'detail' && variant !== 'form' && variant !== 'inbox' && <HeaderSkeleton />}
       {variant === 'admin' && <TableSkeleton />}
       {variant === 'cards' && <ProductGridSkeleton />}
@@ -228,6 +230,6 @@ export function LoadingState({ label = 'Loading...' }: { label?: string }) {
           </div>
         </div>
       )}
-    </section>
+    </LoadingRegion>
   )
 }

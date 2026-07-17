@@ -1,5 +1,8 @@
 import { useMemo } from 'react'
-import { AppShell, Badge, EmptyState, ErrorState, Icon, LoadingState, ProductCard, ShopReviewPanel, TopFilterBar } from '../components'
+import { AppShell, Badge, InlineNotice, ProductCard, RefreshIndicator, SafeImage, ShopReviewPanel, StatePanel, TopFilterBar } from '../components'
+import { ProductGridSkeleton, ShopDetailSkeleton } from '../components/feedback/DiscoverySkeletons'
+import { DiscoveryImage } from '../components/feedback/DiscoveryMedia'
+import { NavigationBackButton } from '../components/navigation'
 import { useApiResource } from '../hooks/useApiResource'
 import type { Listing, Shop } from '../types/api'
 import { initials } from '../utils/format'
@@ -61,12 +64,11 @@ export function ShopPage() {
 
   return (
     <AppShell active="browse" searchPlaceholder="Search marketplace...">
-      <a className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted hover:text-accent" href={withBasePath('/browse')}>
-        <Icon name="arrow" /> Browse
-      </a>
-      {!slug && <EmptyState body="Open a DigiShop link to view its listings." title="Shop required" />}
-      {shop.loading && <LoadingState label="Loading shop..." />}
-      {shop.error && <ErrorState message={shop.error} retry={shop.refetch} />}
+      <NavigationBackButton className="mb-6" fallback={{ href: '/digishops', label: 'DigiShops' }} />
+      {!slug && <StatePanel action={<a className="button button-secondary" href={withBasePath('/digishops')}>Browse DigiShops</a>} body="This link does not identify a DigiShop." layout="page" title="Shop link is incomplete" tone="unavailable" />}
+      {shop.initialLoading && <ShopDetailSkeleton />}
+      <RefreshIndicator active={shop.refreshing || listings.refreshing} className="mb-4" label="Refreshing DigiShop" />
+      {shop.error && <StatePanel action={<button className="button button-secondary" onClick={shop.refetch} type="button">Try again</button>} body={shop.error} layout="page" title={shop.errorMeta?.status === 404 ? 'This DigiShop is unavailable' : 'DigiShop could not load'} tone={shop.errorMeta?.status === 403 ? 'permission' : shop.errorMeta?.status === 404 ? 'unavailable' : 'error'} />}
       {shopData && (
         <div className="grid gap-6 lg:h-[calc(100dvh-9rem)] lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_320px] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_360px]">
           <section className="min-w-0 lg:min-h-0 lg:overflow-y-auto lg:pr-2 lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
@@ -90,10 +92,11 @@ export function ShopPage() {
                 <p className="text-sm text-foose-muted">Active marketplace items from {shopData.shopName}.</p>
               </div>
             </div>
-            {listings.loading && <LoadingState label="Loading listings..." />}
-            {listings.error && <ErrorState message={listings.error} retry={listings.refetch} />}
+            {listings.initialLoading && <ProductGridSkeleton count={8} label={`Loading ${shopData.shopName} listings`} />}
+            {listings.error && !filteredListings.length && <StatePanel action={<button className="button button-secondary" onClick={listings.refetch} type="button">Retry listings</button>} body={listings.error} layout="section" title="Shop listings could not load" tone="error" />}
+            {listings.error && !!filteredListings.length && <InlineNotice action={<button className="font-black text-accent" onClick={listings.refetch} type="button">Retry</button>} tone="warning">Could not refresh this catalog. Showing its current listings.</InlineNotice>}
             {!listings.loading && !listings.error && !filteredListings.length && (
-              <EmptyState body="No listings match these filters yet." title="No listings" />
+              <StatePanel action={<a className="button button-secondary" href={withBasePath(`/shops/${slug}`)}>Clear shop filters</a>} body={query.toString() ? 'No active listings match the selected shop filters.' : 'This DigiShop has not published an active listing yet.'} layout="section" title={query.toString() ? 'No matching shop items' : 'Shop shelves are empty'} tone="empty" />
             )}
             {!!filteredListings.length && (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 [&_.product-card]:min-w-0">
@@ -107,14 +110,16 @@ export function ShopPage() {
           <aside className="lg:min-h-0 lg:overflow-y-auto lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <section className="overflow-hidden rounded-xl border border-foose-border bg-foose-surface shadow-sm">
               <div className="h-32 bg-foose-surface-mid [&_img]:h-full [&_img]:w-full [&_img]:object-cover">
-                {shopData.bannerUrl ? <img alt="" src={shopData.bannerUrl} /> : <span className="flex h-full items-center justify-center text-sm font-semibold text-foose-faint">DigiShop</span>}
+                <DiscoveryImage alt={`${shopData.shopName} banner`} fallback="DigiShop" fallbackClassName="h-full w-full" src={shopData.bannerUrl} />
               </div>
               <div className="p-5">
-                {shopData.logoUrl ? (
-                  <img alt="" className="-mt-14 mb-3 size-20 rounded-full border-4 border-white object-cover" src={shopData.logoUrl} />
-                ) : (
-                  <span className="-mt-14 mb-3 inline-flex size-20 items-center justify-center rounded-full border-4 border-white bg-accent-light text-lg font-black text-accent">{initials(shopData.shopName)}</span>
-                )}
+                <SafeImage
+                  alt=""
+                  className="-mt-14 mb-3 size-20 rounded-full border-4 border-white object-cover"
+                  fallback={initials(shopData.shopName)}
+                  fallbackClassName="bg-accent-light text-lg font-black text-accent"
+                  src={shopData.logoUrl}
+                />
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <h2 className="text-2xl font-black text-foose-text">{shopData.shopName}</h2>
                   {shopData.category && <Badge tone="accent">{shopData.category}</Badge>}

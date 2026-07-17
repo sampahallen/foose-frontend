@@ -23,7 +23,22 @@ function analyticsUrl() {
 
 function currentPath() {
   if (typeof window === 'undefined') return ''
+  if (isSensitiveAuthRoute(window.location.pathname)) return window.location.pathname
   return `${window.location.pathname}${window.location.search}`
+}
+
+function isSensitiveAuthRoute(pathname: string) {
+  return pathname.startsWith('/auth/callback') || pathname.startsWith('/reset-password')
+}
+
+function currentSafeUrl() {
+  if (typeof window === 'undefined') return ''
+  const url = new URL(window.location.href)
+  if (isSensitiveAuthRoute(url.pathname)) {
+    url.search = ''
+    url.hash = ''
+  }
+  return url.toString()
 }
 
 function trackPageView() {
@@ -44,7 +59,7 @@ export function reportTelemetry(event: TelemetryEvent) {
     path: currentPath(),
     severity: 'info',
     source: 'marketplace',
-    url: window.location.href,
+    url: currentSafeUrl(),
     ...event,
   }
   const body = JSON.stringify(payload)

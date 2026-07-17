@@ -6,7 +6,10 @@ import type { PaginatedReviews, Review, User } from '../../types/api'
 import { getErrorMessage } from '../../utils/errorMessage'
 import { formatDate, initials } from '../../utils/format'
 import { getCurrentAppPathname, withBasePath } from '../../utils/navigation'
+import { InlineNotice, LoadingRegion, SkeletonBlock, StatePanel } from '../feedback'
+import { ConfirmDialog, Dialog } from '../forms'
 import { Icon } from '../icons/Icon'
+import { SafeImage } from './SafeImage'
 
 function reviewer(review: Review): User | undefined {
   return review.reviewerId && typeof review.reviewerId === 'object' ? review.reviewerId : undefined
@@ -43,6 +46,25 @@ function StarRow({ size = 14, value }: { size?: number; value: number }) {
 
 function loginHref() {
   return withBasePath(`/login?redirect=${encodeURIComponent(getCurrentAppPathname() || '/')}`)
+}
+
+function ReviewRowsSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <LoadingRegion className="space-y-4" label="Loading shop reviews" layout="compact">
+      {Array.from({ length: count }, (_, index) => (
+        <div className="grid grid-cols-[auto_1fr] gap-3" key={index}>
+          <SkeletonBlock className="size-9 rounded-md" />
+          <div className="min-w-0 space-y-2">
+            <div className="flex items-center gap-2">
+              <SkeletonBlock className="h-3 w-20" />
+              <SkeletonBlock className="h-3 w-28" />
+            </div>
+            <SkeletonBlock className="h-3 w-full max-w-sm" />
+          </div>
+        </div>
+      ))}
+    </LoadingRegion>
+  )
 }
 
 export function ShopReviewPanel({
@@ -154,18 +176,20 @@ export function ShopReviewPanel({
       </div>
 
       {showForm && (
-        <div className="mb-4 rounded-lg border border-foose-border bg-foose-surface-low p-3">
+        <div className="mb-4 rounded-2xl border border-foose-border/80 bg-foose-surface-low p-4 shadow-sm">
         {user ? (
-          <form className="space-y-3" onSubmit={(event) => void submitReview(event)}>
+          <form aria-busy={submitting} className="space-y-4" onSubmit={(event) => void submitReview(event)}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-bold text-foose-muted">Rate {shopName}</span>
-              <span className="flex items-center gap-1">
+              <span className="text-sm font-bold text-foose-text" id="shop-review-rating-label">Rate {shopName}</span>
+              <span aria-labelledby="shop-review-rating-label" className="flex items-center gap-0.5" role="radiogroup">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
+                    aria-checked={star === rating}
                     aria-label={`${star} star rating`}
-                    className={star <= rating ? 'inline-flex text-accent [&_svg]:fill-current' : 'inline-flex text-foose-border'}
+                    className={star <= rating ? 'inline-flex size-11 items-center justify-center rounded-full text-accent transition hover:bg-accent-light [&_svg]:fill-current' : 'inline-flex size-11 items-center justify-center rounded-full text-foose-border transition hover:bg-white hover:text-accent'}
                     key={star}
                     onClick={() => setRating(star)}
+                    role="radio"
                     type="button"
                   >
                     <Icon name="star" size={18} />
@@ -173,17 +197,23 @@ export function ShopReviewPanel({
                 ))}
               </span>
             </div>
+            <label className="grid gap-2 text-sm font-semibold text-foose-text" htmlFor="shop-review-comment">
+              Review <span className="sr-only">Optional</span>
             <textarea
-              className="min-h-20 w-full rounded-lg border border-foose-border bg-white p-3 text-sm text-foose-text outline-none focus:border-accent"
+              aria-describedby="shop-review-comment-count"
+              className="min-h-24 w-full resize-y rounded-xl border border-foose-border bg-white p-3 text-sm text-foose-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+              id="shop-review-comment"
               maxLength={500}
               onChange={(event) => setComment(event.target.value)}
               placeholder="Leave a quick review..."
               value={comment}
             />
-            {message && <p className="text-xs font-bold text-foose-success">{message}</p>}
-            {error && <p className="text-xs font-bold text-foose-danger">{error}</p>}
+              <span className="text-right text-xs font-semibold tabular-nums text-foose-faint" id="shop-review-comment-count">{comment.length}/500</span>
+            </label>
+            {message && <InlineNotice tone="success">{message}</InlineNotice>}
+            {error && <InlineNotice tone="error">{error}</InlineNotice>}
             <button
-              className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-accent bg-accent px-4 text-sm font-black text-white transition hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-accent bg-accent px-4 text-sm font-black text-white shadow-sm transition hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50"
               disabled={submitting}
               type="submit"
             >
@@ -198,26 +228,59 @@ export function ShopReviewPanel({
         </div>
       )}
       {!showForm && (message || error) && (
-        <div className="mb-3">
-          {message && <p className="text-xs font-bold text-foose-success">{message}</p>}
-          {error && <p className="text-xs font-bold text-foose-danger">{error}</p>}
+        <div className="mb-3 space-y-2">
+          {message && <InlineNotice tone="success">{message}</InlineNotice>}
+          {error && <InlineNotice tone="error">{error}</InlineNotice>}
         </div>
       )}
 
-      {reviews.loading && <p className="text-sm text-foose-muted">Loading reviews...</p>}
-      {reviews.error && <p className="text-sm font-semibold text-foose-danger">{reviews.error}</p>}
-      {!reviews.loading && !reviews.error && !reviews.data?.reviews.length && (
-        <p className="text-sm leading-6 text-foose-muted">No reviews yet.</p>
+      {reviews.initialLoading && <ReviewRowsSkeleton count={Math.min(limit, 3)} />}
+      {reviews.refreshing && reviews.data && (
+        <div aria-live="polite" className="mb-3 h-1 overflow-hidden rounded-full bg-foose-surface-mid" role="status">
+          <span className="block h-full w-1/3 animate-pulse rounded-full bg-accent motion-reduce:animate-none" />
+          <span className="sr-only">Refreshing reviews</span>
+        </div>
+      )}
+      {reviews.error && !reviews.data && (
+        <StatePanel
+          action={<button className="button button-secondary" onClick={() => void reviews.refetch()} type="button">Try again</button>}
+          body={reviews.error}
+          className="[&_h2]:text-base"
+          layout="compact"
+          title="Reviews could not load"
+          tone="error"
+        />
+      )}
+      {reviews.error && reviews.data && (
+        <InlineNotice
+          action={<button className="text-xs font-black underline" onClick={() => void reviews.refetch()} type="button">Retry</button>}
+          className="mb-3"
+          tone="error"
+        >
+          The latest reviews could not be refreshed. Showing the reviews already loaded.
+        </InlineNotice>
+      )}
+      {!reviews.initialLoading && !reviews.error && !reviews.data?.reviews.length && (
+        <StatePanel
+          body="Be the first buyer to share an experience with this shop."
+          className="[&_h2]:text-base"
+          layout="compact"
+          title="No reviews yet"
+          tone="empty"
+          visual={null}
+        />
       )}
       {!!reviews.data?.reviews.length && (
         <div className="space-y-3">
           {reviews.data.reviews.map((review) => (
             <article className="grid grid-cols-[auto_1fr] gap-3" key={review._id}>
-              {reviewerImage(review) ? (
-                <img alt="" className="size-9 rounded-md object-cover" src={reviewerImage(review)} />
-              ) : (
-                <span className="inline-flex size-9 items-center justify-center rounded-md bg-foose-surface-mid text-xs font-black text-foose-muted">{initials(reviewerName(review))}</span>
-              )}
+              <SafeImage
+                alt=""
+                className="size-9 rounded-md object-cover"
+                fallback={initials(reviewerName(review))}
+                fallbackClassName="text-xs font-black text-foose-muted"
+                src={reviewerImage(review)}
+              />
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <StarRow value={review.rating} />
@@ -227,7 +290,7 @@ export function ShopReviewPanel({
                     <span className="ml-auto inline-flex items-center gap-1">
                       <button
                         aria-label="Edit review"
-                        className="inline-flex size-8 items-center justify-center rounded-full border border-accent/20 bg-white text-accent transition hover:bg-accent hover:text-white"
+                        className="inline-flex size-11 items-center justify-center rounded-full border border-accent/20 bg-white text-accent transition hover:bg-accent hover:text-white"
                         onClick={() => startEdit(review)}
                         type="button"
                       >
@@ -235,7 +298,7 @@ export function ShopReviewPanel({
                       </button>
                       <button
                         aria-label="Delete review"
-                        className="inline-flex size-8 items-center justify-center rounded-full border border-red-100 bg-red-50 text-foose-danger transition hover:border-foose-danger hover:bg-foose-danger hover:text-white disabled:pointer-events-none disabled:opacity-60"
+                        className="inline-flex size-11 items-center justify-center rounded-full border border-red-100 bg-red-50 text-foose-danger transition hover:border-foose-danger hover:bg-foose-danger hover:text-white disabled:pointer-events-none disabled:opacity-60"
                         disabled={deletingId === review._id}
                         onClick={() => setPendingDelete(review)}
                         type="button"
@@ -251,25 +314,38 @@ export function ShopReviewPanel({
           ))}
         </div>
       )}
-      {editingReview && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-          <button aria-label="Cancel edit review" className="absolute inset-0 bg-black/45" onClick={() => setEditingReview(null)} type="button" />
-          <article className="relative z-10 w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
-            <button aria-label="Close edit review" className="absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => setEditingReview(null)} type="button">
-              <Icon name="close" size={17} />
+      <Dialog
+        description={`Update your rating and review text for ${shopName}.`}
+        dismissible={!submitting}
+        footer={(
+          <>
+            <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" disabled={submitting} onClick={() => setEditingReview(null)} type="button">
+              Cancel
             </button>
-            <h3 className="pr-10 text-lg font-black text-foose-text">Edit review</h3>
-            <p className="mt-1 text-sm text-foose-muted">Update your rating and review text for {shopName}.</p>
-            <form className="mt-5 space-y-4" onSubmit={(event) => void submitEdit(event)}>
+            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-accent bg-accent px-4 text-sm font-bold text-white hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-60" disabled={submitting} form="edit-shop-review-form" type="submit">
+              <Icon name="pencil" size={15} />
+              {submitting ? 'Saving...' : 'Save review'}
+            </button>
+          </>
+        )}
+        onClose={() => setEditingReview(null)}
+        open={Boolean(editingReview)}
+        size="sm"
+        title="Edit review"
+      >
+        {editingReview && (
+            <form aria-busy={submitting} className="space-y-4" id="edit-shop-review-form" onSubmit={(event) => void submitEdit(event)}>
               <div>
                 <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-foose-faint">Stars</span>
-                <span className="flex items-center gap-1">
+                <span aria-label="Review rating" className="flex items-center gap-0.5" role="radiogroup">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
+                      aria-checked={star === editRating}
                       aria-label={`${star} star rating`}
-                      className={star <= editRating ? 'inline-flex text-accent [&_svg]:fill-current' : 'inline-flex text-foose-border'}
+                      className={star <= editRating ? 'inline-flex size-11 items-center justify-center rounded-full text-accent transition hover:bg-accent-light [&_svg]:fill-current' : 'inline-flex size-11 items-center justify-center rounded-full text-foose-border transition hover:bg-foose-surface-low hover:text-accent'}
                       key={star}
                       onClick={() => setEditRating(star)}
+                      role="radio"
                       type="button"
                     >
                       <Icon name="star" size={22} />
@@ -278,48 +354,28 @@ export function ShopReviewPanel({
                 </span>
               </div>
               <textarea
+                aria-describedby="edit-shop-review-count"
+                aria-label="Review text"
                 className="min-h-28 w-full rounded-xl border border-foose-border bg-foose-surface p-3 text-sm text-foose-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
                 maxLength={500}
                 onChange={(event) => setEditComment(event.target.value)}
                 placeholder="Update your review..."
                 value={editComment}
               />
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <button className="inline-flex min-h-10 items-center justify-center rounded-lg border border-foose-border bg-white px-4 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={() => setEditingReview(null)} type="button">
-                  Cancel
-                </button>
-                <button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-accent bg-accent px-4 text-sm font-bold text-white hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-60" disabled={submitting} type="submit">
-                  <Icon name="pencil" size={15} />
-                  {submitting ? 'Saving...' : 'Save review'}
-                </button>
-              </div>
+              <p className="text-right text-xs font-semibold tabular-nums text-foose-faint" id="edit-shop-review-count">{editComment.length}/500</p>
             </form>
-          </article>
-        </div>
-      )}
-      {pendingDelete && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-          <button aria-label="Cancel delete review" className="absolute inset-0 bg-black/45" onClick={() => setPendingDelete(null)} type="button" />
-          <article className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
-            <h3 className="text-lg font-black text-foose-text">Delete review?</h3>
-            <p className="mt-2 text-sm leading-6 text-foose-muted">This removes your review from {shopName}. You can post a new one later.</p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button className="inline-flex min-h-10 items-center justify-center rounded-lg border border-foose-border bg-white px-4 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={() => setPendingDelete(null)} type="button">
-                Cancel
-              </button>
-              <button
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-foose-danger bg-foose-danger px-4 text-sm font-bold text-white hover:bg-red-700 disabled:pointer-events-none disabled:opacity-60"
-                disabled={deletingId === pendingDelete._id}
-                onClick={() => void deleteReview(pendingDelete._id)}
-                type="button"
-              >
-                <Icon name="trash" size={15} />
-                {deletingId === pendingDelete._id ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </article>
-        </div>
-      )}
+        )}
+      </Dialog>
+      <ConfirmDialog
+        busy={Boolean(pendingDelete && deletingId === pendingDelete._id)}
+        confirmLabel="Delete review"
+        description={`This removes your review from ${shopName}. You can post a new one later.`}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => { if (pendingDelete) void deleteReview(pendingDelete._id) }}
+        open={Boolean(pendingDelete)}
+        title="Delete review?"
+        tone="destructive"
+      />
     </div>
   )
 }

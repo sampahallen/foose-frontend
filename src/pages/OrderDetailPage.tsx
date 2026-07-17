@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { AppShell, Badge, EmptyState, ErrorState, Icon, LoadingState, SectionHeader } from '../components'
+import { AppShell, Badge, Dialog, InlineNotice, SafeImage, SectionHeader, StatePanel, useToast } from '../components'
+import { OrderDetailSkeleton } from '../components/operational/OperationalStates'
+import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiPut } from '../lib/api'
@@ -40,6 +42,7 @@ function deliveryLine(order: Order) {
 }
 
 export function OrderDetailPage() {
+  const { showToast } = useToast()
   const orderId = orderIdFromPath()
   const { user } = useAuth()
   const orderResource = useApiResource<{ order: Order }>(orderId ? `/orders/${encodeURIComponent(orderId)}` : null, Boolean(orderId))
@@ -57,6 +60,8 @@ export function OrderDetailPage() {
     try {
       await apiPut(`/orders/${order._id}/${action}`, {})
       await orderResource.refetch()
+      const messages = { 'confirm-delivery': 'Receipt confirmed and escrow can continue.', 'pickup-ready': 'The buyer was notified that pickup is ready.', process: 'The order was accepted.', shipped: 'The buyer can now track this order as sent.' } as const
+      showToast({ message: messages[action], title: 'Order updated', tone: 'success' })
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Unable to update order')
     } finally {
@@ -80,18 +85,18 @@ export function OrderDetailPage() {
       return (
         <>
           {['pending', 'paid'].includes(order.status) && (
-            <button className="inline-flex min-h-10 items-center justify-center rounded-lg border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-60" disabled={actionId === 'process'} onClick={() => void updateOrder('process')} type="button">
+            <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-60" disabled={actionId === 'process'} onClick={() => void updateOrder('process')} type="button">
               {actionId === 'process' ? 'Accepting...' : 'Accept order'}
             </button>
           )}
           {order.delivery?.method === 'delivery' && ['paid', 'processing'].includes(order.status) && (
-            <button className="inline-flex min-h-10 items-center justify-center rounded-lg border border-accent bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover disabled:opacity-60" disabled={actionId === 'shipped'} onClick={() => void updateOrder('shipped')} type="button">
+            <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover disabled:opacity-60" disabled={actionId === 'shipped'} onClick={() => void updateOrder('shipped')} type="button">
               {actionId === 'shipped' ? 'Sending...' : 'Mark sent'}
             </button>
           )}
           {order.delivery?.method === 'pickup' && order.sellerAction === 'pickup_ready' && <Badge tone="warning">Awaiting pickup</Badge>}
           {canSellerMarkPickupReady(order) && (
-            <button className="inline-flex min-h-10 items-center justify-center rounded-lg border border-accent bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover disabled:opacity-60" disabled={actionId === 'pickup-ready'} onClick={() => void updateOrder('pickup-ready')} type="button">
+            <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover disabled:opacity-60" disabled={actionId === 'pickup-ready'} onClick={() => void updateOrder('pickup-ready')} type="button">
               {actionId === 'pickup-ready' ? 'Notifying...' : 'Pickup ready'}
             </button>
           )}
@@ -101,7 +106,7 @@ export function OrderDetailPage() {
 
     if (!canBuyerConfirmOrder(order)) return null
     return (
-      <button className="inline-flex min-h-10 items-center justify-center rounded-lg border border-accent bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover disabled:opacity-60" disabled={actionId === 'confirm-delivery'} onClick={() => void updateOrder('confirm-delivery')} type="button">
+      <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover disabled:opacity-60" disabled={actionId === 'confirm-delivery'} onClick={() => void updateOrder('confirm-delivery')} type="button">
         {actionId === 'confirm-delivery' ? 'Confirming...' : order.delivery?.method === 'pickup' ? 'Confirm pickup done' : 'Confirm received'}
       </button>
     )
@@ -109,16 +114,19 @@ export function OrderDetailPage() {
 
   return (
     <AppShell active="profile" searchPlaceholder="Search orders..." showFooter={false}>
-      {!orderId && <EmptyState body="This order link is missing an order id." title="Order not found" />}
-      {orderResource.loading && <LoadingState label="Loading order details..." />}
-      {orderResource.error && <ErrorState message={orderResource.error} retry={orderResource.refetch} />}
-      {actionError && <ErrorState message={actionError} />}
+      <NavigationBackButton
+        className="mb-5"
+        fallback={sellerMode
+          ? { href: '/manage-shop/orders', label: 'Order management' }
+          : { href: '/orders/history', label: 'Orders' }}
+      />
+      {!orderId && <StatePanel action={<a className="button button-secondary min-h-11 px-5" href={withBasePath('/orders')}>View orders</a>} body="This order link is missing an order id." layout="page" title="Order unavailable" tone="unavailable" />}
+      {orderResource.initialLoading && <OrderDetailSkeleton />}
+      {orderResource.error && !orderResource.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void orderResource.refetch()} type="button">Retry</button>} body={orderResource.error} layout="page" title="Order unavailable" tone="unavailable" />}
+      {actionError && <InlineNotice title="Order was not updated" tone="error">{actionError}</InlineNotice>}
       {order && (
         <div className="space-y-6">
           <div className="rounded-2xl bg-accent-light/60 p-3 shadow-sm md:p-4">
-            <a className="mb-3 inline-flex items-center gap-2 text-xs font-bold text-foose-muted hover:text-accent md:text-sm" href={withBasePath(sellerMode ? '/manage-shop/orders' : '/orders')}>
-              <Icon name="arrow" /> Orders
-            </a>
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-1.5">
@@ -162,10 +170,10 @@ export function OrderDetailPage() {
               action={
                 !sellerMode && order.status === 'shipped' ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <button className="inline-flex min-h-9 items-center justify-center rounded-lg border border-foose-border bg-white px-3 text-xs font-bold text-foose-text hover:border-accent hover:text-accent disabled:opacity-60" disabled={!selectedItemIndexes.length || actionId === 'confirm-delivery'} onClick={() => void markReceived()} type="button">
+                    <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-3 text-xs font-bold text-foose-text hover:border-accent hover:text-accent disabled:opacity-60" disabled={!selectedItemIndexes.length || actionId === 'confirm-delivery'} onClick={() => void markReceived()} type="button">
                       Mark selected received
                     </button>
-                    <button className="inline-flex min-h-9 items-center justify-center rounded-lg border border-accent bg-accent px-3 text-xs font-bold text-white hover:bg-accent-hover disabled:opacity-60" disabled={actionId === 'confirm-delivery'} onClick={() => void markReceived()} type="button">
+                    <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-3 text-xs font-bold text-white hover:bg-accent-hover disabled:opacity-60" disabled={actionId === 'confirm-delivery'} onClick={() => void markReceived()} type="button">
                       Received all
                     </button>
                   </div>
@@ -181,14 +189,14 @@ export function OrderDetailPage() {
                     <input
                       aria-label={`Select ${item.title}`}
                       checked={selectedItemIndexes.includes(index)}
-                      className="size-4 shrink-0 accent-accent"
+                      className="size-5 shrink-0 accent-accent"
                       disabled={order.status !== 'shipped'}
                       onChange={() => toggleItem(index)}
                       onClick={(event) => event.stopPropagation()}
                       type="checkbox"
                     />
                   )}
-                  {itemImage(item) ? <img alt={item.title} className="size-12 shrink-0 rounded-lg object-cover sm:size-16" src={itemImage(item)} /> : <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-foose-surface-mid text-[9px] font-bold text-foose-faint sm:size-16">No image</span>}
+                  <SafeImage alt={item.title} className="size-12 shrink-0 rounded-lg object-cover sm:size-16" fallback="No image" fallbackClassName="text-[9px] font-bold" src={itemImage(item)} />
                   <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 sm:gap-3">
                     <div className="min-w-0">
                       <h2 className="truncate text-sm font-black text-foose-text">{item.title}</h2>
@@ -207,23 +215,24 @@ export function OrderDetailPage() {
             <span>Foose order support</span>
             <span className="font-semibold text-foose-text">Order #{order._id.slice(-8)}</span>
           </footer>
-          {selectedItem && (
-            <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-              <button aria-label="Close item details" className="absolute inset-0 bg-black/45" onClick={() => setSelectedItem(null)} type="button" />
-              <article className="relative z-10 w-full max-w-md rounded-2xl bg-white p-4 shadow-2xl md:p-5">
-                <button className="absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-full border border-foose-border bg-white text-foose-text hover:border-accent hover:text-accent" onClick={() => setSelectedItem(null)} type="button">
-                  <Icon name="close" size={17} />
-                </button>
-                {itemImage(selectedItem) ? <img alt={selectedItem.title} className="mb-4 aspect-square w-full rounded-xl object-cover" src={itemImage(selectedItem)} /> : <span className="mb-4 flex aspect-square w-full items-center justify-center rounded-xl bg-foose-surface-mid text-sm font-bold text-foose-faint">No image</span>}
-                <h2 className="pr-10 text-xl font-black text-foose-text">{selectedItem.title}</h2>
-                <div className="mt-3 grid gap-2 text-sm text-foose-muted">
+          <Dialog
+            description="Item details from this order"
+            onClose={() => setSelectedItem(null)}
+            open={Boolean(selectedItem)}
+            size="sm"
+            title={selectedItem?.title || 'Order item'}
+          >
+            {selectedItem && (
+              <div className="grid gap-4">
+                <SafeImage alt={selectedItem.title} className="aspect-square w-full rounded-2xl object-cover" fallback="No image" fallbackClassName="text-sm font-bold" src={itemImage(selectedItem)} />
+                <div className="grid gap-2 rounded-xl bg-foose-surface-low p-4 text-sm text-foose-muted">
                   <p><strong className="text-foose-text">Quantity:</strong> {selectedItem.quantity}</p>
                   <p><strong className="text-foose-text">Unit price:</strong> {formatMoney(selectedItem.price, order.currency)}</p>
                   <p><strong className="text-foose-text">Total:</strong> {formatMoney(selectedItem.price * selectedItem.quantity, order.currency)}</p>
                 </div>
-              </article>
-            </div>
-          )}
+              </div>
+            )}
+          </Dialog>
         </div>
       )}
     </AppShell>

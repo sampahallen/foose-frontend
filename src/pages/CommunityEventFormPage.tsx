@@ -1,27 +1,23 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, DropdownChevron, ErrorState, Icon, ImagePreviewInput, LoadingState } from '../components'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { AppShell, ButtonLink, Icon, ImagePreviewInput, InlineNotice, StatePanel } from '../components'
+import { ChoiceCardGroup, ErrorSummary, SubmitButton } from '../components/forms/FormControls'
+import { FormField, TextAreaField, TextField } from '../components/forms/FormField'
+import { FormActions, FormPage, FormSection } from '../components/forms/FormLayout'
+import { UnsavedChangesGuard } from '../components/forms/UnsavedChangesGuard'
+import { useLocalDraft } from '../components/forms/useLocalDraft'
+import { FormPageSkeleton } from '../components/operational/OperationalStates'
+import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { apiPost, apiPut } from '../lib/api'
 import { useApiResource } from '../hooks/useApiResource'
 import type { Event } from '../types/api'
 import { eventTypeLabel, normalizedEventType } from '../utils/events'
 import { getErrorMessage } from '../utils/errorMessage'
-import { getCurrentAppPathname, navigateTo } from '../utils/navigation'
+import { getCurrentAppPathname } from '../utils/navigation'
+import { navigateWithFlash } from '../utils/navigationFlash'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 const EVENT_DESCRIPTION_MAX = 60
-const eventTypeCard =
-  'flex min-h-28 w-full flex-col items-start gap-3 rounded-2xl border p-4 text-left transition hover:border-accent hover:bg-accent-light/60 focus:outline-none focus:ring-2 focus:ring-accent/20'
-const eventTypeCardActive = 'border-accent bg-accent-light text-foose-text shadow-sm shadow-accent/10'
-const eventTypeCardIdle = 'border-foose-border bg-white text-foose-text'
-
-type StyledPickerInputProps = {
-  defaultValue?: string
-  name: string
-  required?: boolean
-  type: 'date' | 'time'
-}
-
 function editEventId() {
   const match = getCurrentAppPathname().match(/^\/community\/events\/([^/]+)\/edit/)
   return match ? decodeURIComponent(match[1]).trim() : ''
@@ -38,45 +34,6 @@ function appendSelectedFile(formData: FormData, form: HTMLFormElement, name: str
   if (file && file.name && file.size > 0) formData.append(name, file)
 }
 
-function StyledPickerInput({ defaultValue = '', name, required = false, type }: StyledPickerInputProps) {
-  const inputRef = useRef<HTMLInputElement | null>(null)
-  const iconName = type === 'date' ? 'calendar' : 'clock'
-
-  function openPicker() {
-    const input = inputRef.current
-    if (!input) return
-    if (typeof input.showPicker === 'function') {
-      input.showPicker()
-      return
-    }
-    input.focus()
-  }
-
-  return (
-    <span className="group relative flex min-h-12 items-center rounded-xl border border-foose-border bg-white shadow-sm transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15 hover:border-accent/60">
-      <span className="pointer-events-none absolute left-3 inline-flex size-8 items-center justify-center rounded-full bg-accent-light text-accent">
-        <Icon name={iconName} size={17} />
-      </span>
-      <input
-        className="!h-12 !rounded-xl !border-0 !bg-transparent !py-0 !pl-12 !pr-12 text-sm font-bold text-foose-text outline-none [color-scheme:light] focus:!border-0 focus:!ring-0 [&::-webkit-calendar-picker-indicator]:opacity-0"
-        defaultValue={defaultValue}
-        name={name}
-        ref={inputRef}
-        required={required}
-        type={type}
-      />
-      <button
-        aria-label={`Open ${type} picker`}
-        className="absolute right-2 inline-flex size-8 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-foose-muted transition hover:border-accent hover:bg-accent hover:text-white"
-        onClick={openPicker}
-        type="button"
-      >
-        <DropdownChevron className="text-xs" />
-      </button>
-    </span>
-  )
-}
-
 export function CommunityEventFormPage() {
   const eventId = editEventId()
   const { user } = useAuth()
@@ -86,17 +43,74 @@ export function CommunityEventFormPage() {
   const [descriptionLength, setDescriptionLength] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [validationAttempt, setValidationAttempt] = useState(0)
+  const [title, setTitle] = useState('')
+  const [date, setDate] = useState('')
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
+  const [location, setLocation] = useState('')
+  const [description, setDescription] = useState('')
+  const [coverFiles, setCoverFiles] = useState<File[]>([])
+  const restoredRef = useRef(false)
   const activeType = selectedType || (event ? (normalizedEventType(event) as 'online-pop-up' | 'in-person-pop-up') : 'in-person-pop-up')
   const onlineRequiresShop = activeType === 'online-pop-up' && user?.hasShop === false
+  const draftValue = useMemo(() => ({ date, description, endTime, location, startTime, title, type: activeType }), [activeType, date, description, endTime, location, startTime, title])
+  const draft = useLocalDraft({
+    enabled: !eventResource.initialLoading,
+    formId: 'community-event',
+    onRestore: (saved) => {
+      restoredRef.current = true
+      if (saved.type === 'online-pop-up' || saved.type === 'in-person-pop-up') setSelectedType(saved.type)
+      if (typeof saved.title === 'string') setTitle(saved.title)
+      if (typeof saved.date === 'string') setDate(saved.date)
+      if (typeof saved.startTime === 'string') setStartTime(saved.startTime)
+      if (typeof saved.endTime === 'string') setEndTime(saved.endTime)
+      if (typeof saved.location === 'string') setLocation(saved.location)
+      if (typeof saved.description === 'string') setDescription(saved.description)
+    },
+    resourceId: eventId || 'new',
+    userId: user?._id,
+    value: draftValue,
+  })
+  const dirty = eventId
+    ? coverFiles.length > 0
+      || title !== (event?.title || '')
+      || date !== (event?.date ? event.date.slice(0, 10) : '')
+      || startTime !== (event?.startTime || '')
+      || endTime !== (event?.endTime || '')
+      || location !== (event?.location || '')
+      || description !== (event?.description || '')
+      || activeType !== (event ? normalizedEventType(event) : activeType)
+    : Boolean(title || date || startTime || endTime || location || description || coverFiles.length || selectedType)
 
   useEffect(() => {
-    setDescriptionLength(event?.description?.length || 0)
-  }, [event?.description])
+    if (!event || restoredRef.current) return
+    setTitle(event.title || '')
+    setDate(event.date ? event.date.slice(0, 10) : '')
+    setStartTime(event.startTime || '')
+    setEndTime(event.endTime || '')
+    setLocation(event.location || '')
+    setDescription(event.description || '')
+    setDescriptionLength(event.description?.length || 0)
+  }, [event])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
     const sourceData = new FormData(form)
+    const requiredErrors: Record<string, string> = {}
+    if (!String(sourceData.get('title') || '').trim()) requiredErrors['event-title'] = 'Enter an event title.'
+    if (!String(sourceData.get('date') || '').trim()) requiredErrors['event-date'] = 'Choose an event date.'
+    if (!String(sourceData.get('startTime') || '').trim()) requiredErrors['event-start-time'] = 'Choose a start time.'
+    if (activeType === 'online-pop-up' && !String(sourceData.get('endTime') || '').trim()) requiredErrors['event-end-time'] = 'Choose an end time.'
+    if (activeType === 'in-person-pop-up' && !String(sourceData.get('location') || '').trim()) requiredErrors['event-location'] = 'Enter the event location.'
+    if (Object.keys(requiredErrors).length) {
+      setFieldErrors(requiredErrors)
+      setValidationAttempt((attempt) => attempt + 1)
+      return
+    }
+    setFieldErrors({})
     const payload = new FormData()
     ;['type', 'title', 'date', 'startTime', 'description'].forEach((field) => appendText(payload, field, sourceData.get(field)))
     if (activeType === 'online-pop-up') {
@@ -117,7 +131,11 @@ export function CommunityEventFormPage() {
         const data = await apiPost<{ event: Event }>('/community/events', payload)
         savedEvent = data.event
       }
-      navigateTo(savedEvent?._id ? `/community/events/${savedEvent._id}/manage` : '/community?tab=events&scope=mine')
+      navigateWithFlash(
+        savedEvent?._id ? `/community/events/${savedEvent._id}/manage` : '/community?tab=events&scope=mine',
+        { message: `Your event was ${eventId ? 'updated' : 'created'}.`, title: 'Event saved', tone: 'success' },
+      )
+      draft.clearDraft()
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Could not save event'))
     } finally {
@@ -127,110 +145,70 @@ export function CommunityEventFormPage() {
 
   return (
     <AppShell active="community" searchPlaceholder="Search community...">
-      <div className="dashboard-head mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
-        <div>
-          <a className="back-link mb-6 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted hover:text-accent" href="/community?tab=events&scope=mine">
-            <Icon name="arrow" /> Back to events
-          </a>
-          <h1>{eventId ? 'Edit event' : 'Add event'}</h1>
-          <p>{eventId ? 'Update your community event details.' : 'Create an in-person or online pop-up for the Foose community.'}</p>
-        </div>
-      </div>
-
-      {eventId && eventResource.loading && <LoadingState label="Loading event..." />}
-      {eventId && eventResource.error && <ErrorState message={eventResource.error} retry={eventResource.refetch} />}
+      {eventId && !event && <NavigationBackButton className="mb-5" fallback={{ href: '/community?tab=events&scope=mine', label: 'My events' }} />}
+      {eventId && eventResource.initialLoading && <FormPageSkeleton label="Loading event editor" media />}
+      {eventId && eventResource.error && !eventResource.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void eventResource.refetch()} type="button">Retry</button>} body={eventResource.error} layout="page" title="Event unavailable" tone="unavailable" />}
 
       {(!eventId || event) && (
-        <section className="community-form-page rounded-2xl border border-foose-border bg-white p-4 shadow-sm md:p-7">
-          <form
-            className="mx-auto w-full max-w-3xl space-y-7 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-black [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-foose-border [&_input]:bg-white [&_input]:px-4 [&_input]:py-3 [&_input]:text-sm [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_textarea]:w-full [&_textarea]:rounded-xl [&_textarea]:border [&_textarea]:border-foose-border [&_textarea]:bg-white [&_textarea]:px-4 [&_textarea]:py-3 [&_textarea]:text-sm [&_textarea]:outline-none [&_textarea]:transition [&_textarea]:focus:border-accent [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-accent/15"
-            encType="multipart/form-data"
-            onSubmit={(event) => void handleSubmit(event)}
-          >
-            <div className="rounded-2xl border border-foose-border bg-foose-surface-low p-4 md:p-5">
-              <div className="mb-4">
-                <h2 className="text-lg font-black text-foose-text">Event details</h2>
-                <p className="mt-1 text-sm leading-6 text-foose-muted">Choose the pop-up format, schedule, and attendee-facing details.</p>
-              </div>
-              <div className="form-grid grid gap-5 sm:grid-cols-2 [&_.wide]:sm:col-span-2">
-                <div className="wide">
-                  <span className="mb-2 block text-sm font-black text-foose-text">Event type</span>
-                  <input name="type" type="hidden" value={activeType} />
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <button
-                      className={`${eventTypeCard} ${activeType === 'in-person-pop-up' ? eventTypeCardActive : eventTypeCardIdle}`}
-                      onClick={() => setSelectedType('in-person-pop-up')}
-                      type="button"
-                    >
-                      <span className="inline-flex size-10 items-center justify-center rounded-full bg-accent-light text-accent">
-                        <Icon name="location" />
-                      </span>
-                      <span>
-                        <strong className="block text-sm font-black">In-person pop-up</strong>
-                        <small className="mt-1 block text-xs leading-5 text-foose-muted">For physical events with a venue and meetup time.</small>
-                      </span>
-                    </button>
-                    <button
-                      className={`${eventTypeCard} ${activeType === 'online-pop-up' ? eventTypeCardActive : eventTypeCardIdle}`}
-                      onClick={() => setSelectedType('online-pop-up')}
-                      type="button"
-                    >
-                      <span className="inline-flex size-10 items-center justify-center rounded-full bg-accent-light text-accent">
-                        <Icon name="store" />
-                      </span>
-                      <span>
-                        <strong className="block text-sm font-black">Online pop-up</strong>
-                        <small className="mt-1 block text-xs leading-5 text-foose-muted">Host a timed shopping window from your DigiShop catalog.</small>
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              <label className="wide">
-                Title
-                <input defaultValue={event?.title || ''} name="title" placeholder="Accra Thrift Fest" required />
-              </label>
-              <label>
-                Date
-                <StyledPickerInput defaultValue={event?.date ? event.date.slice(0, 10) : ''} name="date" required type="date" />
-              </label>
-              <label>
-                {activeType === 'online-pop-up' ? 'Start time' : 'Time'}
-                <StyledPickerInput defaultValue={event?.startTime || ''} name="startTime" required type="time" />
-              </label>
-              {activeType === 'online-pop-up' ? (
-                <label>
-                  End time
-                  <StyledPickerInput defaultValue={event?.endTime || ''} name="endTime" required type="time" />
-                </label>
-              ) : (
-                <label>
-                  Location
-                  <input defaultValue={event?.location || ''} name="location" placeholder="Black Star Square, Accra" required />
-                </label>
-              )}
-              <label className="wide">
-                Description
-                <textarea
-                  defaultValue={event?.description || ''}
-                  maxLength={EVENT_DESCRIPTION_MAX}
-                  name="description"
-                  onChange={(input) => setDescriptionLength(input.target.value.length)}
-                  placeholder="Optional details for attendees"
-                  rows={3}
-                />
-                <span className="text-xs font-semibold text-foose-muted">{descriptionLength}/{EVENT_DESCRIPTION_MAX} characters</span>
-              </label>
-              </div>
-            </div>
+        <FormPage
+          description={eventId ? 'Update the schedule, attendee details, and cover shown to the community.' : 'Create an in-person or online pop-up for the Foose community.'}
+          eyebrow={<NavigationBackButton fallback={{ href: '/community?tab=events&scope=mine', label: 'My events' }} />}
+          title={eventId ? 'Edit event' : 'Add event'}
+          width="standard"
+        >
+          <form className="space-y-5" encType="multipart/form-data" noValidate onSubmit={(event) => void handleSubmit(event)}>
+            <UnsavedChangesGuard when={dirty && !submitting} />
+            {draft.hasRecoverableDraft && (
+              <InlineNotice
+                action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-white" onClick={() => draft.resumeDraft()} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-white" onClick={() => draft.discardDraft()} type="button">Discard</button></div>}
+                title="Continue your event draft?"
+              >Event details were saved on this device. Choose the cover image again if needed.</InlineNotice>
+            )}
+            <ErrorSummary errors={Object.entries(fieldErrors).map(([fieldId, message]) => ({ fieldId, message }))} focus={validationAttempt > 0} />
 
-            <div className="rounded-2xl border border-foose-border bg-white p-4 md:p-5">
-              <label className="wide">
-                Cover image
-                <span className="text-sm font-normal leading-6 text-foose-muted">Optional, but a strong banner makes promoted events feel more trustworthy.</span>
-                <ImagePreviewInput accept={ACCEPT_IMAGES} existingImages={event?.coverImage ? [event.coverImage] : []} maxFiles={1} name="coverImage" />
-                {eventId && <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Choose a new image only if you want to replace the current cover.</span>}
-              </label>
-            </div>
+            <FormSection description="Choose how people attend, then give the event a clear name." title="Event format">
+              <ChoiceCardGroup
+                label="Event type"
+                name="type"
+                onChange={(value) => setSelectedType(value as 'online-pop-up' | 'in-person-pop-up')}
+                options={[
+                  { description: 'For physical events with a venue and meetup time.', label: 'In-person pop-up', value: 'in-person-pop-up', visual: <Icon name="location" /> },
+                  { description: 'Host a timed shopping window from your DigiShop catalog.', label: 'Online pop-up', value: 'online-pop-up', visual: <Icon name="store" /> },
+                ]}
+                required
+                value={activeType}
+              />
+              <TextField error={fieldErrors['event-title']} id="event-title" label="Event title" name="title" onChange={(input) => setTitle(input.target.value)} placeholder="Accra Thrift Fest" required value={title} />
+            </FormSection>
+
+            <FormSection columns={2} description="Use the local event time. Attendees will see these details before they join." title="Schedule and place">
+              <TextField error={fieldErrors['event-date']} id="event-date" label="Date" name="date" onChange={(input) => setDate(input.target.value)} prefix={<Icon name="calendar" size={17} />} required type="date" value={date} />
+              <TextField error={fieldErrors['event-start-time']} id="event-start-time" label={activeType === 'online-pop-up' ? 'Start time' : 'Time'} name="startTime" onChange={(input) => setStartTime(input.target.value)} prefix={<Icon name="clock" size={17} />} required type="time" value={startTime} />
+              {activeType === 'online-pop-up' ? (
+                <TextField error={fieldErrors['event-end-time']} id="event-end-time" label="End time" name="endTime" onChange={(input) => setEndTime(input.target.value)} prefix={<Icon name="clock" size={17} />} required type="time" value={endTime} />
+              ) : (
+                <TextField error={fieldErrors['event-location']} id="event-location" label="Location" name="location" onChange={(input) => setLocation(input.target.value)} placeholder="Black Star Square, Accra" required value={location} />
+              )}
+              <TextAreaField
+                id="event-description"
+                label="Description"
+                maxLength={EVENT_DESCRIPTION_MAX}
+                name="description"
+                onChange={(input) => { setDescription(input.target.value); setDescriptionLength(input.target.value.length) }}
+                optional
+                placeholder="Useful details for attendees"
+                rows={3}
+                value={description}
+                wrapperClassName="form-field-wide"
+              />
+              <span className="sr-only" aria-live="polite">{descriptionLength} characters entered</span>
+            </FormSection>
+
+            <FormSection description="A wide, clear cover helps the event feel trustworthy and improves promotion cards." title="Cover image">
+              <FormField hint={eventId ? 'Choose a new image only if you want to replace the current cover.' : 'Optional. Upload a wide JPEG, PNG, or WebP image.'} htmlFor="coverImage" label="Event cover" optional>
+                <ImagePreviewInput accept={ACCEPT_IMAGES} aspect="wide" existingImages={event?.coverImage ? [event.coverImage] : []} id="coverImage" maxFiles={1} name="coverImage" onFilesChange={setCoverFiles} />
+              </FormField>
+            </FormSection>
 
             {activeType === 'online-pop-up' && (
               <div className="info-card flex flex-col gap-4 rounded-2xl border border-accent/25 bg-accent-light/60 p-4 shadow-sm md:flex-row md:p-5">
@@ -247,18 +225,16 @@ export function CommunityEventFormPage() {
               </div>
             )}
 
-            {error && <ErrorState message={error} />}
+            {error && <InlineNotice title="Event was not saved" tone="error">{error}</InlineNotice>}
 
-            <div className="form-actions flex flex-col-reverse gap-3 border-t border-foose-border pt-5 sm:flex-row sm:items-center sm:justify-end">
+            <FormActions sticky>
               <ButtonLink to="/community?tab=events&scope=mine" variant="secondary">
                 Cancel
               </ButtonLink>
-              <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting || onlineRequiresShop} type="submit">
-                {submitting ? 'Saving...' : eventId ? 'Save event' : 'Post event'}
-              </button>
-            </div>
+              <SubmitButton disabled={onlineRequiresShop} loading={submitting} loadingLabel="Saving event…">{eventId ? 'Save event' : 'Post event'}</SubmitButton>
+            </FormActions>
           </form>
-        </section>
+        </FormPage>
       )}
     </AppShell>
   )

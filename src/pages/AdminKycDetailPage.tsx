@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { AdminShell, Badge, ButtonLink, EmptyState, ErrorState, Icon, LoadingState } from '../components'
+import { AdminShell, Badge, ButtonLink, Dialog, Icon, InlineNotice, SafeImage, StatePanel, TextAreaField, useToast } from '../components'
+import { FormPageSkeleton } from '../components/operational/OperationalStates'
+import { NavigationBackButton } from '../components/navigation'
 import { roleLabels } from '../constants/roles'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiPut } from '../lib/api'
@@ -55,7 +57,7 @@ function DocumentPreview({ title, url }: { title: string; url?: string }) {
         )}
       </header>
       <div className="kyc-document-image overflow-hidden rounded-lg bg-foose-surface-mid [&_img]:h-full [&_img]:w-full [&_img]:object-cover image-frame">
-        {url ? <img alt={title} src={url} /> : <span className="image-placeholder flex min-h-32 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No image submitted</span>}
+        <SafeImage alt={title} className="h-full min-h-32 w-full object-cover" fallback="No image submitted" fallbackClassName="text-sm" src={url} />
       </div>
     </article>
   )
@@ -66,6 +68,10 @@ export function AdminKycDetailPage() {
   const resource = useApiResource<{ kyc: KycDetail }>(kycId ? `/admin/kyc/${kycId}` : null)
   const [actionError, setActionError] = useState('')
   const [busyAction, setBusyAction] = useState('')
+  const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [rejectionError, setRejectionError] = useState('')
+  const { showToast } = useToast()
 
   async function approve() {
     if (!kycId) return
@@ -74,6 +80,7 @@ export function AdminKycDetailPage() {
     try {
       await apiPut(`/admin/kyc/${kycId}/approve`)
       await resource.refetch()
+      showToast({ message: 'This identity record is approved.', title: 'KYC approved', tone: 'success' })
     } catch (requestError) {
       setActionError(getErrorMessage(requestError, 'Unable to approve KYC submission'))
     } finally {
@@ -83,15 +90,21 @@ export function AdminKycDetailPage() {
 
   async function reject() {
     if (!kycId) return
-    const reason = window.prompt('Reason for rejection')
-    if (!reason) return
-    setActionError('')
+    const reason = rejectionReason.trim()
+    if (!reason) {
+      setRejectionError('Add a clear reason so the seller knows what to correct.')
+      return
+    }
+    setRejectionError('')
     setBusyAction('reject')
     try {
       await apiPut(`/admin/kyc/${kycId}/reject`, { reason })
       await resource.refetch()
+      showToast({ message: 'The rejection reason is available to the seller.', title: 'KYC rejected', tone: 'info' })
+      setRejectionDialogOpen(false)
+      setRejectionReason('')
     } catch (requestError) {
-      setActionError(getErrorMessage(requestError, 'Unable to reject KYC submission'))
+      setRejectionError(getErrorMessage(requestError, 'Unable to reject KYC submission'))
     } finally {
       setBusyAction('')
     }
@@ -104,13 +117,11 @@ export function AdminKycDetailPage() {
   return (
     <AdminShell section="kyc">
       <section className="admin-page p-4 md:p-6 lg:p-8">
-        <a className="back-link mb-6 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted hover:text-accent" href="/admin/kyc">
-          <Icon name="arrow" /> Back to KYC queue
-        </a>
-        {!kycId && <EmptyState body="Open a KYC record from the admin queue." title="KYC record required" />}
-        {resource.loading && <LoadingState label="Loading KYC details..." />}
-        {resource.error && <ErrorState message={resource.error} retry={resource.refetch} />}
-        {actionError && <ErrorState message={actionError} />}
+        <NavigationBackButton className="mb-6" fallback={{ href: '/admin/kyc', label: 'KYC queue' }} />
+        {!kycId && <StatePanel action={<ButtonLink to="/admin/kyc">Return to KYC queue</ButtonLink>} body="Open a KYC record from the admin queue." layout="page" title="KYC record required" tone="unavailable" />}
+        {resource.initialLoading && <FormPageSkeleton label="Loading KYC details" media />}
+        {resource.error && !resource.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void resource.refetch()} type="button">Retry</button>} body={resource.error} layout="page" title="KYC record unavailable" tone="unavailable" />}
+        {actionError && <InlineNotice title="Review action failed" tone="error">{actionError}</InlineNotice>}
         {kyc && (
           <>
             <div className="admin-title mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
@@ -123,7 +134,17 @@ export function AdminKycDetailPage() {
                 <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={busyAction === 'approve'} onClick={() => void approve()} type="button">
                   {busyAction === 'approve' ? 'Approving...' : 'Approve'}
                 </button>
-                <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" disabled={busyAction === 'reject'} onClick={() => void reject()} type="button">
+                <button
+                  className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent"
+                  disabled={Boolean(busyAction)}
+                  onClick={() => {
+                    setActionError('')
+                    setRejectionError('')
+                    setRejectionReason('')
+                    setRejectionDialogOpen(true)
+                  }}
+                  type="button"
+                >
                   {busyAction === 'reject' ? 'Rejecting...' : 'Reject'}
                 </button>
               </div>
@@ -203,6 +224,56 @@ export function AdminKycDetailPage() {
                 Return to queue
               </ButtonLink>
             </div>
+
+            <Dialog
+              description={`Explain what ${sellerName} needs to correct before resubmitting.`}
+              dismissible={!busyAction}
+              footer={(
+                <>
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+                    disabled={Boolean(busyAction)}
+                    onClick={() => setRejectionDialogOpen(false)}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    aria-busy={busyAction === 'reject' || undefined}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-danger bg-foose-danger px-5 text-sm font-black text-white transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foose-danger disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={Boolean(busyAction)}
+                    onClick={() => void reject()}
+                    type="button"
+                  >
+                    {busyAction === 'reject' && <span aria-hidden="true" className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />}
+                    {busyAction === 'reject' ? 'Rejecting...' : 'Reject submission'}
+                  </button>
+                </>
+              )}
+              onClose={() => {
+                if (!busyAction) setRejectionDialogOpen(false)
+              }}
+              open={rejectionDialogOpen}
+              size="sm"
+              title="Reject KYC submission?"
+            >
+              <TextAreaField
+                autoFocus
+                error={rejectionError}
+                hint="This message will be visible to the seller. Be specific and avoid including sensitive information."
+                id="admin-kyc-detail-rejection-reason"
+                label="Reason for rejection"
+                maxLength={500}
+                onChange={(event) => {
+                  setRejectionReason(event.currentTarget.value)
+                  if (rejectionError) setRejectionError('')
+                }}
+                placeholder="For example: The selfie does not clearly match the submitted ID."
+                required
+                rows={5}
+                value={rejectionReason}
+              />
+            </Dialog>
           </>
         )}
       </section>

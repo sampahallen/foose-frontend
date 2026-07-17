@@ -1,15 +1,16 @@
-import type { MouseEvent } from 'react'
 import { useEffect, useMemo } from 'react'
 import { MdVerified } from 'react-icons/md'
-import { AppShell, Badge, ButtonLink, DropdownChevron, EmptyState, ErrorState, FavoriteButton, Icon, LightboxImage, LoadingState, ProductCard, SectionHeader, ShopReviewPanel } from '../components'
+import { AppShell, Badge, ButtonLink, DropdownChevron, FavoriteButton, Icon, InlineNotice, ListingImageSlider, ProductCard, RefreshIndicator, SectionHeader, ShopReviewPanel, StatePanel } from '../components'
+import { ListingDetailSkeleton, ProductBandSkeleton } from '../components/feedback/DiscoverySkeletons'
+import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useCart } from '../hooks/useCart'
 import { useListingRecommendationSignals } from '../hooks/useListingRecommendationSignals'
-import { useNavigationMemoryStore } from '../stores/navigationMemoryStore'
+import { useNavigationStore } from '../stores/navigationMemoryStore'
 import type { Listing, PaginatedListings } from '../types/api'
 import { formatMoney, getListingImage, getShop, getShopName, initials, listingMeta } from '../utils/format'
-import { getCurrentAppPathname, navigateTo, withBasePath } from '../utils/navigation'
+import { getCurrentAppPathname, navigateBack, navigateTo, withBasePath } from '../utils/navigation'
 
 function currentListingId() {
   return decodeURIComponent(getCurrentAppPathname().replace(/^\/listing\/?/, '')).trim()
@@ -84,18 +85,26 @@ function compactListings(items: Listing[] | undefined, currentId?: string, limit
 
 function ListingBand({
   action,
+  error,
   listings,
+  loading,
+  retry,
   title,
 }: {
   action?: string
+  error?: string
   listings: Listing[]
+  loading?: boolean
+  retry?: () => void
   title: string
 }) {
-  if (!listings.length) return null
+  if (!listings.length && !loading && !error) return null
 
   return (
     <section className="mt-8">
       <SectionHeader title={title} action={action ? <a href={withBasePath(action)}>View more</a> : undefined} />
+      {loading && <ProductBandSkeleton label={`Loading ${title.toLowerCase()}`} />}
+      {error && <InlineNotice action={retry ? <button className="font-black text-accent" onClick={retry} type="button">Retry</button> : undefined} title={`${title} unavailable`} tone="error">{error}</InlineNotice>}
       <div className="flex gap-3 overflow-x-auto pb-3 [scrollbar-width:thin] [&_.product-card]:w-[132px] [&_.product-card]:shrink-0 sm:[&_.product-card]:w-[148px] md:[&_.product-card]:w-[160px] lg:[&_.product-card]:w-[172px]">
         {listings.map((listing) => (
           <ProductCard key={listing._id} listing={listing} />
@@ -110,22 +119,19 @@ export function RetailDetailPage() {
   const listingId = currentListingId()
   const listingResource = useApiResource<{ listing: Listing }>(listingId ? `/listings/${listingId}` : null)
   const { addListing } = useCart()
-  const clearListingReturn = useNavigationMemoryStore((state) => state.clearListingReturn)
-  const listingReturn = useNavigationMemoryStore((state) => state.listingReturn)
+  const isModal = useNavigationStore((state) => (
+    state.entries.find((entry) => entry.id === state.currentEntryId)?.presentation === 'modal'
+  ))
   const listing = listingResource.data?.listing
   const shop = listing ? getShop(listing) : undefined
   const shopId = shopIdValue(listing?.shopId)
   const sellerListingsResource = useApiResource<{ listings: Listing[] }>(shopId ? `/listings/shop/${shopId}` : null, Boolean(shopId))
   const relatedListingsResource = useApiResource<PaginatedListings>(
-    listing?.category ? `/search?category=${encodeURIComponent(listing.category)}&limit=12&sort=newest` : null,
+    listing?.category ? `/search/items?category=${encodeURIComponent(listing.category)}&limit=12&sort=newest` : null,
     Boolean(listing?.category),
   )
   const mainImage = listing ? getListingImage(listing) : undefined
-  const galleryItems = listing?.images?.length
-    ? listing.images.map((image, index) => ({ alt: `${listing.title} image ${index + 1}`, src: image }))
-    : mainImage
-      ? [{ alt: listing?.title || 'Listing image', src: mainImage }]
-      : []
+  const listingImages = listing?.images?.length ? listing.images : mainImage ? [mainImage] : []
   const sellerId = shopOwnerId(shop?.ownerId)
   const askQuestionHref = sellerChatHref({ includeListing: true, listingId, sellerId, userId: user?._id })
   const messageSellerHref = sellerChatHref({ listingId, sellerId, userId: user?._id })
@@ -141,7 +147,6 @@ export function RetailDetailPage() {
     () => compactListings(relatedListingsResource.data?.results, listing?._id, 6).filter((item) => shopIdValue(item.shopId) !== shopId),
     [listing?._id, relatedListingsResource.data?.results, shopId],
   )
-  const isModal = Boolean(listingReturn)
   useListingRecommendationSignals(listing?._id, Boolean(user))
 
   useEffect(() => {
@@ -174,54 +179,25 @@ export function RetailDetailPage() {
   }
 
   function closeListing() {
-    const target = listingReturn?.href || withBasePath('/browse')
-    window.history.replaceState(null, '', target)
-    window.dispatchEvent(new PopStateEvent('popstate'))
-    window.setTimeout(() => {
-      window.scrollTo({ top: listingReturn?.scrollY || 0 })
-      clearListingReturn()
-    }, 0)
-  }
-
-  function handleBrowseReturn(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault()
-    closeListing()
+    navigateBack({ fallback: '/browse' })
   }
 
   const detailContent = (
     <>
-      <a className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted transition hover:text-accent" href={listingReturn?.href || withBasePath('/browse')} onClick={handleBrowseReturn}>
-        <Icon name="arrow" /> Browse
-      </a>
-      {!listingId && <EmptyState body="Open a listing from the marketplace to see full details." title="Listing required" />}
-      {listingResource.loading && <LoadingState label="Loading listing..." />}
-      {listingResource.error && <ErrorState message={listingResource.error} retry={listingResource.refetch} />}
+      <NavigationBackButton className="mb-5" fallback={{ href: '/browse', label: 'Browse' }} />
+      {!listingId && <StatePanel action={<ButtonLink to="/browse">Browse marketplace items</ButtonLink>} body="This link does not identify a marketplace listing." layout="page" title="Listing link is incomplete" tone="unavailable" />}
+      {listingResource.initialLoading && <ListingDetailSkeleton />}
+      <RefreshIndicator active={listingResource.refreshing} className="mb-4" label="Refreshing listing details" />
+      {listingResource.error && <StatePanel action={<button className="button button-secondary" onClick={listingResource.refetch} type="button">Try again</button>} body={listingResource.error} layout="page" title={listingResource.errorMeta?.status === 404 ? 'This listing is no longer available' : 'Listing could not load'} tone={listingResource.errorMeta?.status === 403 ? 'permission' : listingResource.errorMeta?.status === 404 ? 'unavailable' : 'error'} />}
       {listing && (
         <>
+          {listing.status === 'sold' && <InlineNotice className="mb-4" title="This item has sold" tone="info">You can still review its details and discover similar active listings below.</InlineNotice>}
           <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.62fr)] lg:items-start xl:gap-8">
             <section className="space-y-3 lg:sticky lg:top-24">
-              <div className="relative overflow-hidden rounded-lg bg-foose-surface-mid image-frame lg:max-h-[calc(100dvh-9rem)] [&_img]:h-full [&_img]:w-full [&_img]:object-cover">
-                {mainImage ? (
-                  <LightboxImage alt={listing.title} index={0} items={galleryItems} src={mainImage} />
-                ) : (
-                  <span className="flex min-h-72 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No image</span>
-                )}
+              <div className="relative">
+                <ListingImageSlider images={listingImages} key={listing._id} title={listing.title} />
                 <FavoriteButton className="absolute right-3 top-3 z-10 inline-flex size-10 items-center justify-center rounded-full border border-foose-border bg-white/95 text-foose-text shadow transition hover:bg-accent hover:text-white [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />
               </div>
-              {!!listing.images?.length && (
-                <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-                  {listing.images.slice(0, 6).map((image, index) => (
-                    <LightboxImage
-                      alt={`${listing.title} thumbnail ${index + 1}`}
-                      className="aspect-square overflow-hidden rounded-md border border-foose-border bg-foose-surface-low [&_img]:h-full [&_img]:w-full [&_img]:object-cover"
-                      index={index}
-                      items={galleryItems}
-                      key={image}
-                      src={image}
-                    />
-                  ))}
-                </div>
-              )}
             </section>
 
             <aside className="flex flex-col gap-4">
@@ -254,7 +230,7 @@ export function RetailDetailPage() {
                     {listing.hashtags.map((tag) => (
                       <a
                         className="rounded-full bg-accent-light px-3 py-1 text-xs font-black text-accent transition hover:bg-accent hover:text-white"
-                        href={withBasePath(`/browse?q=${encodeURIComponent(tag)}&type=${listing.type}`)}
+                        href={withBasePath(`/search?tag=${encodeURIComponent(tag.replace(/^#+/, ''))}&tab=all`)}
                         key={tag}
                       >
                         #{tag}
@@ -351,8 +327,8 @@ export function RetailDetailPage() {
             </aside>
           </div>
 
-          <ListingBand action={shop?.slug ? `/shops/${shop.slug}` : undefined} listings={moreFromSeller} title="More from this seller" />
-          <ListingBand action={listing.category ? `/browse?category=${encodeURIComponent(listing.category)}` : '/browse'} listings={youMightLike} title="You might also like" />
+          <ListingBand action={shop?.slug ? `/shops/${shop.slug}` : undefined} error={sellerListingsResource.error} listings={moreFromSeller} loading={sellerListingsResource.initialLoading} retry={sellerListingsResource.refetch} title="More from this seller" />
+          <ListingBand action={listing.category ? `/browse?category=${encodeURIComponent(listing.category)}` : '/browse'} error={relatedListingsResource.error} listings={youMightLike} loading={relatedListingsResource.initialLoading} retry={relatedListingsResource.refetch} title="You might also like" />
         </>
       )}
     </>

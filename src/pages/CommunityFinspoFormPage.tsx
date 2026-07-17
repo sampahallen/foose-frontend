@@ -1,10 +1,19 @@
-import { useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, ErrorState, HashtagInput, Icon, ImagePreviewInput, LightboxImage, LoadingState } from '../components'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { AppShell, ButtonLink, HashtagInput, ImagePreviewInput, InlineNotice, LightboxImage, StatePanel } from '../components'
+import { ErrorSummary, SubmitButton } from '../components/forms/FormControls'
+import { FormField, TextAreaField } from '../components/forms/FormField'
+import { FormActions, FormPage, FormSection } from '../components/forms/FormLayout'
+import { UnsavedChangesGuard } from '../components/forms/UnsavedChangesGuard'
+import { useLocalDraft } from '../components/forms/useLocalDraft'
+import { FormPageSkeleton } from '../components/operational/OperationalStates'
+import { NavigationBackButton } from '../components/navigation'
 import { useApiResource } from '../hooks/useApiResource'
+import { useAuth } from '../hooks/useAuth'
 import { apiPost, apiPut } from '../lib/api'
 import type { GalleryPost } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
-import { getCurrentAppPathname, navigateTo } from '../utils/navigation'
+import { getCurrentAppPathname } from '../utils/navigation'
+import { navigateWithFlash } from '../utils/navigationFlash'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 
@@ -25,16 +34,53 @@ function appendSelectedFile(formData: FormData, form: HTMLFormElement, name: str
 }
 
 export function CommunityFinspoFormPage() {
+  const { user } = useAuth()
   const postId = editFinspoId()
   const postResource = useApiResource<{ post: GalleryPost }>(postId ? `/community/gallery/${postId}` : null)
   const post = postResource.data?.post
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [caption, setCaption] = useState('')
+  const [tags, setTags] = useState<string[]>([])
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [imageMissing, setImageMissing] = useState(false)
+  const [validationAttempt, setValidationAttempt] = useState(0)
+  const restoredRef = useRef(false)
+  const dirty = postId
+    ? selectedFiles.length > 0 || caption !== (post?.caption || '') || tags.join('\u0000') !== (post?.tags || []).join('\u0000')
+    : Boolean(caption || tags.length || selectedFiles.length)
+  const draftValue = useMemo(() => ({ caption, tags }), [caption, tags])
+  const draft = useLocalDraft({
+    enabled: !postResource.initialLoading,
+    formId: 'finspo',
+    onRestore: (saved) => {
+      restoredRef.current = true
+      if (typeof saved.caption === 'string') setCaption(saved.caption)
+      if (Array.isArray(saved.tags)) setTags(saved.tags.filter((tag): tag is string => typeof tag === 'string'))
+    },
+    resourceId: postId || 'new',
+    userId: user?._id,
+    value: draftValue,
+  })
+
+  useEffect(() => {
+    if (post && !restoredRef.current) {
+      setCaption(post.caption || '')
+      setTags(post.tags || [])
+    }
+  }, [post])
 
   async function submitFinspo(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
     const sourceData = new FormData(form)
+    const imageInput = form.elements.namedItem('image') as HTMLInputElement | null
+    if (!postId && !imageInput?.files?.length) {
+      setImageMissing(true)
+      setValidationAttempt((attempt) => attempt + 1)
+      return
+    }
+    setImageMissing(false)
     const payload = new FormData()
     appendText(payload, 'caption', sourceData.get('caption'))
     payload.append('tags', String(sourceData.get('tags') || '').trim())
@@ -48,7 +94,8 @@ export function CommunityFinspoFormPage() {
       } else {
         await apiPost('/community/gallery', payload)
       }
-      navigateTo('/community?tab=finspo&scope=mine')
+      draft.clearDraft()
+      navigateWithFlash('/community?tab=finspo&scope=mine', { message: `Your Finspo was ${postId ? 'updated' : 'posted'}.`, title: 'Finspo saved', tone: 'success' })
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Could not save Finspo'))
     } finally {
@@ -58,54 +105,55 @@ export function CommunityFinspoFormPage() {
 
   return (
     <AppShell active="community" searchPlaceholder="Search Finspo...">
-      <div className="dashboard-head mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
-        <div>
-          <a className="back-link mb-6 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted hover:text-accent" href="/community?tab=finspo&scope=mine">
-            <Icon name="arrow" /> Back to Finspo
-          </a>
-          <h1>{postId ? 'Edit Finspo' : 'Post Finspo'}</h1>
-          <p>{postId ? 'Update your inspiration post.' : 'Share a full-ratio image with the Foose community.'}</p>
-        </div>
-      </div>
-
-      {postId && postResource.loading && <LoadingState label="Loading Finspo..." />}
-      {postId && postResource.error && <ErrorState message={postResource.error} retry={postResource.refetch} />}
+      {postId && !post && <NavigationBackButton className="mb-5" fallback={{ href: '/community?tab=finspo&scope=mine', label: 'My Finspo' }} />}
+      {postId && postResource.initialLoading && <FormPageSkeleton label="Loading Finspo editor" media />}
+      {postId && postResource.error && !postResource.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void postResource.refetch()} type="button">Retry</button>} body={postResource.error} layout="page" title="Finspo unavailable" tone="unavailable" />}
 
       {(!postId || post) && (
-        <section className="form-card rounded-xl border border-foose-border bg-foose-surface p-5 shadow-sm md:p-7 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-foose-border [&_input]:bg-foose-surface [&_input]:px-3 [&_input]:py-3 [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-foose-border [&_select]:bg-foose-surface [&_select]:px-3 [&_select]:py-3 [&_select]:outline-none [&_select]:transition [&_select]:focus:border-accent [&_select]:focus:ring-2 [&_select]:focus:ring-accent/15 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-foose-border [&_textarea]:bg-foose-surface [&_textarea]:px-3 [&_textarea]:py-3 [&_textarea]:outline-none [&_textarea]:transition [&_textarea]:focus:border-accent [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-accent/15 max-lg:rounded-lg max-lg:p-4 large community-form-page py-8">
-          <form className="mx-auto w-full max-w-3xl space-y-6" encType="multipart/form-data" onSubmit={(event) => void submitFinspo(event)}>
-            {post?.imageUrl && (
-              <div className="current-finspo-image overflow-hidden rounded-lg border border-foose-border bg-foose-surface-mid [&_.lightbox-trigger]:h-full [&_.lightbox-trigger]:w-full [&_img]:h-full [&_img]:w-full [&_img]:object-contain aspect-[4/3]">
+        <FormPage
+          aside={post?.imageUrl ? (
+            <div className="overflow-hidden rounded-2xl border border-foose-border bg-white p-3 shadow-sm">
+              <p className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-foose-faint">Current image</p>
+              <div className="overflow-hidden rounded-xl bg-foose-surface-low [&_.lightbox-trigger]:w-full [&_img]:h-auto [&_img]:max-h-[65dvh] [&_img]:w-full [&_img]:object-contain">
                 <LightboxImage alt={post.caption || 'Current Finspo'} src={post.imageUrl} />
               </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-foose-border bg-accent-light/30 p-5 text-sm leading-6 text-foose-muted">
+              <strong className="mb-1 block font-display text-lg text-foose-text">Full-ratio preview</strong>
+              Your image keeps its original proportions in Finspo. Nothing is cropped when you publish.
+            </div>
+          )}
+          description={postId ? 'Refine the image, caption, and searchable tags on your inspiration post.' : 'Share a full-ratio image with the Foose community.'}
+          eyebrow={<NavigationBackButton fallback={{ href: '/community?tab=finspo&scope=mine', label: 'My Finspo' }} />}
+          title={postId ? 'Edit Finspo' : 'Post Finspo'}
+          width="wide"
+        >
+          <form className="space-y-5" encType="multipart/form-data" noValidate onSubmit={(event) => void submitFinspo(event)}>
+            <UnsavedChangesGuard when={!submitting && dirty} />
+            {draft.hasRecoverableDraft && (
+              <InlineNotice
+                action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-white" onClick={() => draft.resumeDraft()} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-white" onClick={() => draft.discardDraft()} type="button">Discard</button></div>}
+                title="Continue your Finspo draft?"
+              >Caption and hashtags were saved on this device. Choose the image again before publishing.</InlineNotice>
             )}
-            <div className="form-grid grid gap-5 sm:grid-cols-2 [&_.wide]:sm:col-span-2">
-              <label className="wide">
-                Image
-                <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="image" required={!postId} />
-                {postId && <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Choose a new image only if you want to replace the current post image.</span>}
-              </label>
-              <label className="wide">
-                Caption
-                <textarea defaultValue={post?.caption || ''} name="caption" rows={5} />
-              </label>
-              <div className="wide">
-                <HashtagInput initialTags={post?.tags} label="Hashtags" name="tags" placeholder="#streetwear" />
-              </div>
-            </div>
-
-            {error && <ErrorState message={error} />}
-
-            <div className="form-actions flex flex-wrap items-center gap-3">
-              <ButtonLink to="/community?tab=finspo&scope=mine" variant="secondary">
-                Cancel
-              </ButtonLink>
-              <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting} type="submit">
-                {submitting ? 'Saving...' : postId ? 'Save Finspo' : 'Publish Finspo'}
-              </button>
-            </div>
+            <ErrorSummary errors={imageMissing ? [{ fieldId: 'finspo-image', message: 'Choose an image to publish this Finspo.' }] : []} focus={validationAttempt > 0} />
+            <FormSection description="Use a clear JPEG, PNG, or WebP image. The original aspect ratio is preserved." title="Image">
+              <FormField error={imageMissing ? 'Choose an image before publishing.' : undefined} hint={postId ? 'Choose a new image only if you want to replace the current post image.' : 'Files are not stored in recovered drafts and must be selected again.'} htmlFor="finspo-image" label="Finspo image" required={!postId}>
+                <ImagePreviewInput accept={ACCEPT_IMAGES} aspect="original" id="finspo-image" maxFiles={1} name="image" onFilesChange={setSelectedFiles} required={!postId} />
+              </FormField>
+            </FormSection>
+            <FormSection description="A short caption and a few intentional tags make your post easier to discover." title="Post details">
+              <TextAreaField id="finspo-caption" label="Caption" maxLength={1200} name="caption" onChange={(event) => setCaption(event.target.value)} optional placeholder="What inspired this look?" rows={5} value={caption} />
+              <HashtagInput initialTags={tags} label="Hashtags" name="tags" onChange={setTags} placeholder="#streetwear" />
+            </FormSection>
+            {error && <InlineNotice title="Finspo was not saved" tone="error">{error}</InlineNotice>}
+            <FormActions sticky>
+              <ButtonLink to="/community?tab=finspo&scope=mine" variant="secondary">Cancel</ButtonLink>
+              <SubmitButton loading={submitting} loadingLabel="Saving Finspo…">{postId ? 'Save Finspo' : 'Publish Finspo'}</SubmitButton>
+            </FormActions>
           </form>
-        </section>
+        </FormPage>
       )}
     </AppShell>
   )

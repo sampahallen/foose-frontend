@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react'
 import { IoMegaphone } from 'react-icons/io5'
-import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, Icon, LightboxImage, LoadingState, SectionHeader, SelectControl } from '../components'
+import { AppShell, Badge, ButtonLink, ConfirmDialog, FloatingCreateButton, Icon, InlineNotice, LightboxImage, SafeImage, SectionHeader, SelectControl, StatePanel, useToast } from '../components'
+import { ManagementSkeleton } from '../components/operational/OperationalStates'
+import { NavigationBackButton } from '../components/navigation'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiDelete, apiPost } from '../lib/api'
 import type { Event, Listing } from '../types/api'
 import { concreteEventListings, eventHostName, eventTimeLabel, eventTimeTerm, eventTypeLabel, eventWindowHasClosed, eventWindowHasOpened, isOnlinePopUp } from '../utils/events'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatMoney, getListingImage, listingMeta } from '../utils/format'
-import { getCurrentAppPathname, navigateTo, withBasePath } from '../utils/navigation'
+import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
+import { navigateWithFlash } from '../utils/navigationFlash'
 import { eventPromotionPackages, startPromotionCheckout, type PromotionPackageName } from '../utils/promotions'
 
 function eventIdFromPath() {
@@ -26,6 +29,7 @@ function isPromoted(event: Event) {
 }
 
 export function EventManagementPage() {
+  const { showToast } = useToast()
   const eventId = eventIdFromPath()
   const eventResource = useApiResource<{ event: Event }>(eventId ? `/community/events/${eventId}/manage` : null, Boolean(eventId))
   const event = eventResource.data?.event
@@ -37,6 +41,9 @@ export function EventManagementPage() {
   const [selectedListingId, setSelectedListingId] = useState('')
   const [actionError, setActionError] = useState('')
   const [actionStatus, setActionStatus] = useState('')
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [eventPromotionPackage, setEventPromotionPackage] = useState<PromotionPackageName>('basic')
   const catalogOpen = event ? eventWindowHasOpened(event) && !eventWindowHasClosed(event) : false
 
@@ -53,6 +60,7 @@ export function EventManagementPage() {
       setSelectedListingId('')
       setActionStatus('Listing added to the pop-up catalog.')
       await refreshEvent()
+      showToast({ message: 'The listing is now part of this online pop-up.', title: 'Listing attached', tone: 'success' })
     } catch (err) {
       setActionError(getErrorMessage(err, 'Could not add listing to this event'))
     }
@@ -65,6 +73,7 @@ export function EventManagementPage() {
       await apiDelete(`/community/events/${eventId}/listings/${listingId}`)
       setActionStatus('Listing removed from the pop-up catalog.')
       await refreshEvent()
+      showToast({ message: 'The listing was removed from this pop-up only.', title: 'Listing detached', tone: 'success' })
     } catch (err) {
       setActionError(getErrorMessage(err, 'Could not remove listing from this event'))
     }
@@ -82,13 +91,16 @@ export function EventManagementPage() {
   }
 
   async function deleteEvent() {
-    if (!window.confirm('Delete this event?')) return
-    setActionError('')
+    if (!event) return
+    setDeleteError('')
+    setDeleteBusy(true)
     try {
       await apiDelete(`/community/events/${eventId}`)
-      navigateTo('/community?tab=events&scope=mine')
+      navigateWithFlash('/community?tab=events&scope=mine', { message: 'The event was removed from your event list.', title: 'Event deleted', tone: 'success' })
     } catch (err) {
-      setActionError(getErrorMessage(err, 'Could not delete this event'))
+      setDeleteError(getErrorMessage(err, 'Could not delete this event'))
+    } finally {
+      setDeleteBusy(false)
     }
   }
 
@@ -96,7 +108,7 @@ export function EventManagementPage() {
     const image = getListingImage(listing)
     return (
       <article className="event-catalog-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 overflow-hidden p-0 [&_img]:aspect-[4/3] [&_img]:w-full [&_img]:object-cover [&_.image-placeholder]:aspect-[4/3] [&_.image-placeholder]:w-full [&_.image-placeholder]:object-cover [&>div]:flex [&>div]:flex-col [&>div]:gap-3 [&>div]:p-4 max-lg:rounded-lg max-lg:p-3" key={listing._id}>
-        {image ? <img alt="" src={image} /> : <span className="image-placeholder flex min-h-32 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No image</span>}
+        <SafeImage alt="" className="image-placeholder aspect-[4/3] w-full object-cover" fallback="No image" fallbackClassName="min-h-32 text-sm" src={image} />
         <div>
           <p className="product-meta text-xs uppercase tracking-wide text-foose-faint">{listingMeta(listing)}</p>
           <h3>{listing.title}</h3>
@@ -118,19 +130,17 @@ export function EventManagementPage() {
     <AppShell active="community" searchPlaceholder="Search events...">
       <div className="dashboard-head mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
         <div>
-          <a className="back-link mb-6 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted hover:text-accent" href={withBasePath('/community?tab=events&scope=mine')}>
-            <Icon name="arrow" /> Back to my events
-          </a>
+          <NavigationBackButton className="mb-6" fallback={{ href: '/community?tab=events&scope=mine', label: 'My events' }} />
           <h1>{event?.title || 'Event management'}</h1>
           {event && <p>{eventTimeLabel(event)} - {eventTypeLabel(event)}</p>}
         </div>
       </div>
 
-      {!eventId && <EmptyState body="This management link is missing an event id." title="Event not found" />}
-      {eventResource.loading && <LoadingState label="Loading event..." />}
-      {eventResource.error && <ErrorState message={eventResource.error} retry={eventResource.refetch} />}
-      {actionError && <ErrorState message={actionError} />}
-      {actionStatus && <p className="success-copy font-bold text-accent rounded-lg bg-foose-success-bg px-4 py-3 text-foose-success">{actionStatus}</p>}
+      {!eventId && <StatePanel action={<ButtonLink to="/community?tab=events&scope=mine">View my events</ButtonLink>} body="This management link is missing an event id." layout="page" title="Event unavailable" tone="unavailable" />}
+      {eventResource.initialLoading && <ManagementSkeleton label="Loading event workspace" />}
+      {eventResource.error && !eventResource.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void eventResource.refetch()} type="button">Retry</button>} body={eventResource.error} layout="page" title="Event unavailable" tone="unavailable" />}
+      {actionError && <InlineNotice title="Event action failed" tone="error">{actionError}</InlineNotice>}
+      {actionStatus && <InlineNotice tone="success">{actionStatus}</InlineNotice>}
 
       {event && (
         <>
@@ -186,7 +196,15 @@ export function EventManagementPage() {
                     </button>
                   </span>
                 )}
-                <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void deleteEvent()} type="button">
+                <button
+                  className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent"
+                  onClick={() => {
+                    setActionError('')
+                    setDeleteError('')
+                    setDeleteDialogOpen(true)
+                  }}
+                  type="button"
+                >
                   Delete
                 </button>
               </div>
@@ -196,7 +214,6 @@ export function EventManagementPage() {
           {onlineEvent ? (
             <section className="event-management-section rounded-xl border border-foose-border bg-foose-surface p-5">
               <SectionHeader
-                action={<ButtonLink to={`/listings/new?eventId=${encodeURIComponent(event._id)}`}>Add new listing</ButtonLink>}
                 eyebrow={catalogOpen ? 'Shopping window is open' : 'Buyers can preview and cart these items before checkout opens'}
                 title="Online pop-up catalog"
               />
@@ -216,9 +233,9 @@ export function EventManagementPage() {
                   Add to pop-up
                 </button>
               </div>
-              {sellerListings.loading && <LoadingState label="Loading your catalog..." />}
-              {sellerListings.error && <ErrorState message={sellerListings.error} retry={sellerListings.refetch} />}
-              {!catalogListings.length && <EmptyState body="Attach existing listings or create a new one for this online pop-up." title="No pop-up listings yet" />}
+              {sellerListings.initialLoading && <ManagementSkeleton label="Loading your pop-up catalog" />}
+              {sellerListings.error && !sellerListings.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void sellerListings.refetch()} type="button">Retry</button>} body={sellerListings.error} layout="section" title="Catalog unavailable" tone="error" />}
+              {!catalogListings.length && <StatePanel body="Attach an existing listing or use the plus button to create one for this online pop-up." layout="section" title="No pop-up listings yet" tone="empty" />}
               {!!catalogListings.length && <div className="event-catalog-grid grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">{catalogListings.map(renderCatalogCard)}</div>}
             </section>
           ) : (
@@ -232,6 +249,29 @@ export function EventManagementPage() {
           )}
         </>
       )}
+      {event && (
+        <ConfirmDialog
+          busy={deleteBusy}
+          confirmLabel="Delete event"
+          description={(
+            <span className="grid gap-3">
+              <span><strong>{event.title}</strong> will be removed from your event list and Community. This action cannot be undone.</span>
+              {deleteError && <span className="rounded-xl border border-foose-danger/30 bg-foose-danger-bg/40 p-3 font-semibold text-foose-danger" role="alert">{deleteError}</span>}
+            </span>
+          )}
+          onCancel={() => {
+            if (!deleteBusy) {
+              setDeleteDialogOpen(false)
+              setDeleteError('')
+            }
+          }}
+          onConfirm={() => void deleteEvent()}
+          open={deleteDialogOpen}
+          title="Delete this event?"
+          tone="destructive"
+        />
+      )}
+      {event && onlineEvent && <FloatingCreateButton href={`/listings/new?eventId=${encodeURIComponent(event._id)}`} label="Add listing" />}
     </AppShell>
   )
 }

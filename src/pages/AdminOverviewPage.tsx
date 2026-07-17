@@ -1,4 +1,5 @@
-import { AdminShell, EmptyState, ErrorState, LoadingState, StatCard } from '../components'
+import { AdminShell, StatePanel, StatCard } from '../components'
+import { AdminTableSkeleton } from '../components/operational/OperationalStates'
 import { getAppName } from '../config/env'
 import { useApiResource } from '../hooks/useApiResource'
 import type { AdminStats } from '../types/api'
@@ -17,8 +18,8 @@ export function AdminOverviewPage() {
             <p>Live metrics for {brand}.</p>
           </div>
         </div>
-        {stats.loading && <LoadingState label="Loading admin stats…" />}
-        {stats.error && <ErrorState message={stats.error} retry={stats.refetch} />}
+        {stats.initialLoading && <AdminTableSkeleton label="Loading marketplace health" />}
+        {stats.error && !stats.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void stats.refetch()} type="button">Retry</button>} body={stats.error} layout="section" title="Marketplace metrics unavailable" tone="error" />}
         {stats.data && (
           <>
             <div className="stats-row grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
@@ -27,7 +28,7 @@ export function AdminOverviewPage() {
               <StatCard icon="box" label="Active listings" value={String(stats.data.listings)} note="Marketplace supply" />
               <StatCard icon="money" label="Delivered revenue" value={formatMoney(stats.data.revenue)} note="Completed orders" />
             </div>
-            <EmptyState body="Charts can plug in when analytics endpoints are added." title="Analytics" />
+            <StatePanel body="Trend charts will appear here when historical analytics are available." layout="section" title="Analytics are coming soon" tone="info" />
           </>
         )}
       </section>

@@ -348,7 +348,7 @@ function SelectControlState({
             return (
               <button
                 aria-selected={active}
-                className={`flex min-h-10 w-full items-center justify-between gap-4 rounded-lg px-3 text-left text-sm font-semibold transition hover:bg-accent-light hover:text-accent focus:bg-accent-light focus:text-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-45 ${active ? 'bg-accent-light text-accent' : 'text-foose-text'} ${activeIndex === index ? 'bg-accent-light/70' : ''}`}
+                className={`flex min-h-11 w-full items-center justify-between gap-4 rounded-lg px-3 text-left text-sm font-semibold transition hover:bg-accent-light hover:text-accent focus:bg-accent-light focus:text-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-45 ${active ? 'bg-accent-light text-accent' : 'text-foose-text'} ${activeIndex === index ? 'bg-accent-light/70' : ''}`}
                 data-active={activeIndex === index ? 'true' : undefined}
                 disabled={disabled || option.disabled}
                 id={`${listboxId}-${index}`}

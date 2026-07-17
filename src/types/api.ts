@@ -220,8 +220,103 @@ export type GalleryPost = {
   caption?: string
   tags?: string[]
   likes?: string[]
+  commentCount?: number
+  isArchived?: boolean
+  archivedAt?: string
+  archiveDeleteAt?: string
   userId?: User | string
   createdAt?: string
+}
+
+export type FinspoComment = {
+  _id: string
+  body: string
+  userId: User
+  replyToUserId: User | null
+  likeCount: number
+  liked: boolean
+  replyCount: number
+  rootCommentId?: string
+  createdAt: string
+}
+
+export type PaginatedFinspoComments = {
+  comments: FinspoComment[]
+  total: number
+  totalComments: number
+  page: number
+  pages: number
+}
+
+export type PaginatedFinspoReplies = {
+  replies: FinspoComment[]
+  total: number
+  page: number
+  pages: number
+  rootCommentId: string
+}
+
+export type CreatedFinspoComment = {
+  comment: FinspoComment
+  totalComments: number
+}
+
+export type CreatedFinspoReply = {
+  reply: FinspoComment
+  rootCommentId: string
+  rootReplyCount: number
+  totalComments: number
+}
+
+export type FinspoCommentLikeState = {
+  commentId: string
+  liked: boolean
+  likeCount: number
+}
+
+export type FinspoCommentContext = {
+  isReply: boolean
+  rootComment: FinspoComment
+  rootCommentId: string
+  target: FinspoComment
+  totalComments: number
+}
+
+export type FinspoAccountSuggestion = Pick<
+  User,
+  '_id' | 'bio' | 'hasShop' | 'isKycVerified' | 'name' | 'profilePhoto' | 'username'
+> & {
+  finspoCount: number
+}
+
+export type FollowingFinspoFeed = {
+  followingCount: number
+  posts: GalleryPost[]
+  suggestedAccounts: FinspoAccountSuggestion[]
+  suggestionMeta: {
+    fallbackCount: number
+    personalized: boolean
+    personalizedCount: number
+  } | null
+  total: number
+}
+
+export type PaginatedFinspoFeed = {
+  feed: {
+    allocations: {
+      fallback: number
+      new: number
+      personalized: number
+    }
+    newCount: number
+    pageSize: number
+    personalized: boolean
+    personalizedCount: number
+  }
+  page: number
+  pages: number
+  posts: GalleryPost[]
+  total: number
 }
 
 export type FavoriteCollections = {
@@ -344,6 +439,75 @@ export type PaginatedShops = {
   total: number
   page: number
   pages: number
+}
+
+export type UnifiedSearchScope = 'all' | 'items' | 'finspo' | 'events' | 'users'
+
+export type UnifiedSearchResultType = 'item' | 'finspo' | 'event' | 'user'
+
+export type UnifiedSearchUser = User & {
+  shop?: Pick<Shop, '_id' | 'bio' | 'category' | 'isLive' | 'location' | 'logoUrl' | 'rating' | 'shopName' | 'slug'> | null
+}
+
+export type UnifiedSearchResult =
+  | { entity: Listing; type: 'item' }
+  | { entity: GalleryPost; type: 'finspo' }
+  | { entity: Event; type: 'event' }
+  | { entity: UnifiedSearchUser; type: 'user' }
+
+export type UnifiedSearchCounts = Record<UnifiedSearchScope, number>
+
+export type UnifiedSearchResponse = {
+  counts: UnifiedSearchCounts
+  hasMore: boolean
+  nextCursor: string | null
+  query: string
+  results: UnifiedSearchResult[]
+  scope: UnifiedSearchScope
+  total: number
+}
+
+export type UnifiedSearchSuggestion = {
+  entity?: Listing | GalleryPost | Event | UnifiedSearchUser
+  hashtag?: string
+  href?: string
+  id?: string
+  imageUrl?: string
+  kind?: 'entity' | 'hashtag'
+  label: string
+  sourceId?: string
+  subtitle?: string
+  type: UnifiedSearchResultType | 'hashtag'
+  username?: string
+}
+
+export type UnifiedSearchSuggestionsResponse = {
+  suggestions: UnifiedSearchSuggestion[]
+}
+
+export type BrowseSearchItemSuggestion = {
+  entity: Listing
+  href?: string
+  imageUrl?: string
+  kind: 'entity'
+  label: string
+  sourceId?: string
+  subtitle?: string
+  type: 'item'
+}
+
+export type BrowseSearchRefinementSuggestion = {
+  count: number
+  kind: 'term'
+  label: string
+  type: 'brand' | 'category' | 'hashtag'
+  value: string
+}
+
+export type BrowseSearchSuggestion = BrowseSearchItemSuggestion | BrowseSearchRefinementSuggestion
+
+export type BrowseSearchSuggestionsResponse = {
+  suggestions: BrowseSearchSuggestion[]
 }
 
 export type AdminStats = {

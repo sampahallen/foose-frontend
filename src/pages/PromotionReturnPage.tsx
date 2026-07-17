@@ -1,5 +1,6 @@
 import { IoMegaphone } from 'react-icons/io5'
-import { AppShell, ButtonLink, EmptyState, ErrorState, LoadingState } from '../components'
+import { AppShell, ButtonLink, StatePanel, SuccessState } from '../components'
+import { OrderDetailSkeleton } from '../components/operational/OperationalStates'
 import { useApiResource } from '../hooks/useApiResource'
 import type { Event, Listing } from '../types/api'
 import { formatDate, formatMoney } from '../utils/format'
@@ -34,27 +35,24 @@ export function PromotionReturnPage() {
   return (
     <AppShell active={targetType === 'event' ? 'community' : 'profile'}>
       {!reference && (
-        <EmptyState
+        <StatePanel
           action={<ButtonLink to="/manage-shop">Back to shop</ButtonLink>}
           body="Open this page from Paystack with a valid promotion reference."
-          title="No promotion selected"
+          layout="page"
+          title="Promotion link unavailable"
+          tone="unavailable"
         />
       )}
-      {promotion.loading && <LoadingState label="Verifying promotion payment..." />}
-      {promotion.error && <ErrorState message={promotion.error} retry={promotion.refetch} />}
+      {promotion.initialLoading && <OrderDetailSkeleton label="Verifying promotion payment" />}
+      {promotion.error && !promotion.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void promotion.refetch()} type="button">Retry</button>} body={promotion.error} layout="page" title="Promotion verification failed" tone="error" />}
       {promotion.data && (
         <section className="mx-auto flex max-w-2xl flex-col items-center gap-5 rounded-2xl border border-foose-border bg-foose-surface p-6 text-center shadow-sm md:p-8">
-          <span className="inline-flex size-16 items-center justify-center rounded-full bg-accent text-white">
-            <IoMegaphone size={34} />
-          </span>
-          <div>
-            <h1 className="text-3xl font-bold text-foose-text md:text-4xl">Promotion is live</h1>
-            <p className="mt-2 text-sm leading-6 text-foose-muted">
-              {targetType === 'listing'
-                ? 'Your listing is now in Top Picks for the paid promotion window.'
-                : 'Your event is now eligible for Featured Events until it ends.'}
-            </p>
-          </div>
+          <SuccessState
+            layout="compact"
+            message={targetType === 'listing' ? 'Your listing is now in Top Picks for the paid promotion window.' : 'Your event is now eligible for Featured Events until it ends.'}
+            title="Promotion is live"
+            visual={<span className="inline-flex size-16 items-center justify-center rounded-full bg-accent text-white"><IoMegaphone size={34} /></span>}
+          />
           <div className="w-full rounded-xl border border-foose-border bg-foose-surface-low p-4 text-left">
             <span className="text-xs font-bold uppercase tracking-widest text-foose-faint">{targetType === 'event' ? 'Event' : 'Listing'}</span>
             <strong className="mt-1 block text-xl text-foose-text">{title}</strong>

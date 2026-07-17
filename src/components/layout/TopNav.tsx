@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { getAppName } from '../../config/env'
 import { useAuth } from '../../hooks/useAuth'
+import { useCart } from '../../hooks/useCart'
 import { useMessaging } from '../../hooks/useMessaging'
 import { authHref, currentRedirectTarget } from '../../utils/authRedirect'
 import { initials } from '../../utils/format'
@@ -11,9 +12,8 @@ import whiteLogo from '../../assets/foose-logo-white.png'
 export function TopNav({
   active,
   className = '',
-  searchPlaceholder,
 }: {
-  active?: 'home' | 'browse' | 'community' | 'profile' | 'saved'
+  active?: 'home' | 'browse' | 'cart' | 'community' | 'explore' | 'profile' | 'saved' | 'shop'
   className?: string
   searchPlaceholder?: string
 }) {
@@ -22,13 +22,16 @@ export function TopNav({
   const desktopProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const mobileProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const brand = getAppName()
+  const { items: cartItems } = useCart()
   const { unreadMessageCount, unreadNotificationCount } = useMessaging()
-  const placeholder = searchPlaceholder ?? `Search ${brand}`
   const redirectTarget = currentRedirectTarget()
   const shopHref = user?.hasShop ? '/manage-shop' : '/open-shop'
   const shopLabel = user?.hasShop ? 'Manage shop' : 'Open shop'
   const publicProfileHref = user?.username ? `/profile/${encodeURIComponent(user.username)}` : '/profile'
   const hasSystemNotificationDot = unreadMessageCount === 0 && unreadNotificationCount > 0
+  const cartCount = cartItems.length
+  const cartCountLabel = cartCount > 99 ? '99+' : String(cartCount)
+  const cartLabel = `Cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}`
 
   useEffect(() => {
     if (!profileMenuOpen) return undefined
@@ -51,28 +54,44 @@ export function TopNav({
     }
   }, [profileMenuOpen])
 
-  function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    const query = String(formData.get('q') || '').trim()
-    navigateTo(query ? `/browse?q=${encodeURIComponent(query)}` : '/browse')
-  }
-
   function handleLogout() {
     setProfileMenuOpen(false)
     void logout()
   }
 
+  function openExplore(event: ReactMouseEvent<HTMLAnchorElement>) {
+    if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    event.preventDefault()
+    navigateTo('/search', { state: { focusSearch: true } })
+  }
+
   return (
     <>
       <header className={`top-nav sticky top-0 z-50 h-16 border-b border-white/20 bg-accent/95 text-white backdrop-blur [&_.icon-button]:text-white [&_.icon-button]:hover:bg-white/15 [&_.icon-button]:hover:text-white ${className}`}>
-        <div className="nav-inner mx-auto flex h-full w-full max-w-[1280px] items-center justify-between gap-4 px-4 md:px-6 lg:gap-8 max-lg:justify-between">
-          <a aria-label={`${brand} home`} className="brand-logo inline-flex min-w-20 items-center font-display text-xl font-bold [&_img]:h-auto [&_img]:w-20 [&_img]:md:w-[86px]" href={withBasePath('/')}>
+        <div className="nav-inner mx-auto flex h-full w-full max-w-[1280px] items-center justify-between gap-2 px-4 md:px-6 lg:gap-8 max-lg:justify-between">
+          <a aria-label={`${brand} home`} className="brand-logo inline-flex min-w-16 items-center font-display text-xl font-bold sm:min-w-20 [&_img]:h-auto [&_img]:w-16 [&_img]:sm:w-20 [&_img]:md:w-[86px]" href={withBasePath('/')}>
             <img src={whiteLogo} alt="" />
           </a>
-          <div className="mobile-nav-actions ml-auto flex items-center gap-1 lg:hidden">
+          <div className="mobile-nav-actions ml-auto flex items-center gap-0.5 lg:hidden">
+            <a
+              aria-current={active === 'explore' ? 'page' : undefined}
+              aria-label="Explore Foose"
+              className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-white/30 ${active === 'explore' ? 'border-white bg-white text-accent' : 'border-white/25 bg-white/10 text-white hover:bg-white/15'}`}
+              href={withBasePath('/search')}
+              onClick={openExplore}
+            >
+              <Icon name="search" size={18} />
+            </a>
+            <a aria-current={active === 'cart' ? 'page' : undefined} aria-label={cartLabel} className={`icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white ${active === 'cart' ? '!bg-white !text-accent hover:!text-accent' : ''}`} href={withBasePath('/cart')}>
+              <Icon name="cart" />
+              {cartCount > 0 && (
+                <span aria-hidden className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black leading-none text-white ring-2 ring-accent">
+                  {cartCountLabel}
+                </span>
+              )}
+            </a>
             {user && (
-              <a aria-label={shopLabel} className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white" href={withBasePath(shopHref)}>
+              <a aria-current={active === 'shop' ? 'page' : undefined} aria-label={shopLabel} className={`icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white ${active === 'shop' ? '!bg-white !text-accent hover:!text-accent' : ''}`} href={withBasePath(shopHref)}>
                 <Icon name="store" />
               </a>
             )}
@@ -150,16 +169,25 @@ export function TopNav({
               Community
             </a>
           </nav>
-          <form className="nav-actions ml-auto hidden items-center gap-2 lg:flex" onSubmit={handleSearch}>
-            <label className="nav-search flex h-11 min-w-72 items-center gap-3 rounded-lg border border-white/15 bg-white/10 px-4 text-white [&_input]:h-full [&_input]:flex-1 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0 [&_input]:text-sm [&_input]:text-white [&_input]:placeholder:text-white/70 [&_input]:focus:ring-0">
-              <Icon name="search" />
-              <input aria-label="Search" name="q" placeholder={placeholder} />
-            </label>
+          <div className="nav-actions ml-auto hidden items-center gap-2 lg:flex">
+            <a
+              aria-current={active === 'explore' ? 'page' : undefined}
+              className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-white/30 ${active === 'explore' ? 'border-white bg-white text-accent' : 'border-white/25 bg-white/10 text-white hover:bg-white/15'}`}
+              href={withBasePath('/search')}
+              onClick={openExplore}
+            >
+              <Icon name="search" size={18} /> Explore
+            </a>
             <a aria-label="Saved" className={`icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent ${active === 'saved' ? 'active' : ''} `} href={withBasePath('/saved')}>
               <Icon name="heart" />
             </a>
-            <a aria-label="Cart" className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent" href={withBasePath('/cart')}>
+            <a aria-current={active === 'cart' ? 'page' : undefined} aria-label={cartLabel} className={`icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent ${active === 'cart' ? 'active' : ''}`} href={withBasePath('/cart')}>
               <Icon name="cart" />
+              {cartCount > 0 && (
+                <span aria-hidden className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black leading-none text-white ring-2 ring-accent">
+                  {cartCountLabel}
+                </span>
+              )}
             </a>
             {user ? (
               <>
@@ -173,7 +201,7 @@ export function TopNav({
                     <span aria-label="Unread system notification" className="absolute right-2 top-2 size-2.5 rounded-full bg-red-500 ring-2 ring-accent" />
                   )}
                 </a>
-                <a aria-label={shopLabel} className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent" href={withBasePath(shopHref)}>
+                <a aria-current={active === 'shop' ? 'page' : undefined} aria-label={shopLabel} className={`icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent ${active === 'shop' ? 'active' : ''}`} href={withBasePath(shopHref)}>
                   <Icon name="store" />
                 </a>
                 <div className="profile-menu-wrap relative" ref={desktopProfileMenuRef}>
@@ -241,7 +269,7 @@ export function TopNav({
                 </a>
               </div>
             )}
-          </form>
+          </div>
         </div>
       </header>
     </>

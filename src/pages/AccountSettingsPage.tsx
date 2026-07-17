@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { AppShell, ErrorState, LoadingState } from '../components'
+import { AppShell, Dialog, InlineNotice, TextField } from '../components'
+import { SettingsSkeleton } from '../components/operational/OperationalStates'
+import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { apiDelete, apiPost } from '../lib/api'
 import { getErrorMessage } from '../utils/errorMessage'
-import { withBasePath } from '../utils/navigation'
 
 type AccountAction = 'deactivate' | 'delete'
 
@@ -26,33 +27,13 @@ function ConfirmModal({
   const canConfirm = !busy && (!isDelete || confirmText === 'DELETE')
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="account-confirm-title">
-      <div className="w-full max-w-md rounded-2xl border border-foose-border bg-white p-5 shadow-2xl sm:p-6">
-        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-widest ${isDelete ? 'bg-foose-danger-bg text-foose-danger' : 'bg-accent-light text-accent'}`}>
-          Are you sure?
-        </span>
-        <h2 className="mt-4 text-2xl font-black text-foose-text" id="account-confirm-title">
-          {isDelete ? 'Delete account?' : 'Deactivate account?'}
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-foose-muted">
-          {isDelete
-            ? 'Your account will be removed. Your username and email may be used again. This cannot be undone.'
-            : 'Your account will be hidden and you will be signed out. You can come back by logging in and verifying again.'}
-        </p>
-
-        {isDelete && (
-          <label className="mt-5 flex flex-col gap-2 text-sm font-bold text-foose-text">
-            Type DELETE to confirm
-            <input
-              autoComplete="off"
-              className="h-11 rounded-xl border border-foose-border bg-foose-surface-low px-3 text-sm outline-none transition focus:border-foose-danger focus:bg-white focus:ring-2 focus:ring-foose-danger/15"
-              onChange={(event) => setConfirmText(event.target.value)}
-              value={confirmText}
-            />
-          </label>
-        )}
-
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+    <Dialog
+      description={isDelete
+        ? 'Your account will be removed. Your username and email may be used again. This cannot be undone.'
+        : 'Your account will be hidden and you will be signed out. You can come back by logging in and verifying again.'}
+      dismissible={!busy}
+      footer={(
+        <>
           <button
             className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-60"
             disabled={busy}
@@ -62,16 +43,36 @@ function ConfirmModal({
             Cancel
           </button>
           <button
-            className={`inline-flex min-h-11 items-center justify-center rounded-xl border px-5 text-sm font-bold text-white transition disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint ${isDelete ? 'border-foose-danger bg-foose-danger hover:brightness-95' : 'border-accent bg-accent hover:bg-accent-hover'}`}
+            aria-busy={busy || undefined}
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-5 text-sm font-bold text-white transition disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint ${isDelete ? 'border-foose-danger bg-foose-danger hover:brightness-95' : 'border-accent bg-accent hover:bg-accent-hover'}`}
             disabled={!canConfirm}
             onClick={onConfirm}
             type="button"
           >
-            {busy ? 'Working...' : isDelete ? 'Delete account' : 'Deactivate account'}
+            {busy && <span aria-hidden className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />}
+            {busy ? 'Working…' : isDelete ? 'Delete account' : 'Deactivate account'}
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+      onClose={onClose}
+      open
+      size="sm"
+      title={isDelete ? 'Delete account?' : 'Deactivate account?'}
+    >
+      {isDelete ? (
+        <TextField
+          autoComplete="off"
+          autoFocus
+          hint="This confirmation is case-sensitive."
+          id="account-delete-confirmation"
+          label={<>Type <strong>DELETE</strong> to confirm</>}
+          onChange={(event) => setConfirmText(event.target.value)}
+          value={confirmText}
+        />
+      ) : (
+        <InlineNotice tone="warning">You will be signed out immediately after deactivation.</InlineNotice>
+      )}
+    </Dialog>
   )
 }
 
@@ -114,20 +115,18 @@ export function AccountSettingsPage() {
     }
   }
 
-  if (status === 'checking' || !user) return <LoadingState label="Loading account settings..." />
+  if (status === 'checking' || !user) return <AppShell active="profile"><NavigationBackButton className="mb-5" fallback={{ href: '/profile', label: 'Profile' }} /><SettingsSkeleton label="Loading account settings" /></AppShell>
 
   return (
     <AppShell active="profile" searchPlaceholder="Search Foose...">
       <section className="mx-auto w-full max-w-3xl">
         <div className="mb-6 flex flex-col gap-2 [&_h1]:font-display [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-foose-text md:[&_h1]:text-5xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted">
-          <a className="w-fit text-sm font-bold text-accent hover:underline" href={withBasePath('/profile')}>
-            Profile
-          </a>
+          <NavigationBackButton fallback={{ href: '/profile', label: 'Profile' }} />
           <h1>Account settings</h1>
           <p>Manage access to your Foose account.</p>
         </div>
 
-        {error && <div className="mb-5"><ErrorState message={error} /></div>}
+        {error && <InlineNotice className="mb-5" title="Account action failed" tone="error">{error}</InlineNotice>}
 
         <section className="rounded-2xl border border-foose-danger/25 bg-white p-4 shadow-sm sm:p-6 md:p-8">
           <div className="flex flex-col gap-2 border-b border-foose-border pb-5">

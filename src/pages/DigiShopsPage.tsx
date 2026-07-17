@@ -1,6 +1,9 @@
+/* eslint-disable react-hooks/refs -- the infinite-resource hook exposes reactive state through a stable facade */
 import { useCallback } from 'react'
 import { MdVerified } from 'react-icons/md'
-import { AppShell, Badge, EmptyState, ErrorState, LoadingState, SectionHeader } from '../components'
+import { AppShell, Badge, InlineNotice, RefreshIndicator, SafeImage, SectionHeader, StatePanel } from '../components'
+import { AppendFeedback, ShopGridSkeleton } from '../components/feedback/DiscoverySkeletons'
+import { DiscoveryImage } from '../components/feedback/DiscoveryMedia'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
 import type { PaginatedShops, Shop } from '../types/api'
 import { initials } from '../utils/format'
@@ -15,15 +18,17 @@ function ShopCard({ shop }: { shop: Shop }) {
     <article className="overflow-hidden rounded-2xl border border-foose-border bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-accent">
       <a className="block" href={withBasePath(`/shops/${shop.slug}`)}>
         <div className="h-28 bg-foose-surface-mid [&_img]:h-full [&_img]:w-full [&_img]:object-cover">
-          {shop.bannerUrl ? <img alt="" src={shop.bannerUrl} /> : <span className="flex h-full items-center justify-center text-xs font-black text-foose-faint">DigiShop</span>}
+          <DiscoveryImage fallback="DigiShop" fallbackClassName="h-full w-full" src={shop.bannerUrl} />
         </div>
         <div className="p-4">
           <div className="-mt-11 mb-3">
-            {shop.logoUrl ? (
-              <img alt="" className="size-16 rounded-full border-4 border-white object-cover" src={shop.logoUrl} />
-            ) : (
-              <span className="inline-flex size-16 items-center justify-center rounded-full border-4 border-white bg-accent-light text-base font-black text-accent">{initials(shop.shopName)}</span>
-            )}
+            <SafeImage
+              alt=""
+              className="size-16 rounded-full border-4 border-white object-cover"
+              fallback={initials(shop.shopName)}
+              fallbackClassName="bg-accent-light text-base font-black text-accent"
+              src={shop.logoUrl}
+            />
           </div>
           <div className="flex min-w-0 items-center gap-1.5">
             <h2 className="truncate text-base font-black text-foose-text">{shop.shopName}</h2>
@@ -57,10 +62,12 @@ export function DigiShopsPage() {
         </p>
       </section>
       <SectionHeader title="All shops" eyebrow={`${shops.total} live DigiShops`} />
-      {shops.loading && <LoadingState label="Loading DigiShops..." />}
-      {shops.error && <ErrorState message={shops.error} retry={shops.refetch} />}
+      <RefreshIndicator active={shops.refreshing} className="mb-4" label="Refreshing DigiShops" />
+      {shops.loading && !shops.items.length && <ShopGridSkeleton />}
+      {shops.error && !shops.items.length && <StatePanel action={<button className="button button-secondary" onClick={shops.refetch} type="button">Try again</button>} body={shops.error} layout="section" title="DigiShops could not load" tone="error" />}
+      {shops.error && !!shops.items.length && <InlineNotice action={<button className="font-black text-accent" onClick={shops.refetch} type="button">Retry</button>} tone="warning">Could not refresh DigiShops. The shops already loaded are still available.</InlineNotice>}
       {!shops.loading && !shops.error && !shops.items.length && (
-        <EmptyState body="DigiShops will appear here after sellers open their shops." title="No DigiShops yet" />
+        <StatePanel action={<a className="button button-secondary" href={withBasePath('/open-shop')}>Open a DigiShop</a>} body="Verified seller shops will appear here as members open them." layout="section" title="No DigiShops yet" tone="empty" />
       )}
       {!!shops.items.length && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -69,8 +76,8 @@ export function DigiShopsPage() {
           ))}
         </div>
       )}
-      <div ref={shops.sentinelRef} className="flex min-h-14 items-center justify-center py-4">
-        {shops.loadingMore && <span className="size-6 animate-spin rounded-full border-2 border-foose-border border-t-accent" aria-label="Loading more DigiShops" />}
+      <div ref={shops.sentinelRef} className="min-h-14 py-2">
+        <AppendFeedback error={shops.loadMoreError} label="Loading more DigiShops" loading={shops.loadingMore} retry={shops.retryLoadMore} />
       </div>
     </AppShell>
   )

@@ -29,7 +29,7 @@ export function AdminShell({ section, children }: { section: 'overview' | 'kyc' 
             </a>
           ))}
         </nav>
-        <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" type="button">
+        <button aria-disabled="true" className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-foose-border bg-foose-surface-mid px-5 py-2.5 text-center text-sm font-bold text-foose-faint disabled:cursor-not-allowed" disabled title="Report generation is coming soon" type="button">
           Generate Report
         </button>
         <footer>
@@ -43,9 +43,10 @@ export function AdminShell({ section, children }: { section: 'overview' | 'kyc' 
       </aside>
       <main className="admin-main min-w-0">
         <header className="admin-top sticky top-0 z-30 border-b border-foose-border bg-foose-surface/95 p-4 backdrop-blur [&_label]:flex [&_label]:h-11 [&_label]:w-full [&_label]:max-w-md [&_label]:items-center [&_label]:gap-3 [&_label]:rounded-lg [&_label]:bg-foose-surface-mid [&_label]:px-4 [&_input]:flex-1 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0 [&_input]:focus:ring-0">
-          <label>
+          <label className="cursor-not-allowed" title="Admin search is coming soon">
             <Icon name="search" />
-            <input placeholder={section === 'disputes' ? 'Search disputes...' : 'Search marketplace...'} />
+            <input aria-label="Admin search coming soon" disabled placeholder={section === 'disputes' ? 'Dispute search coming soon' : 'Admin search coming soon'} />
+            <span className="shrink-0 rounded-full bg-foose-surface-low px-2 py-1 text-[10px] font-black uppercase tracking-wider text-foose-faint">Soon</span>
           </label>
           <div>
             <Icon name="bell" />

@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react'
-import { AppShell, EmptyState, ErrorState, Icon, OrderSummary, StepIndicator } from '../components'
+import { useRef, useState, type FormEvent } from 'react'
+import { AppShell, ButtonLink, ChoiceCardGroup, ErrorSummary, FormPage, FormSection, Icon, InlineNotice, OrderSummary, StatePanel, StepIndicator, TextField } from '../components'
+import { NavigationBackButton } from '../components/navigation'
 import { useCart, type CartItem } from '../hooks/useCart'
 import { apiPost } from '../lib/api'
 import type { Order } from '../types/api'
@@ -33,16 +34,37 @@ export function CheckoutPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [region, setRegion] = useState('Greater Accra')
+  const [city, setCity] = useState('')
+  const [street, setStreet] = useState('')
   const [method, setMethod] = useState<'pickup' | 'delivery'>('delivery')
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_pickup' | 'paystack'>('paystack')
+  const [step, setStep] = useState(0)
+  const [validationAttempted, setValidationAttempted] = useState(false)
+  const stepHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const deliveryFeeDisplay = method === 'pickup' ? 0 : FIXED_DELIVERY_FEE
+  const regionError = validationAttempted && !region.trim() ? 'Enter a delivery or pickup region.' : ''
+
+  function goToStep(nextStep: number) {
+    setStep(nextStep)
+    window.requestAnimationFrame(() => {
+      stepHeadingRef.current?.focus()
+      window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+    })
+  }
+
+  function continueFromDelivery() {
+    setValidationAttempted(true)
+    if (!region.trim()) {
+      return
+    }
+    setValidationAttempted(false)
+    goToStep(1)
+  }
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitting(true)
     setError('')
-
-    const formData = new FormData(event.currentTarget)
 
     try {
       const blockedItems = unavailablePopUpItems(cart.items)
@@ -56,9 +78,9 @@ export function CheckoutPage() {
         callbackUrl: `${window.location.origin}${withBasePath('/order-confirmed')}`,
         delivery: {
           address: {
-            city: String(formData.get('city') || ''),
-            region: String(formData.get('region') || ''),
-            street: String(formData.get('street') || ''),
+            city: city.trim(),
+            region: region.trim(),
+            street: street.trim(),
           },
           method,
         },
@@ -86,113 +108,83 @@ export function CheckoutPage() {
 
   return (
     <AppShell>
+      <NavigationBackButton className="mb-5" fallback={{ href: '/cart', label: 'Cart' }} />
       {!cart.items.length && (
-        <EmptyState body="Add items from the marketplace, then return here to complete your purchase." title="No items to checkout" />
+        <StatePanel action={<ButtonLink to="/browse">Browse marketplace</ButtonLink>} body="Add items from the marketplace, then return here to complete your purchase." layout="page" title="No items to checkout" tone="empty" />
       )}
       {!!cart.items.length && (
-        <form className="checkout-layout grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] max-lg:grid-cols-1" onSubmit={(event) => void submitOrder(event)}>
-          <section>
-            <StepIndicator />
-            <div className="checkout-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_h1]:mb-6 [&_h1]:text-3xl [&_h1]:font-bold">
-              <h1>How do you want your find?</h1>
-              <div className="delivery-toggle mb-6 grid gap-3 sm:grid-cols-2 [&_button]:flex [&_button]:items-center [&_button]:justify-center [&_button]:gap-3 [&_button]:rounded-lg [&_button]:border [&_button]:border-foose-border [&_button]:bg-foose-surface [&_button]:px-4 [&_button]:py-3 [&_button]:font-semibold [&_label]:flex [&_label]:items-center [&_label]:justify-center [&_label]:gap-3 [&_label]:rounded-lg [&_label]:border [&_label]:border-foose-border [&_label]:bg-foose-surface [&_label]:px-4 [&_label]:py-3 [&_label]:font-semibold [&_button.active]:border-accent [&_button.active]:bg-accent-light [&_button.active]:text-accent [&_label.active]:border-accent [&_label.active]:bg-accent-light [&_label.active]:text-accent">
-                <label className={method === 'delivery' ? 'active' : ''}>
-                  <input
-                    checked={method === 'delivery'}
+        <FormPage description="Choose fulfilment, payment, and confirm your order." eyebrow="Secure checkout" title="Complete your order" width="wide">
+          <form aria-busy={submitting} className="checkout-layout grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]" onSubmit={(event) => void submitOrder(event)}>
+            <section className="min-w-0">
+              <StepIndicator current={step} label="Checkout progress" onStepChange={(nextStep) => { if (nextStep < step) goToStep(nextStep) }} />
+              <h2 className="sr-only" ref={stepHeadingRef} tabIndex={-1}>{step === 0 ? 'Delivery details' : step === 1 ? 'Payment method' : 'Review order'}</h2>
+
+              {step === 0 && (
+                <FormSection description="Select delivery or pickup, then tell the seller where the order should go." title="Delivery details">
+                  <ChoiceCardGroup
+                    label="Fulfilment method"
                     name="method"
-                    onChange={() => {
-                      setMethod('delivery')
-                      setPaymentMethod('paystack')
+                    onChange={(value) => {
+                      const nextMethod = value as 'pickup' | 'delivery'
+                      setMethod(nextMethod)
+                      if (nextMethod === 'delivery') setPaymentMethod('paystack')
                     }}
-                    type="radio"
-                    value="delivery"
+                    options={[
+                      { description: 'Delivered to the address you provide.', label: 'Standard delivery', value: 'delivery', visual: <Icon name="truck" /> },
+                      { description: 'Arrange collection directly with the seller.', label: 'Pickup', value: 'pickup', visual: <Icon name="store" /> },
+                    ]}
+                    value={method}
                   />
-                  <Icon name="truck" /> Standard Delivery
-                </label>
-                <label className={method === 'pickup' ? 'active' : ''}>
-                  <input
-                    checked={method === 'pickup'}
-                    name="method"
-                    onChange={() => setMethod('pickup')}
-                    type="radio"
-                    value="pickup"
-                  />
-                  <Icon name="store" /> Pickup
-                </label>
-              </div>
-              <div className="form-grid grid gap-4 sm:grid-cols-2 [&_.wide]:sm:col-span-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3">
-                <label>
-                  Region
-                  <input
-                    name="region"
-                    onChange={(event) => setRegion(event.target.value)}
-                    placeholder="Greater Accra"
-                    required
-                    value={region}
-                  />
-                </label>
-                <label>
-                  City
-                  <input name="city" placeholder={method === 'pickup' ? 'Preferred pickup area' : 'e.g. East Legon'} />
-                </label>
-                <label className="wide">
-                  {method === 'pickup' ? 'Pickup note' : 'Street address'}
-                  <input name="street" placeholder={method === 'pickup' ? 'Preferred pickup point or note' : 'Digital Avenue, House No. 42'} />
-                </label>
-              </div>
-              <div className="payment-method-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 [&_label]:flex [&_label]:items-center [&_label]:justify-center [&_label]:gap-3 [&_label]:rounded-lg [&_label]:border [&_label]:border-foose-border [&_label]:bg-foose-surface [&_label]:px-4 [&_label]:py-3 [&_label]:font-semibold [&_label.active]:border-accent [&_label.active]:bg-accent-light [&_label.active]:text-accent">
-                <h2>Payment</h2>
-                <label className={paymentMethod === 'paystack' ? 'active' : ''}>
-                  <input
-                    checked={paymentMethod === 'paystack'}
+                  {regionError && <ErrorSummary errors={[{ fieldId: 'checkout-region', message: regionError }]} focus />}
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <TextField error={regionError} id="checkout-region" label="Region" name="region" onChange={(event) => setRegion(event.target.value)} placeholder="Greater Accra" required value={region} />
+                    <TextField id="checkout-city" label="City or area" name="city" onChange={(event) => setCity(event.target.value)} optional placeholder={method === 'pickup' ? 'Preferred pickup area' : 'e.g. East Legon'} value={city} />
+                    <TextField id="checkout-street" label={method === 'pickup' ? 'Pickup note' : 'Street address'} name="street" onChange={(event) => setStreet(event.target.value)} optional placeholder={method === 'pickup' ? 'Preferred pickup point or note' : 'Digital Avenue, House No. 42'} value={street} wrapperClassName="sm:col-span-2" />
+                  </div>
+                  <InlineNotice tone="info">{method === 'pickup' ? 'Pickup orders have no delivery fee.' : 'Delivery is currently a fixed GHS 15.00.'}</InlineNotice>
+                </FormSection>
+              )}
+
+              {step === 1 && (
+                <FormSection description="Choose how you would like to pay for this order." title="Payment">
+                  <ChoiceCardGroup
+                    label="Payment method"
                     name="paymentMethod"
-                    onChange={() => setPaymentMethod('paystack')}
-                    type="radio"
-                    value="paystack"
+                    onChange={(value) => setPaymentMethod(value as 'cash_on_pickup' | 'paystack')}
+                    options={[
+                      { description: 'Continue securely to Paystack. Paid funds are held in escrow.', label: 'Pay online with Paystack', value: 'paystack', visual: <Icon name="shield" /> },
+                      ...(method === 'pickup' ? [{ description: 'Pay the seller when you collect the order. No escrow is held.', label: 'Cash on pickup', value: 'cash_on_pickup', visual: <Icon name="money" /> }] : []),
+                    ]}
+                    value={paymentMethod}
                   />
-                  <span>
-                    <strong>Pay online with Paystack</strong>
-                    <small>You will be redirected to Paystack. Funds are held in escrow after payment succeeds.</small>
-                  </span>
-                </label>
-                {method === 'pickup' && (
-                  <label className={paymentMethod === 'cash_on_pickup' ? 'active' : ''}>
-                    <input
-                      checked={paymentMethod === 'cash_on_pickup'}
-                      name="paymentMethod"
-                      onChange={() => setPaymentMethod('cash_on_pickup')}
-                      type="radio"
-                      value="cash_on_pickup"
-                    />
-                    <span>
-                      <strong>Cash on pickup</strong>
-                      <small>No escrow is held for cash pickup.</small>
-                    </span>
-                  </label>
-                )}
-              </div>
-              <div className="info-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5">
-                <Icon name="info" />
-                <div>
-                  <strong>Delivery fee</strong>
-                  <p>
-                    {method === 'pickup'
-                      ? 'No delivery fee for pickup orders.'
-                      : 'Fixed at GHS 15.00 while the delivery algorithm is being built.'}
-                  </p>
-                </div>
-              </div>
-              {error && <ErrorState message={error} />}
+                </FormSection>
+              )}
+
+              {step === 2 && (
+                <FormSection description="Check these details before placing your order." title="Review and confirm">
+                  <dl className="grid gap-4 rounded-xl bg-foose-surface-low p-4 text-sm sm:grid-cols-2">
+                    <div><dt className="font-semibold text-foose-muted">Fulfilment</dt><dd className="mt-1 font-bold capitalize text-foose-text">{method}</dd></div>
+                    <div><dt className="font-semibold text-foose-muted">Payment</dt><dd className="mt-1 font-bold text-foose-text">{paymentMethod === 'paystack' ? 'Paystack' : 'Cash on pickup'}</dd></div>
+                    <div><dt className="font-semibold text-foose-muted">Region</dt><dd className="mt-1 font-bold text-foose-text">{region}</dd></div>
+                    <div><dt className="font-semibold text-foose-muted">Items</dt><dd className="mt-1 font-bold text-foose-text">{cart.items.length} distinct {cart.items.length === 1 ? 'item' : 'items'}</dd></div>
+                  </dl>
+                  {error && <InlineNotice title="Checkout could not continue" tone="error">{error}</InlineNotice>}
+                </FormSection>
+              )}
+            </section>
+
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <OrderSummary
+                action={step === 0 ? 'Continue to payment' : step === 1 ? 'Review order' : submitting ? 'Preparing checkout...' : paymentMethod === 'cash_on_pickup' ? 'Place pickup order' : 'Pay with Paystack'}
+                deliveryFee={deliveryFeeDisplay}
+                disabled={submitting}
+                items={cart.items}
+                onAction={step === 0 ? continueFromDelivery : step === 1 ? () => goToStep(2) : undefined}
+                submit={step === 2}
+              />
             </div>
-          </section>
-          <OrderSummary
-            action={submitting ? 'Preparing checkout...' : paymentMethod === 'cash_on_pickup' ? 'Place pickup order' : 'Pay with Paystack'}
-            deliveryFee={deliveryFeeDisplay}
-            disabled={submitting}
-            items={cart.items}
-            submit
-          />
-        </form>
+          </form>
+        </FormPage>
       )}
     </AppShell>
   )

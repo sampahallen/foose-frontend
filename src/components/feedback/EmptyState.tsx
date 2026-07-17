@@ -1,23 +1,35 @@
 import type { ReactNode } from 'react'
 import { Icon, type IconName } from '../icons/Icon'
+import type { FeedbackLayout } from './LoadingRegion'
+import { StatePanel } from './StatePanel'
 
 export function EmptyState({
   action,
+  actions,
   body,
+  className,
   icon = 'info',
+  layout = 'page',
   title,
 }: {
   action?: ReactNode
-  body: string
+  actions?: ReactNode
+  body?: ReactNode
+  className?: string
   icon?: IconName
-  title: string
+  layout?: FeedbackLayout
+  title: ReactNode
 }) {
   return (
-    <div className="state-panel mx-auto my-10 flex max-w-xl flex-col items-center gap-4 rounded-xl border border-foose-border bg-foose-surface p-8 text-center empty-state [&_.icon]:text-accent">
-      <Icon name={icon} size={32} />
-      <h2>{title}</h2>
-      <p>{body}</p>
-      {action}
-    </div>
+    <StatePanel
+      action={action}
+      actions={actions}
+      body={body}
+      className={`empty-state ${className || ''}`}
+      layout={layout}
+      title={title}
+      tone="empty"
+      visual={<Icon name={icon} size={28} />}
+    />
   )
 }

@@ -1,34 +1,58 @@
 import type { Listing } from '../../types/api'
-import { useNavigationMemoryStore } from '../../stores/navigationMemoryStore'
 import { formatMoney, getListingImage, getShopName } from '../../utils/format'
-import { withBasePath } from '../../utils/navigation'
+import { captureNavigationTrigger, navigateTo, withBasePath } from '../../utils/navigation'
 import { FavoriteButton } from '../ui/FavoriteButton'
 import { MdVerified } from 'react-icons/md'
-import type { MouseEvent } from 'react'
+import { useState, type MouseEvent } from 'react'
 
-export function ProductCard({ className = '', listing }: { className?: string; listing: Listing }) {
+export function ProductCard({
+  className = '',
+  imageFailed = false,
+  imageLoading = 'lazy',
+  listing,
+}: {
+  className?: string
+  imageFailed?: boolean
+  imageLoading?: 'eager' | 'lazy'
+  listing: Listing
+}) {
   const image = getListingImage(listing)
-  const setListingReturn = useNavigationMemoryStore((state) => state.setListingReturn)
+  const [failedImageUrl, setFailedImageUrl] = useState('')
+  const [loadedImageUrl, setLoadedImageUrl] = useState('')
   const brand = listing.brand || 'Other'
   const size = listing.size || (listing.type === 'wholesale' ? `${listing.bulkMinQty || 1}+` : 'One size')
   const shopName = getShopName(listing)
+  const imageAvailable = Boolean(image && !imageFailed && failedImageUrl !== image)
+  const imagePending = imageAvailable && loadedImageUrl !== image
 
   function openListing(event: MouseEvent<HTMLAnchorElement>) {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
     event.preventDefault()
 
-    setListingReturn({
-      href: `${window.location.pathname}${window.location.search}`,
-      scrollY: window.scrollY,
+    navigateTo(`/listing/${listing._id}`, {
+      presentation: 'modal',
+      trigger: captureNavigationTrigger(event.currentTarget),
     })
-    window.history.pushState(null, '', withBasePath(`/listing/${listing._id}`))
-    window.dispatchEvent(new PopStateEvent('popstate'))
   }
 
   const content = (
     <>
       <div className="product-image relative overflow-hidden rounded-md bg-foose-surface-mid aspect-[4/5] [&_img]:h-full [&_img]:w-full [&_img]:object-cover">
-        {image ? <img alt={listing.title} src={image} /> : <span className="image-placeholder flex min-h-32 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No image</span>}
+        {imageAvailable ? (
+          <>
+            <img
+              alt={listing.title}
+              className={`transition-opacity duration-200 motion-reduce:transition-none ${imagePending ? 'opacity-0' : 'opacity-100'}`}
+              loading={imageLoading}
+              onError={() => setFailedImageUrl(image || '')}
+              onLoad={() => setLoadedImageUrl(image || '')}
+              src={image || ''}
+            />
+            {imagePending && <span aria-hidden className="absolute inset-0 animate-pulse bg-foose-surface-mid motion-reduce:animate-none" />}
+          </>
+        ) : (
+          <span className="image-placeholder flex h-full min-h-32 items-center justify-center bg-foose-surface-mid px-3 text-center text-sm font-semibold text-foose-faint">Image unavailable</span>
+        )}
         {listing.status === 'sold' && (
           <span className="absolute left-2 top-2 rounded-full bg-foose-danger px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white">
             Sold
@@ -48,8 +72,8 @@ export function ProductCard({ className = '', listing }: { className?: string; l
   )
 
   return (
-    <article className={`product-card relative flex min-h-full flex-col overflow-hidden bg-transparent transition hover:-translate-y-0.5 ${className}`}>
-      <a className="product-card-link flex flex-1 flex-col" href={withBasePath(`/listing/${listing._id}`)} onClick={openListing}>
+    <article aria-busy={imagePending} className={`product-card relative flex min-h-full flex-col overflow-hidden bg-transparent transition hover:-translate-y-0.5 ${className}`}>
+      <a className="product-card-link flex flex-1 flex-col" href={withBasePath(`/listing/${listing._id}`)} id={`listing-card-${listing._id}`} onClick={openListing}>
         {content}
       </a>
       <FavoriteButton className="floating-round inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-text shadow transition hover:bg-accent-light hover:text-accent absolute right-1.5 top-1.5 z-10 favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />

@@ -1,16 +1,54 @@
-import { useRef, useState, type FormEvent } from 'react'
-import blueLogo from '../assets/foose-logo-blue.png'
-import { AppShell, SelectControl } from '../components'
+import { useMemo, useState, type FormEvent } from 'react'
 import { FaApple, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa'
 import { FcGoogle } from 'react-icons/fc'
+import blueLogo from '../assets/foose-logo-blue.png'
+import {
+  AppShell,
+  Dialog,
+  ErrorSummary,
+  FormField,
+  InlineNotice,
+  PasswordField,
+  SelectControl,
+  SubmitButton,
+  SuccessState,
+  TextField,
+} from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { authHref, closeTargetForAuthModal, redirectFromSearch } from '../utils/authRedirect'
 import { getErrorMessage } from '../utils/errorMessage'
-import { emailLooksValid, normalizePhone, passwordMeetsRequirements, passwordRules, usernameLooksValid } from '../utils/formValidation'
+import {
+  emailLooksValid,
+  normalizePhone,
+  passwordMeetsRequirements,
+  passwordRules,
+  usernameLooksValid,
+} from '../utils/formValidation'
 import { GHANA_REGIONS } from '../utils/ghanaRegions'
+import { navigateTo } from '../utils/navigation'
 import { startOAuth } from '../utils/oauth'
 
 const DUPLICATE_ACCOUNT_MESSAGE = 'A user with that email or username already exists'
+
+type RegisterValues = {
+  city: string
+  email: string
+  name: string
+  password: string
+  phone: string
+  region: string
+  username: string
+}
+
+const initialValues: RegisterValues = {
+  city: '',
+  email: '',
+  name: '',
+  password: '',
+  phone: '',
+  region: '',
+  username: '',
+}
 
 function registerErrorMessage(error: unknown) {
   const message = getErrorMessage(error, 'Unable to register')
@@ -24,83 +62,62 @@ function registerErrorMessage(error: unknown) {
 export function RegisterPage() {
   const { register } = useAuth()
   const [error, setError] = useState('')
-  const [values, setValues] = useState({ email: '', name: '', password: '', username: '' })
-  const [touched, setTouched] = useState({ email: false, name: false, password: false, username: false })
+  const [values, setValues] = useState<RegisterValues>(initialValues)
+  const [touched, setTouched] = useState<Partial<Record<keyof RegisterValues, boolean>>>({})
+  const [submittedInvalid, setSubmittedInvalid] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
   const [verificationEmail, setVerificationEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const formRef = useRef<HTMLFormElement>(null)
-  const errorRef = useRef<HTMLParagraphElement>(null)
   const redirectTarget = redirectFromSearch()
   const closeTarget = closeTargetForAuthModal(redirectTarget)
-  const canSubmit =
-    values.name.trim().length >= 2 &&
-    emailLooksValid(values.email) &&
-    usernameLooksValid(values.username) &&
-    passwordMeetsRequirements(values.password)
-  const submitHint = values.name.trim().length < 2
-    ? 'Enter your name.'
-    : !emailLooksValid(values.email)
-      ? 'Enter a valid email address.'
-      : !usernameLooksValid(values.username)
-        ? 'Use 3-20 letters, numbers, underscores, or dots for username.'
-        : !passwordMeetsRequirements(values.password)
-          ? 'Complete the password requirements.'
-          : ''
 
-  function updateRequiredField(name: keyof typeof values, value: string) {
+  const validation = useMemo(() => ({
+    email: emailLooksValid(values.email) ? '' : 'Enter a valid email address.',
+    name: values.name.trim().length >= 2 ? '' : 'Enter at least 2 characters for your name.',
+    password: passwordMeetsRequirements(values.password) ? '' : 'Complete all password requirements.',
+    username: usernameLooksValid(values.username) ? '' : 'Use 3-20 letters, numbers, underscores, or dots.',
+  }), [values.email, values.name, values.password, values.username])
+  const validationErrors = Object.entries(validation).flatMap(([field, message]) => (
+    message ? [{ fieldId: `register-${field}`, message }] : []
+  ))
+  const canSubmit = validationErrors.length === 0
+  const showPasswordRules = passwordFocused || touched.password || values.password.length > 0
+
+  function updateField(name: keyof RegisterValues, value: string) {
     setValues((current) => ({ ...current, [name]: value }))
+    setError('')
   }
 
-  function markTouched(name: keyof typeof touched) {
+  function markTouched(name: keyof RegisterValues) {
     setTouched((current) => ({ ...current, [name]: true }))
   }
 
-  const fieldInvalid = {
-    email: touched.email && !emailLooksValid(values.email),
-    name: touched.name && values.name.trim().length < 2,
-    password: touched.password && !passwordMeetsRequirements(values.password),
-    username: touched.username && !usernameLooksValid(values.username),
-  }
-  const showPasswordRules =
-    (passwordFocused || touched.password || values.password.length > 0) && !passwordMeetsRequirements(values.password)
-
-  function requiredBadge(invalid: boolean) {
-    return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
-  }
-
-  function showFormError(message: string) {
-    setError(message)
-    window.requestAnimationFrame(() => {
-      formRef.current?.scrollTo({ behavior: 'smooth', top: 0 })
-      errorRef.current?.focus({ preventScroll: true })
-    })
+  function fieldError(name: keyof typeof validation) {
+    return touched[name] || submittedInvalid ? validation[name] : ''
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!canSubmit) return
-    const formData = new FormData(event.currentTarget)
-    const email = String(formData.get('email') || '').trim()
+    if (!canSubmit) {
+      setSubmittedInvalid(true)
+      setTouched((current) => ({ ...current, email: true, name: true, password: true, username: true }))
+      return
+    }
+
     setSubmitting(true)
     setError('')
-
     try {
       await register({
-        email,
-        location: {
-          city: String(formData.get('city') || ''),
-          region: String(formData.get('region') || ''),
-        },
-        name: String(formData.get('name') || ''),
-        password: String(formData.get('password') || ''),
-        phone: String(formData.get('phone') || ''),
-        username: String(formData.get('username') || ''),
+        email: values.email.trim(),
+        location: { city: values.city.trim(), region: values.region },
+        name: values.name.trim(),
+        password: values.password,
+        phone: normalizePhone(values.phone),
+        username: values.username.trim(),
       })
-      setVerificationEmail(email)
+      setVerificationEmail(values.email.trim())
     } catch (requestError) {
-      showFormError(registerErrorMessage(requestError))
+      setError(registerErrorMessage(requestError))
     } finally {
       setSubmitting(false)
     }
@@ -108,133 +125,87 @@ export function RegisterPage() {
 
   return (
     <AppShell flush>
-      <section className="auth-modal-shell fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-4">
-        <a aria-label="Close sign up" className="auth-modal-backdrop absolute inset-0 bg-black/45" href={closeTarget} />
+      <Dialog
+        closeLabel="Close sign up"
+        description={verificationEmail ? 'Your account is ready for email verification.' : 'Create one account for buying, saving, messaging, and selling on Foose.'}
+        onClose={() => navigateTo(closeTarget, { replace: true })}
+        open
+        size="lg"
+        title={verificationEmail ? 'Check your email' : 'Create account'}
+      >
         {verificationEmail ? (
-          <div className="auth-card auth-modal-card relative z-10 mx-auto flex w-full max-w-md flex-col gap-4 rounded-2xl border border-accent/20 bg-white p-6 shadow-2xl shadow-black/20">
-            <a aria-label="Close sign up" className="modal-close-button absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white hover:bg-black" href={closeTarget}>
-              x
-            </a>
+          <div className="grid gap-5">
             <img alt="Foose" className="h-auto w-32" src={blueLogo} />
-            <div>
-              <h1 className="font-display text-3xl font-bold text-accent">Check your email</h1>
-              <p className="mt-2 text-sm leading-6 text-foose-muted">
-                We sent a secure sign-in link to <strong className="text-foose-text">{verificationEmail}</strong>. It expires in 15 minutes and works once.
-              </p>
-            </div>
-            <a className="button inline-flex min-h-12 items-center justify-center rounded-xl border border-accent bg-accent px-5 text-sm font-bold text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover" href={authHref('/login', redirectTarget)}>
-              Back to login
-            </a>
+            <SuccessState
+              action={<a className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-accent px-5 text-sm font-black text-white transition hover:bg-accent-hover" href={authHref('/login', redirectTarget)}>Back to login</a>}
+              layout="compact"
+              message={<>We sent a secure sign-in link to <strong className="text-foose-text">{verificationEmail}</strong>. It expires in 15 minutes and works once.</>}
+              title="Verify your email"
+            />
           </div>
         ) : (
-        <form className="form-card auth-card auth-modal-card relative z-10 mx-auto flex max-h-[92dvh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-2xl border border-accent/20 bg-white p-4 shadow-2xl shadow-black/20 sm:p-6 md:max-w-2xl md:p-8 [&_h1]:font-display [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-accent sm:[&_h1]:text-4xl [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-accent/25 [&_input]:bg-accent-light/20 [&_input]:px-3 [&_input]:py-3 [&_input]:text-foose-text [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:bg-white [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15" noValidate onSubmit={(event) => void handleSubmit(event)} ref={formRef}>
-          <a aria-label="Close sign up" className="modal-close-button absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white hover:bg-black" href={closeTarget}>
-            x
-          </a>
-          <header className="flex flex-col gap-3 border-b border-foose-border pb-4 pt-2">
-            <img alt="Foose" className="h-auto w-32 sm:w-36" src={blueLogo} />
-            <div>
-              <h1>Create account</h1>
-              <p className="mt-1 text-sm leading-6 text-foose-muted">Start buying, saving, messaging sellers, and opening your DigiShop after verification.</p>
+          <form aria-busy={submitting} className="grid gap-5" noValidate onSubmit={(event) => void handleSubmit(event)}>
+            <img alt="Foose" className="h-auto w-32" src={blueLogo} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={() => startOAuth('google', redirectTarget)} type="button">
+                <FcGoogle size={20} /> Sign up with Gmail
+              </button>
+              <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={() => startOAuth('apple', redirectTarget)} type="button">
+                <FaApple size={20} /> Sign up with iCloud
+              </button>
             </div>
-          </header>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light" onClick={() => startOAuth('google', redirectTarget)} type="button">
-              <FcGoogle size={20} /> Sign up with Gmail
-            </button>
-            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light" onClick={() => startOAuth('apple', redirectTarget)} type="button">
-              <FaApple size={20} /> Sign up with iCloud
-            </button>
-          </div>
-          {error && (
-            <p
-              className="rounded-xl border border-foose-danger/30 bg-foose-danger-bg px-4 py-3 text-sm font-bold text-foose-danger"
-              ref={errorRef}
-              role="alert"
-              tabIndex={-1}
-            >
-              {error}
-            </p>
-          )}
-          <label>
-            <span className="flex items-center gap-2">Name {requiredBadge(fieldInvalid.name)}</span>
-            <input autoComplete="name" name="name" onBlur={() => markTouched('name')} onChange={(event) => updateRequiredField('name', event.target.value)} required />
-            {fieldInvalid.name && <span className="text-xs font-semibold text-foose-danger">Enter at least 2 characters.</span>}
-          </label>
-          <label>
-            <span className="flex items-center gap-2">Email {requiredBadge(fieldInvalid.email)}</span>
-            <input autoComplete="email" name="email" onBlur={() => markTouched('email')} onChange={(event) => updateRequiredField('email', event.target.value)} required type="email" />
-            {fieldInvalid.email && <span className="text-xs font-semibold text-foose-danger">Enter a valid email address.</span>}
-          </label>
-          <label>
-            <span className="flex items-center gap-2">Username {requiredBadge(fieldInvalid.username)}</span>
-            <input autoComplete="username" name="username" onBlur={() => markTouched('username')} onChange={(event) => updateRequiredField('username', event.target.value)} pattern="[a-zA-Z0-9_.]{3,20}" required title="3-20 letters, numbers, underscores, or dots" />
-            {fieldInvalid.username && <span className="text-xs font-semibold text-foose-danger">Use 3-20 letters, numbers, underscores, or dots.</span>}
-          </label>
-          <label>
-            Phone
-            <input autoComplete="tel" name="phone" onBlur={(event) => { event.currentTarget.value = normalizePhone(event.currentTarget.value) }} placeholder="0240000000" />
-          </label>
-          <div className="form-grid grid gap-4 sm:grid-cols-2 [&_.wide]:sm:col-span-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3">
-            <label>
-              Region
-              <SelectControl name="region">
-                <option value="">Select region</option>
-                {GHANA_REGIONS.map((region) => <option key={region} value={region}>{region}</option>)}
-              </SelectControl>
-            </label>
-            <label>
-              City
-              <input name="city" />
-            </label>
-          </div>
-          <label>
-            <span className="flex items-center gap-2">Password {requiredBadge(fieldInvalid.password)}</span>
-            <span className="relative block">
-              <input
+
+            {error && <InlineNotice title="Could not create your account" tone="error">{error}</InlineNotice>}
+            <ErrorSummary errors={validationErrors} focus={submittedInvalid && validationErrors.length > 0} />
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <TextField autoComplete="name" error={fieldError('name')} id="register-name" label="Name" name="name" onBlur={() => markTouched('name')} onChange={(event) => updateField('name', event.target.value)} required value={values.name} wrapperClassName="sm:col-span-2" />
+              <TextField autoComplete="email" error={fieldError('email')} id="register-email" label="Email" name="email" onBlur={() => markTouched('email')} onChange={(event) => updateField('email', event.target.value)} required type="email" value={values.email} />
+              <TextField autoCapitalize="none" autoComplete="username" error={fieldError('username')} hint="3-20 letters, numbers, underscores, or dots." id="register-username" label="Username" name="username" onBlur={() => markTouched('username')} onChange={(event) => updateField('username', event.target.value)} required spellCheck={false} value={values.username} />
+              <TextField autoComplete="tel" id="register-phone" inputMode="tel" label="Phone" name="phone" onBlur={() => updateField('phone', normalizePhone(values.phone))} onChange={(event) => updateField('phone', event.target.value)} optional placeholder="0240000000" type="tel" value={values.phone} />
+              <FormField htmlFor="register-region" label="Region" optional>
+                <SelectControl id="register-region" name="region" onChange={(event) => updateField('region', event.currentTarget.value)} value={values.region}>
+                  <option value="">Select region</option>
+                  {GHANA_REGIONS.map((region) => <option key={region} value={region}>{region}</option>)}
+                </SelectControl>
+              </FormField>
+              <TextField autoComplete="address-level2" id="register-city" label="City" name="city" onChange={(event) => updateField('city', event.target.value)} optional value={values.city} />
+              <PasswordField
                 autoComplete="new-password"
-                className="pr-24"
-                minLength={8}
+                error={fieldError('password')}
+                id="register-password"
+                label="Password"
                 name="password"
-                onBlur={() => {
-                  setPasswordFocused(false)
-                  markTouched('password')
-                }}
-                onChange={(event) => updateRequiredField('password', event.target.value)}
+                onBlur={() => { setPasswordFocused(false); markTouched('password') }}
+                onChange={(event) => updateField('password', event.target.value)}
                 onFocus={() => setPasswordFocused(true)}
                 required
-                type={showPassword ? 'text' : 'password'}
+                value={values.password}
+                wrapperClassName="sm:col-span-2"
               />
-              <button className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-3 py-1 text-xs font-bold text-accent hover:bg-accent-light" onClick={() => setShowPassword((value) => !value)} type="button">
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
-            </span>
+            </div>
+
             {showPasswordRules && (
-              <ul className="grid gap-1 text-xs font-semibold">
+              <ul aria-label="Password requirements" className="grid gap-2 rounded-xl bg-foose-surface-low p-4 text-sm font-semibold sm:grid-cols-2">
                 {passwordRules.map((rule) => {
                   const met = rule.test(values.password)
                   return (
-                    <li className={`flex items-center gap-2 ${met ? 'text-foose-success' : 'text-foose-danger'}`} key={rule.id}>
-                      {met ? <FaCheckCircle aria-hidden /> : <FaExclamationCircle aria-hidden />} {rule.label}
+                    <li className={`flex items-center gap-2 ${met ? 'text-foose-success' : 'text-foose-muted'}`} key={rule.id}>
+                      {met ? <FaCheckCircle aria-hidden /> : <FaExclamationCircle aria-hidden className="text-foose-faint" />} {rule.label}
                     </li>
                   )
                 })}
               </ul>
             )}
-          </label>
-          <button className="button inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-accent bg-accent px-5 py-2.5 text-center text-sm font-bold text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full full" disabled={submitting || !canSubmit} type="submit">
-            {submitting ? 'Creating...' : 'Create account'}
-          </button>
-          {!canSubmit && <p className="text-center text-xs font-bold text-foose-muted">{submitHint}</p>}
-          <p className="text-center text-sm text-foose-muted">
-            Already have an account?{' '}
-            <a className="font-display font-bold text-accent hover:underline" href={authHref('/login', redirectTarget)}>
-              Log in instead
-            </a>
-          </p>
-        </form>
+
+            <SubmitButton className="w-full" loading={submitting} loadingLabel="Creating account…">Create account</SubmitButton>
+            <p className="text-center text-sm text-foose-muted">
+              Already have an account?{' '}
+              <a className="font-display font-bold text-accent hover:underline" href={authHref('/login', redirectTarget)}>Log in instead</a>
+            </p>
+          </form>
         )}
-      </section>
+      </Dialog>
     </AppShell>
   )
 }

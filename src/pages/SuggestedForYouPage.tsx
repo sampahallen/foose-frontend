@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react'
-import { AppShell, EmptyState, ErrorState, LoadingState, ProductCard, TopFilterBar } from '../components'
+import { AppShell, InlineNotice, ProductCard, RefreshIndicator, StatePanel, TopFilterBar } from '../components'
+import { AppendFeedback, ProductGridSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { useAuth } from '../hooks/useAuth'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
 import { useScrollRevealBand } from '../hooks/useScrollRevealBand'
@@ -36,7 +37,10 @@ export function SuggestedForYouPage() {
     items,
     loading,
     loadingMore,
+    loadMoreError,
     refetch,
+    refreshing,
+    retryLoadMore,
     sentinelRef,
     total,
   } = useInfiniteApiResource(buildPath, extractListings, [search])
@@ -62,10 +66,12 @@ export function SuggestedForYouPage() {
         <TopFilterBar actionPath="/suggested-for-you" hideType locationOptions={listingData?.filters?.locations || []} query={query} resultLabel={`${total} suggested ${activeMode === 'wholesale' ? 'bales' : 'items'}`} />
       </div>
       <section>
-        {loading && <LoadingState label="Loading your suggestions..." />}
-        {error && <ErrorState message={error} retry={refetch} />}
+        <RefreshIndicator active={refreshing} className="mb-4" label="Refreshing personalized suggestions" />
+        {loading && !feedListings.length && <ProductGridSkeleton label="Loading your personalized suggestions" />}
+        {error && !feedListings.length && <StatePanel action={<button className="button button-secondary" onClick={refetch} type="button">Try again</button>} body={error} layout="section" title="Your suggestions could not load" tone="error" />}
+        {error && !!feedListings.length && <InlineNotice action={<button className="font-black text-accent" onClick={refetch} type="button">Retry</button>} tone="warning">Could not refresh your suggestions. Your current picks are still available.</InlineNotice>}
         {!loading && !error && !feedListings.length && (
-          <EmptyState body="Browse, save, and shop a few more pieces to shape this feed." title="No personalized matches yet" />
+          <StatePanel action={<a className="button button-secondary" href={withBasePath('/browse')}>Explore marketplace items</a>} body="Browse, save, and shop a few more pieces to shape this feed." layout="section" title="Your suggestions are warming up" tone="info" />
         )}
         {!!feedListings.length && (
           <div className="masonry grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -74,8 +80,8 @@ export function SuggestedForYouPage() {
             ))}
           </div>
         )}
-        <div ref={sentinelRef} className="flex min-h-14 items-center justify-center py-4">
-          {loadingMore && <span className="size-6 animate-spin rounded-full border-2 border-foose-border border-t-accent" aria-label="Loading more suggestions" />}
+        <div ref={sentinelRef} className="min-h-14 py-2">
+          <AppendFeedback error={loadMoreError} label="Loading more suggestions" loading={loadingMore} retry={retryLoadMore} />
         </div>
       </section>
     </AppShell>

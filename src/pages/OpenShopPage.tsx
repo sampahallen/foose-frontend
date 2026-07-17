@@ -1,6 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import fooseLogo from '../assets/foose-logo-white.png'
-import { ButtonLink, EmptyState, ErrorState, Icon, ImagePreviewInput, SelectControl } from '../components'
+import { ButtonLink, Icon, ImagePreviewInput, InlineNotice, SelectControl, StatePanel, StepIndicator } from '../components'
+import { ChoiceCardGroup, ErrorSummary, SubmitButton } from '../components/forms/FormControls'
+import { FormField, TextAreaField, TextField } from '../components/forms/FormField'
+import { FormActions, FormPage, FormSection } from '../components/forms/FormLayout'
+import { UnsavedChangesGuard } from '../components/forms/UnsavedChangesGuard'
+import { useLocalDraft } from '../components/forms/useLocalDraft'
+import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { apiPost } from '../lib/api'
 import type { Shop } from '../types/api'
@@ -8,6 +14,7 @@ import { getErrorMessage } from '../utils/errorMessage'
 import { canonicalGhanaRegion, GHANA_REGIONS } from '../utils/ghanaRegions'
 import { normalizePhone } from '../utils/formValidation'
 import { navigateTo } from '../utils/navigation'
+import { navigateWithFlash } from '../utils/navigationFlash'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 
@@ -30,6 +37,23 @@ function HeaderLogo() {
   )
 }
 
+function ShopSetupHeader() {
+  return (
+    <header className="flow-top grid h-16 grid-cols-[1fr_auto_1fr] items-center bg-accent px-4 text-white md:px-8">
+      <div className="flex items-center gap-2">
+        <NavigationBackButton
+          className="bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white focus-visible:ring-white focus-visible:ring-offset-accent"
+          fallback={{ href: '/profile', label: 'Profile' }}
+          variant="icon"
+        />
+        <span className="hidden sm:inline-flex"><HeaderLogo /></span>
+      </div>
+      <span className="text-center text-sm font-bold sm:text-base">Set up your shop</span>
+      <span aria-hidden className="size-11 justify-self-end" />
+    </header>
+  )
+}
+
 export function OpenShopPage() {
   const { refreshUser, user } = useAuth()
   const [error, setError] = useState('')
@@ -39,7 +63,10 @@ export function OpenShopPage() {
   const [cityTouched, setCityTouched] = useState(false)
   const [regionInput, setRegionInput] = useState<string>()
   const [regionTouched, setRegionTouched] = useState(false)
-  const [bioLength, setBioLength] = useState(0)
+  const [bio, setBio] = useState('')
+  const [category, setCategory] = useState('both')
+  const [step, setStep] = useState(0)
+  const [validationAttempt, setValidationAttempt] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const city = cityInput ?? user?.location?.city?.trim() ?? ''
   const region = regionInput ?? canonicalGhanaRegion(user?.location?.region)
@@ -51,11 +78,25 @@ export function OpenShopPage() {
   const shopNameInvalid = shopNameTouched && !shopNameValid
   const cityInvalid = cityTouched && !cityValid
   const regionInvalid = regionTouched && !regionValid
-  const submitHint = !canSubmit ? 'Enter a shop name, city, and region to continue.' : ''
-
-  function requiredBadge(invalid: boolean) {
-    return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
-  }
+  const validationErrors = [
+    ...(!shopNameValid ? [{ fieldId: 'shop-name', message: 'Enter a shop name with at least 2 characters.' }] : []),
+    ...(!cityValid ? [{ fieldId: 'shop-city', message: 'Enter a city or town with at least 2 characters.' }] : []),
+    ...(!regionValid ? [{ fieldId: 'shop-region', message: 'Select a region.' }] : []),
+  ]
+  const draftValue = useMemo(() => ({ bio, category, city, region, shopName }), [bio, category, city, region, shopName])
+  const draft = useLocalDraft({
+    formId: 'open-shop',
+    onRestore: (saved) => {
+      if (typeof saved.shopName === 'string') setShopName(saved.shopName)
+      if (typeof saved.bio === 'string') setBio(saved.bio)
+      if (typeof saved.category === 'string') setCategory(saved.category)
+      if (typeof saved.city === 'string') setCityInput(saved.city)
+      if (typeof saved.region === 'string') setRegionInput(saved.region)
+    },
+    userId: user?._id,
+    value: draftValue,
+  })
+  const dirty = Boolean(shopName || bio || cityInput !== undefined || regionInput !== undefined || category !== 'both')
 
   useEffect(() => {
     if (user?.hasShop) navigateTo('/manage-shop')
@@ -67,6 +108,8 @@ export function OpenShopPage() {
       setShopNameTouched(true)
       setCityTouched(true)
       setRegionTouched(true)
+      setStep(!shopNameValid ? 0 : 1)
+      setValidationAttempt((attempt) => attempt + 1)
       return
     }
     const form = event.currentTarget
@@ -90,8 +133,9 @@ export function OpenShopPage() {
 
     try {
       const data = await apiPost<{ shop: Shop }>('/digishops', formData)
+      draft.clearDraft()
       await refreshUser()
-      navigateTo(`/manage-shop?shop=${data.shop.slug}`)
+      navigateWithFlash(`/manage-shop?shop=${data.shop.slug}`, { message: 'Your DigiShop is ready to customize and stock.', title: 'DigiShop opened', tone: 'success' })
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to create shop'))
     } finally {
@@ -99,20 +143,34 @@ export function OpenShopPage() {
     }
   }
 
+  function continueSetup() {
+    if (step === 0 && !shopNameValid) {
+      setShopNameTouched(true)
+      setValidationAttempt((attempt) => attempt + 1)
+      return
+    }
+    if (step === 1 && (!cityValid || !regionValid)) {
+      setCityTouched(true)
+      setRegionTouched(true)
+      setValidationAttempt((attempt) => attempt + 1)
+      return
+    }
+    setValidationAttempt(0)
+    setStep((current) => Math.min(3, current + 1))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   if (!user?.isKycVerified) {
     return (
       <div className="flow-page min-h-dvh bg-foose-bg">
-        <header className="flow-top flex h-16 items-center justify-between bg-accent px-4 text-white md:px-8">
-          <HeaderLogo />
-          <span>Set up your shop</span>
-          <a href="/">Close</a>
-        </header>
+        <ShopSetupHeader />
         <main className="flow-content mx-auto w-full max-w-5xl px-4 py-8 [&.narrow]:max-w-3xl narrow">
-          <EmptyState
+          <StatePanel
             action={<ButtonLink to="/kyc">Complete KYC</ButtonLink>}
             body="The server requires approved KYC before you can open a DigiShop."
-            icon="shield"
+            layout="page"
             title="KYC approval required"
+            tone="permission"
           />
         </main>
       </div>
@@ -121,63 +179,86 @@ export function OpenShopPage() {
 
   return (
     <div className="flow-page min-h-dvh bg-foose-bg">
-      <header className="flow-top flex h-16 items-center justify-between bg-accent px-4 text-white md:px-8">
-        <HeaderLogo />
-        <span>Set up your shop</span>
-        <a href="/">Close</a>
-      </header>
-      <main className="flow-content mx-auto w-full max-w-5xl px-4 py-8 [&.narrow]:max-w-3xl narrow">
-        <section className="form-card rounded-xl border border-foose-border bg-foose-surface p-5 shadow-sm md:p-7 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-foose-border [&_input]:bg-foose-surface [&_input]:px-3 [&_input]:py-3 [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-foose-border [&_select]:bg-foose-surface [&_select]:px-3 [&_select]:py-3 [&_select]:outline-none [&_select]:transition [&_select]:focus:border-accent [&_select]:focus:ring-2 [&_select]:focus:ring-accent/15 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-foose-border [&_textarea]:bg-foose-surface [&_textarea]:px-3 [&_textarea]:py-3 [&_textarea]:outline-none [&_textarea]:transition [&_textarea]:focus:border-accent [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-accent/15 max-lg:rounded-lg max-lg:p-4 large">
-          <h1>Basic information</h1>
-          <p>Create your DigiShop record, then add listings from your profile.</p>
-          <form className="space-y-5" encType="multipart/form-data" onSubmit={(event) => void createShop(event)}>
-            <label>
-              <span className="flex items-center gap-2">Shop name {requiredBadge(shopNameInvalid)}</span>
-              <input name="shopName" onBlur={() => setShopNameTouched(true)} onChange={(event) => setShopName(event.target.value)} placeholder="e.g. Accra Vintage Finds" required />
-              {shopNameInvalid && <span className="text-xs font-semibold text-foose-danger">Enter at least 2 characters.</span>}
-            </label>
-            <label>
-              Shop bio
-              <textarea maxLength={500} name="bio" onChange={(event) => setBioLength(event.target.value.length)} placeholder="Tell buyers what you curate..." rows={5} />
-              <span className="text-xs font-semibold text-foose-muted">{bioLength}/500 characters</span>
-            </label>
-            <label>
-              Primary category
-              <SelectControl defaultValue="both" name="category">
-                <option value="retail">Retail</option>
-                <option value="wholesale">Wholesale</option>
-                <option value="both">Both</option>
-              </SelectControl>
-            </label>
-            <fieldset className="field-section space-y-4 rounded-xl border border-foose-border bg-foose-surface-low p-4">
-              <legend>Shop location</legend>
-              <p className="muted-copy text-sm leading-6 text-foose-muted md:text-base">
-                This will be your default shop location from here on out, and buyers will use it to filter retail items and bales.
-              </p>
-              <div className="form-grid grid gap-4 sm:grid-cols-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3">
-                <label>
-                  <span className="flex items-center gap-2">City or town {requiredBadge(cityInvalid)}</span>
-                  <input
-                    name="city"
-                    onBlur={() => {
-                      setCityInput(city)
-                      setCityTouched(true)
-                    }}
-                    onChange={(event) => setCityInput(event.target.value)}
-                    placeholder="e.g. Accra"
-                    required
-                    value={city}
-                  />
-                  {cityInvalid && <span className="text-xs font-semibold text-foose-danger">Enter at least 2 characters.</span>}
-                </label>
-                <label>
-                  <span className="flex items-center gap-2">Region {requiredBadge(regionInvalid)}</span>
+      <ShopSetupHeader />
+      <main className="flow-content w-full">
+        <FormPage description="Create your shop identity, location, payout destination, and brand in four short steps." eyebrow={`Step ${step + 1} of 4`} title="Open your DigiShop" width="standard">
+          <UnsavedChangesGuard when={dirty && !submitting} />
+          {draft.hasRecoverableDraft && (
+            <InlineNotice
+              action={(
+                <div className="flex gap-2">
+                  <button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-white" onClick={() => draft.resumeDraft()} type="button">Resume</button>
+                  <button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-white" onClick={() => draft.discardDraft()} type="button">Discard</button>
+                </div>
+              )}
+              title="Continue setting up your shop?"
+            >
+              We found a recent local draft. Payout details and image files were not stored.
+            </InlineNotice>
+          )}
+          <StepIndicator
+            current={step}
+            label="Shop setup progress"
+            onStepChange={(index) => { if (index < step) setStep(index) }}
+            steps={['Identity', 'Location', 'Payout', 'Brand']}
+          />
+
+          <form className="space-y-5" encType="multipart/form-data" noValidate onSubmit={(event) => void createShop(event)}>
+            <ErrorSummary
+              errors={validationErrors.filter((item) => step === 0 ? item.fieldId === 'shop-name' : step === 1 ? item.fieldId !== 'shop-name' : step === 3)}
+              focus={validationAttempt > 0}
+            />
+
+            <div hidden={step !== 0}>
+              <FormSection description="Choose the public name and inventory focus shoppers will recognize." title="Shop identity">
+                <TextField
+                  autoComplete="organization"
+                  error={shopNameInvalid ? 'Enter at least 2 characters.' : undefined}
+                  id="shop-name"
+                  label="Shop name"
+                  name="shopName"
+                  onBlur={() => setShopNameTouched(true)}
+                  onChange={(event) => setShopName(event.target.value)}
+                  placeholder="e.g. Accra Vintage Finds"
+                  required
+                  value={shopName}
+                />
+                <TextAreaField id="shop-bio" label="Shop bio" maxLength={500} name="bio" onChange={(event) => setBio(event.target.value)} optional placeholder="Tell buyers what you curate and what makes the shop distinct." rows={5} value={bio} />
+                <ChoiceCardGroup
+                  label="Primary category"
+                  name="category"
+                  onChange={setCategory}
+                  options={[
+                    { description: 'Sell individual items.', label: 'Retail', value: 'retail' },
+                    { description: 'Sell bales and bulk lots.', label: 'Wholesale', value: 'wholesale' },
+                    { description: 'Offer both formats.', label: 'Retail + wholesale', value: 'both' },
+                  ]}
+                  value={category}
+                />
+              </FormSection>
+            </div>
+
+            <div hidden={step !== 1}>
+              <FormSection columns={2} description="This becomes the default location for your listings and marketplace filters." title="Shop location">
+                <TextField
+                  autoComplete="address-level2"
+                  error={cityInvalid ? 'Enter at least 2 characters.' : undefined}
+                  id="shop-city"
+                  label="City or town"
+                  name="city"
+                  onBlur={() => { setCityInput(city); setCityTouched(true) }}
+                  onChange={(event) => setCityInput(event.target.value)}
+                  placeholder="e.g. Accra"
+                  required
+                  value={city}
+                />
+                <FormField error={regionInvalid ? 'Select a region.' : undefined} htmlFor="shop-region" label="Region" required>
                   <SelectControl
+                    aria-describedby={regionInvalid ? 'shop-region-error' : undefined}
+                    aria-invalid={regionInvalid || undefined}
+                    id="shop-region"
                     name="region"
-                    onChange={(event) => {
-                      setRegionInput(event.target.value)
-                      setRegionTouched(true)
-                    }}
+                    onChange={(event) => { setRegionInput(event.target.value); setRegionTouched(true) }}
                     required
                     value={region}
                   >
@@ -185,65 +266,56 @@ export function OpenShopPage() {
                     {hasLegacyRegion && <option value={region}>{region}</option>}
                     {GHANA_REGIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                   </SelectControl>
-                  {regionInvalid && <span className="text-xs font-semibold text-foose-danger">Select a region.</span>}
-                </label>
-              </div>
-            </fieldset>
-            <fieldset className="field-section space-y-4 rounded-xl border border-foose-border bg-foose-surface-low p-4">
-              <legend>Primary funds collection method</legend>
-              <p className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Foose will use this as the default payout destination after escrow releases.</p>
-              <div className="form-grid grid gap-4 sm:grid-cols-2 [&_.wide]:sm:col-span-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_input]:w-full [&_input]:px-3 [&_input]:py-3 [&_select]:w-full [&_select]:px-3 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:px-3 [&_textarea]:py-3">
-                <label>
-                  Method
-                  <SelectControl defaultValue="mobile_money" name="payoutMethodType">
+                </FormField>
+              </FormSection>
+            </div>
+
+            <div hidden={step !== 2}>
+              <FormSection columns={2} description="Foose uses this destination after escrow releases. For your security, payout values are never saved in local drafts." title="Funds collection method">
+                <FormField htmlFor="payout-method" label="Method">
+                  <SelectControl defaultValue="mobile_money" id="payout-method" name="payoutMethodType">
                     <option value="mobile_money">Mobile money</option>
                     <option value="bank_transfer">Bank transfer</option>
                   </SelectControl>
-                </label>
-                <label>
-                  Account name
-                  <input defaultValue={user?.name || ''} name="payoutAccountName" placeholder="Registered account name" />
-                </label>
-                <label>
-                  Provider
-                  <input name="payoutProvider" placeholder="MTN, Telecel, AirtelTigo, bank..." />
-                </label>
-                <label>
-                  Account / phone number
-                  <input autoComplete="tel" defaultValue={user?.phone || ''} name="payoutAccountNumber" onBlur={(event) => { event.currentTarget.value = normalizePhone(event.currentTarget.value) }} placeholder="0240000000" />
-                </label>
-                <label>
-                  Bank name
-                  <input name="payoutBankName" placeholder="Optional for mobile money" />
-                </label>
-                <label>
-                  Branch
-                  <input name="payoutBranch" placeholder="Optional" />
-                </label>
-              </div>
-            </fieldset>
-            <label>
-              Shop logo
-              <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="logo" />
-              <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Upload a square JPEG, PNG, or WebP image.</span>
-            </label>
-            <label>
-              Shop banner
-              <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="banner" />
-              <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Upload a wide JPEG, PNG, or WebP image.</span>
-            </label>
-            {error && <ErrorState message={error} />}
-            <div className="form-actions flex flex-wrap items-center gap-3">
-              <ButtonLink to="/" variant="secondary">
-                Cancel
-              </ButtonLink>
-              <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting || !canSubmit} type="submit">
-                {submitting ? 'Creating...' : 'Create DigiShop'} <Icon name="arrow" />
-              </button>
-              {!canSubmit && <p className="w-full text-sm font-bold text-foose-muted">{submitHint}</p>}
+                </FormField>
+                <TextField autoComplete="name" defaultValue={user?.name || ''} id="payout-name" label="Account name" name="payoutAccountName" optional placeholder="Registered account name" />
+                <TextField id="payout-provider" label="Provider" name="payoutProvider" optional placeholder="MTN, Telecel, AirtelTigo, bank…" />
+                <TextField autoComplete="tel" defaultValue={user?.phone || ''} id="payout-number" inputMode="tel" label="Account or phone number" name="payoutAccountNumber" onBlur={(event) => { event.currentTarget.value = normalizePhone(event.currentTarget.value) }} optional placeholder="0240000000" />
+                <TextField id="payout-bank" label="Bank name" name="payoutBankName" optional placeholder="For bank transfer" />
+                <TextField id="payout-branch" label="Branch" name="payoutBranch" optional />
+              </FormSection>
             </div>
+
+            <div hidden={step !== 3}>
+              <FormSection columns={2} description="Add recognizable imagery now, or return to Shop settings after setup." title="Brand and review">
+                <FormField hint="Upload a square JPEG, PNG, or WebP image." htmlFor="logo" label="Shop logo" optional>
+                  <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="logo" />
+                </FormField>
+                <FormField hint="Upload a wide JPEG, PNG, or WebP image." htmlFor="banner" label="Shop banner" optional>
+                  <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="banner" />
+                </FormField>
+                <div className="form-field-wide rounded-2xl bg-accent-light/55 p-5">
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-accent">Ready to open</p>
+                  <h3 className="mt-2 font-display text-2xl font-semibold text-foose-text">{shopName || 'Your DigiShop'}</h3>
+                  <p className="mt-2 text-sm leading-6 text-foose-muted">{city && region ? `${city}, ${region}` : 'Add your location'} · {category === 'both' ? 'Retail and wholesale' : category}</p>
+                  {bio && <p className="mt-3 text-sm leading-6 text-foose-text">{bio}</p>}
+                </div>
+              </FormSection>
+            </div>
+
+            {error && <InlineNotice title="DigiShop was not created" tone="error">{error}</InlineNotice>}
+            <FormActions sticky>
+              {step === 0 ? <ButtonLink to="/" variant="secondary">Cancel</ButtonLink> : (
+                <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={() => setStep((current) => Math.max(0, current - 1))} type="button">Back</button>
+              )}
+              {step < 3 ? (
+                <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-black text-white shadow-md shadow-accent/15 hover:bg-accent-hover" onClick={continueSetup} type="button">Continue <Icon name="arrow" /></button>
+              ) : (
+                <SubmitButton loading={submitting} loadingLabel="Opening DigiShop…">Create DigiShop <Icon name="arrow" /></SubmitButton>
+              )}
+            </FormActions>
           </form>
-        </section>
+        </FormPage>
       </main>
     </div>
   )

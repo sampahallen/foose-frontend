@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { AppShell, EmptyState, ErrorState, Icon, LoadingState, Message } from '../components'
-import { getAppName } from '../config/env'
+import { AppShell, Dialog, Icon, InlineNotice, LoadingRegion, Message, SkeletonBlock, StatePanel } from '../components'
+import { InboxListSkeleton } from '../components/operational/OperationalStates'
+import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
@@ -23,6 +24,10 @@ type DraftAttachment = {
   type: 'image' | 'video'
   url: string
 }
+
+const CHAT_ATTACHMENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'])
+const CHAT_ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024
+const CHAT_ATTACHMENT_MAX_FILES = 8
 
 type PaginatedMessages = {
   contactVisible?: boolean
@@ -214,16 +219,28 @@ export function InboxPage() {
     notifications,
     sendMessage: sendSocketMessage,
   } = useMessaging()
-  const brand = getAppName()
   const params = inboxParams()
   const messagePath = useCallback(
     (page: number) => (params.conversationId ? `/chat/${encodeURIComponent(params.conversationId)}?page=${page}&limit=30` : null),
     [params.conversationId],
   )
   const extractMessages = useCallback((data: PaginatedMessages) => data.messages || [], [])
-  const messages = useInfiniteApiResource(messagePath, extractMessages, [params.conversationId])
+  const {
+    data: messageData,
+    error: messagesError,
+    initialLoading: messagesInitialLoading,
+    items: messageItems,
+    loadMoreError: messagesLoadMoreError,
+    loading: messagesLoading,
+    loadingMore: messagesLoadingMore,
+    refetch: refetchMessages,
+    retryLoadMore: retryMessagesLoadMore,
+    sentinelRef: messagesSentinelRef,
+  } = useInfiniteApiResource(messagePath, extractMessages, [params.conversationId])
   const listingContext = useApiResource<{ listing: Listing }>(params.listingId ? `/listings/${encodeURIComponent(params.listingId)}` : null, Boolean(params.listingId))
   const [sendError, setSendError] = useState('')
+  const [sendErrorTitle, setSendErrorTitle] = useState('Message not sent')
+  const [sending, setSending] = useState(false)
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null)
   const [liveMessages, setLiveMessages] = useState<InboxChatMessage[]>([])
   const [olderMessagesEnabled, setOlderMessagesEnabled] = useState(false)
@@ -259,7 +276,7 @@ export function InboxPage() {
   const activeContact = productMessages
     .flatMap((message) => [message.senderId, message.receiverId])
     .find((participant) => typeof participant === 'object' && participant._id !== myId) as User | undefined
-  const activeParticipant = activeConversation?.participant || messages.data?.participant || activeContact
+  const activeParticipant = activeConversation?.participant || messageData?.participant || activeContact
   const activeParticipantProfile = isUserProfile(activeParticipant) ? activeParticipant : undefined
   const hasActiveThreadTarget = Boolean(params.conversationId || params.receiverId)
   const activeThreadTitle = activeParticipantProfile ? displayUser(activeParticipantProfile) : hasActiveThreadTarget ? 'Starting chat' : 'Select a conversation'
@@ -297,8 +314,8 @@ export function InboxPage() {
   }, [params.conversationId])
 
   useEffect(() => {
-    setLiveMessages((current) => mergeMessagePage(current, messages.items))
-  }, [messages.items])
+    setLiveMessages((current) => mergeMessagePage(current, messageItems))
+  }, [messageItems])
 
   useEffect(() => {
     if (!params.conversationId) return
@@ -341,7 +358,7 @@ export function InboxPage() {
   }, [params.listingId])
 
   useEffect(() => {
-    if (!params.conversationId || messages.loading) return undefined
+    if (!params.conversationId || messagesLoading) return undefined
 
     const node = messagesRef.current
     if (!node) return undefined
@@ -360,7 +377,7 @@ export function InboxPage() {
       setOlderMessagesEnabled(true)
     }, 80)
     return () => window.clearTimeout(timer)
-  }, [messages.loading, newestMessageId, params.conversationId, scrollToLatestMessage])
+  }, [messagesLoading, newestMessageId, params.conversationId, scrollToLatestMessage])
 
   useEffect(() => {
     if (!params.conversationId || !activeConversation?.unreadCount) return
@@ -382,13 +399,31 @@ export function InboxPage() {
 
   function handleAttachmentChange(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
-    const nextAttachments = files.map((file, index) => ({
+    const invalidType = files.find((file) => !CHAT_ATTACHMENT_TYPES.has(file.type))
+    const oversized = files.find((file) => file.size > CHAT_ATTACHMENT_MAX_BYTES)
+    const remainingSlots = Math.max(CHAT_ATTACHMENT_MAX_FILES - selectedAttachments.length, 0)
+
+    if (invalidType || oversized || files.length > remainingSlots) {
+      setSendErrorTitle('Attachment not added')
+      setSendError(invalidType
+        ? 'Use JPEG, PNG, WebP, MP4, WebM, or QuickTime files.'
+        : oversized
+          ? `${oversized.name} is larger than 25 MB.`
+          : `You can attach up to ${CHAT_ATTACHMENT_MAX_FILES} files.`)
+    } else {
+      setSendError('')
+    }
+
+    const acceptedFiles = files
+      .filter((file) => CHAT_ATTACHMENT_TYPES.has(file.type) && file.size <= CHAT_ATTACHMENT_MAX_BYTES)
+      .slice(0, remainingSlots)
+    const nextAttachments = acceptedFiles.map((file, index) => ({
       file,
       id: draftAttachmentId(file, index),
       type: draftAttachmentType(file),
       url: URL.createObjectURL(file),
     }))
-    setSelectedAttachments((current) => [...current, ...nextAttachments].slice(0, 8))
+    setSelectedAttachments((current) => [...current, ...nextAttachments].slice(0, CHAT_ATTACHMENT_MAX_FILES))
     event.target.value = ''
   }
 
@@ -404,6 +439,7 @@ export function InboxPage() {
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (sending) return
     const form = event.currentTarget
     const formData = new FormData(form)
     const content = String(formData.get('content') || '').trim()
@@ -413,6 +449,8 @@ export function InboxPage() {
     if ((!content && !selectedAttachments.length) || (!params.conversationId && !receiverId)) return
 
     setSendError('')
+    setSendErrorTitle('Message not sent')
+    setSending(true)
     try {
       const listingId = activeComposerListing && params.listingId && dismissedListingId !== params.listingId ? params.listingId : ''
 
@@ -496,6 +534,8 @@ export function InboxPage() {
       if (listingId) setDismissedListingId(listingId)
     } catch (err) {
       setSendError(getErrorMessage(err, 'Could not send message'))
+    } finally {
+      setSending(false)
     }
   }
 
@@ -504,6 +544,7 @@ export function InboxPage() {
       const result = await apiPut<{ message: InboxChatMessage }>(`/chat/messages/${encodeURIComponent(messageId)}/reaction`, { reaction })
       setLiveMessages((current) => mergeMessageList(current, result.message))
     } catch (err) {
+      setSendErrorTitle('Reaction not saved')
       setSendError(getErrorMessage(err, 'Could not save reaction'))
     }
   }
@@ -573,10 +614,10 @@ export function InboxPage() {
           {params.section === 'inbox' && (
           <section className="conversation-stack flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label="Inbox conversations">
             <h2 className="sr-only">Inbox</h2>
-            {notificationLoading && <LoadingState label="Loading conversations..." />}
-            {notificationError && <ErrorState message={notificationError} />}
+            {notificationLoading && <InboxListSkeleton label="Loading conversations" />}
+            {notificationError && <StatePanel body={notificationError} layout="pane" title="Conversations unavailable" tone="error" />}
             {!notificationLoading && !notificationError && !orderedConversations.length && (
-              <EmptyState body="Message a seller from any listing page to start a thread." title="No conversations yet" />
+              <StatePanel body="Message a seller from any listing page to start a thread." layout="pane" title="No conversations yet" tone="empty" />
             )}
             {!!orderedConversations.length &&
               orderedConversations.map((conversation) => {
@@ -610,10 +651,10 @@ export function InboxPage() {
           {params.section === 'system' && (
           <section className="system-notifications flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label="System notifications">
             <h2 className="sr-only">System notifications</h2>
-            {notificationLoading && <LoadingState label="Loading notifications..." />}
-            {notificationError && <ErrorState message={notificationError} />}
+            {notificationLoading && <InboxListSkeleton label="Loading notifications" />}
+            {notificationError && <StatePanel body={notificationError} layout="pane" title="Notifications unavailable" tone="error" />}
             {!notificationLoading && !notificationError && !notificationItems.length && (
-              <EmptyState body={`${brand} will show follows, reviews, orders, and other alerts here.`} title="No notifications" />
+              <StatePanel body="Likes, comments, replies, follows, reviews, and account updates will appear here." layout="pane" title="No activity yet" tone="empty" />
             )}
             {notificationItems.map((notification) => (
               <button className={`notification-item grid min-h-[76px] w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 border-b border-foose-border px-4 py-3 text-left transition hover:bg-foose-surface-low ${notification.isRead ? 'bg-foose-surface' : 'bg-accent-light/55'}`} key={notification._id} onClick={() => openNotificationDetails(notification)} type="button">
@@ -634,16 +675,16 @@ export function InboxPage() {
         <section className={`thread flex min-h-0 flex-col bg-foose-bg xl:h-full xl:overflow-hidden ${compactThreadOpen ? 'max-xl:h-dvh' : 'max-xl:hidden'}`}>
           {!canCompose ? (
             <div className="flex min-h-[70dvh] flex-1 items-center justify-center p-6 text-center xl:min-h-0">
-              <p className="max-w-sm text-sm font-semibold leading-6 text-foose-muted">
-                Choose a conversation or message someone to start chatting.
-              </p>
+              <StatePanel body="Choose a conversation or message someone to start chatting." layout="pane" title="Your conversation will open here" tone="info" />
             </div>
           ) : (
             <>
           <header className="thread-header sticky top-0 z-20 flex min-h-16 shrink-0 items-center gap-3 border-b border-foose-border bg-foose-surface px-4 py-2 shadow-sm max-xl:px-3 [&_img]:size-10 [&_img]:shrink-0 [&_img]:rounded-full [&_img]:object-cover [&_h2]:truncate [&_h2]:text-sm [&_h2]:font-bold [&_p]:truncate [&_p]:text-xs [&_p]:text-foose-muted">
-            <a aria-label="Back to inbox" className="inline-flex size-10 shrink-0 items-center justify-center rounded-full text-foose-text transition hover:bg-foose-surface-low xl:hidden" href={withBasePath('/inbox')}>
-              <span className="rotate-180"><Icon name="arrow" /></span>
-            </a>
+            <NavigationBackButton
+              className="size-10 bg-transparent shadow-none hover:bg-foose-surface-low xl:hidden"
+              fallback={{ href: '/inbox', label: 'Inbox' }}
+              variant="icon"
+            />
             {userPhoto(activeParticipantProfile) ? <img alt="" src={userPhoto(activeParticipantProfile)} /> : <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-light text-sm font-bold text-accent">{initials(activeThreadTitle)}</span>}
             <div className="min-w-0 flex-1">
               <h2>{activeThreadTitle}</h2>
@@ -657,14 +698,22 @@ export function InboxPage() {
           </header>
           <div className="messages flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 pb-6 max-md:px-3" ref={messagesRef}>
             {params.conversationId && olderMessagesEnabled && (
-              <div ref={messages.sentinelRef} className="flex min-h-10 items-center justify-center py-2">
-                {messages.loadingMore && <span className="size-5 animate-spin rounded-full border-2 border-foose-border border-t-accent" aria-label="Loading older messages" />}
+              <div ref={messagesSentinelRef} className="flex min-h-10 flex-col items-center justify-center gap-2 py-2">
+                {messagesLoadingMore && <SkeletonBlock className="h-8 w-40 rounded-full" />}
+                {messagesLoadMoreError && <InlineNotice action={<button className="text-sm font-bold text-accent" onClick={() => void retryMessagesLoadMore()} type="button">Retry</button>} tone="warning">Older messages could not load.</InlineNotice>}
               </div>
             )}
-            {messages.loading && <LoadingState label="Loading conversation..." />}
-            {messages.error && <ErrorState message={messages.error} retry={messages.refetch} />}
+            {messagesInitialLoading && (
+              <LoadingRegion className="grid flex-1 content-end gap-4" label="Loading conversation" layout="pane">
+                <SkeletonBlock className="h-16 w-3/5 rounded-2xl" />
+                <SkeletonBlock className="ml-auto h-20 w-2/3 rounded-2xl" />
+                <SkeletonBlock className="h-14 w-1/2 rounded-2xl" />
+                <SkeletonBlock className="ml-auto h-16 w-3/5 rounded-2xl" />
+              </LoadingRegion>
+            )}
+            {messagesError && !messageItems.length && <StatePanel action={<button className="text-sm font-bold text-accent" onClick={() => void refetchMessages()} type="button">Retry conversation</button>} body={messagesError} layout="pane" title="Conversation unavailable" tone="error" />}
             {!params.conversationId && params.receiverId && (
-              <EmptyState body="Send the first message to start this seller conversation." title="Ready to message" />
+              <StatePanel body="Send the first message to start this seller conversation." layout="pane" title="Ready to message" tone="info" />
             )}
             {!!orderedMessages.length &&
               orderedMessages.map((message) => {
@@ -689,13 +738,13 @@ export function InboxPage() {
                 )
               })}
           </div>
-          {sendError && <p className="danger-text px-3 py-2 text-sm font-semibold text-foose-danger inbox-send-error">{sendError}</p>}
+          {sendError && <InlineNotice className="mx-3 mb-2" title={sendErrorTitle} tone="error">{sendError}</InlineNotice>}
           {replyTarget && <ReplyContextBand message={replyTarget} onDismiss={() => setReplyTarget(null)} />}
           <ListingContextBand listing={activeComposerListing} onDismiss={() => setDismissedListingId(params.listingId)} />
-          <form className={`message-composer sticky bottom-0 flex shrink-0 items-end gap-2 border-t border-foose-border bg-foose-surface p-3 max-md:gap-1.5 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&_input]:h-12 [&_input]:w-full [&_input]:px-4 ${canCompose ? 'single-line' : ''} `} onSubmit={(event) => void sendMessage(event)}>
+          <form aria-busy={sending} className={`message-composer sticky bottom-0 flex shrink-0 items-end gap-2 border-t border-foose-border bg-foose-surface/95 p-3 shadow-[0_-8px_24px_rgba(26,27,37,0.04)] backdrop-blur max-md:gap-1.5 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&_input]:h-12 [&_input]:w-full [&_input]:px-4 ${canCompose ? 'single-line' : ''} `} onSubmit={(event) => void sendMessage(event)}>
             {!params.conversationId && !params.receiverId && <input aria-label="Receiver user ID" name="receiverId" placeholder="Receiver user ID" />}
             <div className="composer-main min-w-0 flex-1 [&_input]:h-12 [&_input]:w-full [&_input]:rounded-full [&_input]:border [&_input]:border-foose-border [&_input]:bg-foose-surface-low [&_input]:px-4 [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:bg-white">
-              <input aria-label="Write message" autoComplete="off" name="content" placeholder={activeComposerListing ? 'Ask a question about this product...' : 'Message'} ref={messageInputRef} />
+              <input aria-label="Write message" autoComplete="off" name="content" placeholder={activeComposerListing ? 'Ask a question about this product...' : 'Message'} readOnly={sending} ref={messageInputRef} />
               {!!selectedAttachments.length && (
                 <div className="composer-media-previews flex flex-wrap gap-2">
                   {selectedAttachments.map((attachment, index) => (
@@ -721,7 +770,7 @@ export function InboxPage() {
                         )}
                       </button>
                       <span>{attachment.file.name}</span>
-                      <button aria-label={`Remove ${attachment.file.name}`} onClick={() => removeSelectedFile(attachment.id)} type="button">
+                      <button aria-label={`Remove ${attachment.file.name}`} className="inline-flex size-11 items-center justify-center rounded-full bg-black/65 text-white" onClick={() => removeSelectedFile(attachment.id)} type="button">
                         x
                       </button>
                       <small>{index + 1}</small>
@@ -730,49 +779,53 @@ export function InboxPage() {
                 </div>
               )}
             </div>
-            <label className="attachment-button inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-accent hover:bg-accent-light [&_input]:sr-only" title="Attach images or videos">
+            <label aria-label="Attach images or videos" className="attachment-button inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-full border border-foose-border bg-foose-surface text-accent transition hover:bg-accent-light focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent [&_input]:sr-only" title="Attach images or videos">
+              <span className="sr-only">Attach images or videos</span>
               <Icon name="upload" />
-              <input accept="image/*,video/*" multiple name="attachments" onChange={handleAttachmentChange} type="file" />
+              <input accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" disabled={sending} multiple name="attachments" onChange={handleAttachmentChange} type="file" />
             </label>
-            <label className="attachment-button inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-accent hover:bg-accent-light max-sm:hidden [&_input]:sr-only" title="Open camera">
+            <label aria-label="Open camera" className="attachment-button inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-full border border-foose-border bg-foose-surface text-accent transition hover:bg-accent-light focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent [&_input]:sr-only" title="Open camera">
+              <span className="sr-only">Open camera</span>
               <Icon name="camera" />
-              <input accept="image/*,video/*" capture="environment" multiple onChange={handleAttachmentChange} type="file" />
+              <input accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" capture="environment" disabled={sending} multiple onChange={handleAttachmentChange} type="file" />
             </label>
-            <button aria-label="Send message" className="message-send-button inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-accent bg-accent text-white transition hover:bg-accent-hover" type="submit">
-              <Icon name="send" />
+            <button aria-label={sending ? 'Sending message' : 'Send message'} className="message-send-button inline-flex size-12 shrink-0 items-center justify-center rounded-full border border-accent bg-accent text-white shadow-sm transition hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:bg-foose-surface-mid disabled:text-foose-faint" disabled={sending} type="submit">
+              {sending ? <span aria-hidden className="size-5 animate-spin rounded-full border-2 border-white/45 border-t-white motion-reduce:animate-none" /> : <Icon name="send" />}
             </button>
           </form>
             </>
           )}
         </section>
-        {selectedNotification && (
-          <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-            <button aria-label="Close notification details" className="absolute inset-0 bg-black/45" onClick={() => setSelectedNotification(null)} type="button" />
-            <article className="relative z-10 w-full max-w-md rounded-2xl border border-accent/20 bg-white p-5 shadow-2xl shadow-black/20 sm:p-6">
-              <button aria-label="Close notification details" className="absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-foose-text transition hover:border-accent hover:text-accent" onClick={() => setSelectedNotification(null)} type="button">
-                <Icon name="close" size={18} />
+        <Dialog
+          description={selectedNotification?.body || 'System update'}
+          footer={selectedNotification ? (
+            <>
+              <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" onClick={() => setSelectedNotification(null)} type="button">
+                Close
               </button>
-              <span className="mb-3 inline-flex rounded-full bg-accent-light px-3 py-1 text-xs font-bold uppercase tracking-wider text-accent">
+              {selectedNotification.link && (
+                <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover" onClick={() => openNotificationTarget(selectedNotification)} type="button">
+                  Open related page
+                </button>
+              )}
+            </>
+          ) : null}
+          onClose={() => setSelectedNotification(null)}
+          open={Boolean(selectedNotification)}
+          size="sm"
+          title={selectedNotification?.title || 'Notification'}
+        >
+          {selectedNotification && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="inline-flex rounded-full bg-accent-light px-3 py-1 text-xs font-bold uppercase tracking-wider text-accent">
                 {selectedNotification.type}
               </span>
-              <h2 className="pr-10 text-xl font-bold text-foose-text">{selectedNotification.title}</h2>
-              <p className="mt-3 text-sm leading-6 text-foose-muted">{selectedNotification.body || 'System update'}</p>
               {selectedNotification.createdAt && (
-                <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-foose-faint">{formatDateTime(selectedNotification.createdAt)}</p>
+                <span className="text-xs font-semibold uppercase tracking-wider text-foose-faint">{formatDateTime(selectedNotification.createdAt)}</span>
               )}
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-                <button className="inline-flex min-h-11 items-center justify-center rounded-lg border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" onClick={() => setSelectedNotification(null)} type="button">
-                  Close
-                </button>
-                {selectedNotification.link && (
-                  <button className="inline-flex min-h-11 items-center justify-center rounded-lg border border-accent bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover" onClick={() => openNotificationTarget(selectedNotification)} type="button">
-                    Open related page
-                  </button>
-                )}
-              </div>
-            </article>
-          </div>
-        )}
+            </div>
+          )}
+        </Dialog>
       </main>
     </AppShell>
   )

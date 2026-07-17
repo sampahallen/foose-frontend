@@ -1,4 +1,4 @@
-import { AuthRequired, ImagePreviewModal } from './components'
+import { AuthRequired, ImagePreviewModal, RouteErrorBoundary } from './components'
 import { useCurrentRoute } from './hooks/useCurrentRoute'
 import {
   AdminDisputesPage,
@@ -12,6 +12,7 @@ import {
   CartPage,
   CheckoutPage,
   CommunityEventFormPage,
+  CommunityFinspoArchivedPage,
   CommunityFinspoDetailPage,
   CommunityFinspoFormPage,
   CommunityPage,
@@ -25,6 +26,7 @@ import {
   ListingPromotionPage,
   LoginPage,
   NewListingPage,
+  NotFoundPage,
   OpenShopPage,
   OrderConfirmedPage,
   OrderDetailPage,
@@ -36,7 +38,9 @@ import {
   ResetPasswordPage,
   RetailDetailPage,
   SavedPage,
+  SearchPage,
   SellerDashboardPage,
+  ShopDraftListingsPage,
   ShopPage,
   SuggestedForYouPage,
   TopPicksPage,
@@ -93,6 +97,9 @@ function App() {
     case 'browse':
       page = <BrowsePage />
       break
+    case 'search':
+      page = <SearchPage key={search} />
+      break
     case 'suggestedForYou':
       page = (
         <AuthRequired>
@@ -127,7 +134,7 @@ function App() {
       )
       break
     case 'community':
-      page = <CommunityPage />
+      page = <CommunityPage key={search} />
       break
     case 'eventDetail':
       page = <EventDetailPage />
@@ -153,8 +160,15 @@ function App() {
         </AuthRequired>
       )
       break
+    case 'communityFinspoArchived':
+      page = (
+        <AuthRequired>
+          <CommunityFinspoArchivedPage />
+        </AuthRequired>
+      )
+      break
     case 'communityFinspoDetail':
-      page = <CommunityFinspoDetailPage />
+      page = <CommunityFinspoDetailPage key={pathname} />
       break
     case 'saved':
       page = (
@@ -261,14 +275,26 @@ function App() {
         </AuthRequired>
       )
       break
+    case 'shopDrafts':
+      page = (
+        <AuthRequired>
+          <ShopDraftListingsPage />
+        </AuthRequired>
+      )
+      break
     case 'home':
       page = <HomePage />
+      break
+    case 'notFound':
+      page = <NotFoundPage />
       break
   }
 
   return (
     <>
-      {page}
+      <RouteErrorBoundary resetKey={`${pathname}${search}`}>
+        {page}
+      </RouteErrorBoundary>
       <ImagePreviewModal />
     </>
   )

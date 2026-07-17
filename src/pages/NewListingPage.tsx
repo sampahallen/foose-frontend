@@ -1,12 +1,20 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, DropdownChevron, EmptyState, ErrorState, HashtagInput, Icon, ImagePreviewInput, LoadingState, SelectControl } from '../components'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { AppShell, ButtonLink, DropdownChevron, HashtagInput, Icon, ImagePreviewInput, InlineNotice, SelectControl, StatePanel, StepIndicator } from '../components'
+import { ErrorSummary, SubmitButton } from '../components/forms/FormControls'
+import { FormField, TextAreaField, TextField } from '../components/forms/FormField'
+import { FormActions, FormPage, FormSection } from '../components/forms/FormLayout'
+import { UnsavedChangesGuard } from '../components/forms/UnsavedChangesGuard'
+import { useLocalDraft } from '../components/forms/useLocalDraft'
+import { FormPageSkeleton } from '../components/operational/OperationalStates'
+import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiPost, apiPut } from '../lib/api'
 import type { Listing } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { LISTING_BRANDS, LISTING_CATEGORIES, LISTING_COLORS, LISTING_CONDITIONS, sizePlaceholderForCategory } from '../utils/listingTaxonomy'
-import { getCurrentAppPathname, navigateTo, withBasePath } from '../utils/navigation'
+import { getCurrentAppPathname } from '../utils/navigation'
+import { navigateWithFlash } from '../utils/navigationFlash'
 
 function readFormText(formData: FormData, name: string) {
   return String(formData.get(name) || '').trim()
@@ -36,24 +44,23 @@ type ListingDropdownOption = {
 function ListingDropdown({
   dividerAfter,
   name,
+  onChange,
   options,
   placeholder,
   value,
 }: {
   dividerAfter?: string
   name: string
+  onChange?: (value: string) => void
   options: ListingDropdownOption[]
   placeholder: string
   value?: string
 }) {
   const [open, setOpen] = useState(false)
-  const [selectedValue, setSelectedValue] = useState(value || '')
+  const [internalValue, setInternalValue] = useState(value || '')
   const dropdownRef = useRef<HTMLDivElement | null>(null)
+  const selectedValue = value ?? internalValue
   const selectedOption = options.find((option) => option.value === selectedValue)
-
-  useEffect(() => {
-    setSelectedValue(value || '')
-  }, [value])
 
   useEffect(() => {
     if (!open) return undefined
@@ -75,7 +82,8 @@ function ListingDropdown({
   }, [open])
 
   function selectOption(option: ListingDropdownOption) {
-    setSelectedValue(option.value)
+    setInternalValue(option.value)
+    onChange?.(option.value)
     setOpen(false)
   }
 
@@ -144,15 +152,32 @@ export function NewListingPage() {
   const eventId = sourceEventId()
   const editResource = useApiResource<{ listing: Listing }>(editId ? `/listings/${editId}` : null)
   const listing = editResource.data?.listing
+  const shopReturnPath = listing?.status === 'draft' ? '/manage-shop/drafts' : '/manage-shop/listings'
+  const returnFallback = eventId
+    ? { href: `/community/events/${eventId}/manage`, label: 'Event' }
+    : listing?.status === 'draft'
+      ? { href: '/manage-shop/drafts', label: 'Draft listings' }
+      : { href: shopReturnPath, label: 'Active listings' }
   const [error, setError] = useState('')
   const [selectedListingType, setSelectedListingType] = useState<'' | 'retail' | 'wholesale'>('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [selectedCondition, setSelectedCondition] = useState('')
   const [titleValue, setTitleValue] = useState(listing?.title || '')
   const [priceValue, setPriceValue] = useState(listing ? priceInputValue(listing.price) : '')
-  const [descriptionLength, setDescriptionLength] = useState(listing?.description?.length || 0)
+  const [descriptionValue, setDescriptionValue] = useState(listing?.description || '')
   const [quantityValue, setQuantityValue] = useState(listing?.quantity ? String(listing.quantity) : '')
   const [bulkMinQtyValue, setBulkMinQtyValue] = useState(listing?.bulkMinQty ? String(listing.bulkMinQty) : '')
+  const [brandValue, setBrandValue] = useState(listing?.brand || '')
+  const [colorValue, setColorValue] = useState<string>(listing?.color || 'multi')
+  const [sizeValue, setSizeValue] = useState(listing?.size || '')
+  const [genderValue, setGenderValue] = useState(listing?.gender || '')
+  const [bulkWeightValue, setBulkWeightValue] = useState(listing?.bulkWeight || '')
+  const [flawNoteValue, setFlawNoteValue] = useState('')
+  const [hashtags, setHashtags] = useState<string[]>(listing?.hashtags || [])
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [step, setStep] = useState(0)
+  const [validationAttempt, setValidationAttempt] = useState(0)
+  const restoredRef = useRef(false)
   const [touched, setTouched] = useState({ bulkMinQty: false, price: false, quantity: false, title: false })
   const [submitting, setSubmitting] = useState(false)
   const [submittingAction, setSubmittingAction] = useState<'active' | 'draft' | ''>('')
@@ -179,34 +204,97 @@ export function NewListingPage() {
     touched.bulkMinQty &&
     listingType === 'wholesale' &&
     (!minimumOrderQuantity || minimumOrderQuantity < 1 || Boolean(bulkQuantity && minimumOrderQuantity > bulkQuantity))
-  const submitHint = titleValue.trim().length < 2
-    ? 'Enter a listing title.'
-    : priceNumber === null || priceNumber < 0
-      ? 'Enter a valid price.'
-      : listingType === 'wholesale' && (!bulkQuantity || bulkQuantity < 1)
-        ? 'Enter the total available quantity.'
-        : listingType === 'wholesale' && (!minimumOrderQuantity || minimumOrderQuantity < 1)
-          ? 'Enter the minimum order quantity.'
-          : listingType === 'wholesale' && Boolean(bulkQuantity && minimumOrderQuantity && minimumOrderQuantity > bulkQuantity)
-            ? 'Minimum order quantity cannot exceed total quantity.'
-            : ''
-
-  function requiredBadge(invalid: boolean) {
-    return <span className={`ml-auto text-[10px] font-bold ${invalid ? 'text-foose-danger' : 'text-foose-faint'}`}>Required</span>
-  }
+  const validationErrors = [
+    ...(titleValue.trim().length < 2 ? [{ fieldId: 'listing-title', message: 'Enter a listing title with at least 2 characters.' }] : []),
+    ...(priceNumber === null || priceNumber < 0 ? [{ fieldId: 'listing-price', message: 'Enter a valid price with up to two decimal places.' }] : []),
+    ...(quantityInvalid ? [{ fieldId: 'listing-quantity', message: 'Enter the total available quantity.' }] : []),
+    ...(bulkMinQtyInvalid ? [{ fieldId: 'listing-minimum', message: minimumOrderQuantity && bulkQuantity && minimumOrderQuantity > bulkQuantity ? 'Minimum order cannot exceed total quantity.' : 'Enter the minimum order quantity.' }] : []),
+  ]
+  const draftValue = useMemo(() => ({
+    brand: brandValue,
+    bulkMinQty: bulkMinQtyValue,
+    bulkWeight: bulkWeightValue,
+    category: categoryValue,
+    color: colorValue,
+    condition: conditionValue,
+    description: descriptionValue,
+    flawNote: flawNoteValue,
+    gender: genderValue,
+    hashtags,
+    listingType,
+    price: priceValue,
+    quantity: quantityValue,
+    size: sizeValue,
+    title: titleValue,
+  }), [brandValue, bulkMinQtyValue, bulkWeightValue, categoryValue, colorValue, conditionValue, descriptionValue, flawNoteValue, genderValue, hashtags, listingType, priceValue, quantityValue, sizeValue, titleValue])
+  const draft = useLocalDraft({
+    enabled: !editResource.initialLoading,
+    formId: 'listing',
+    onRestore: (saved) => {
+      restoredRef.current = true
+      if (saved.listingType === 'retail' || saved.listingType === 'wholesale') setSelectedListingType(saved.listingType)
+      if (typeof saved.title === 'string') setTitleValue(saved.title)
+      if (typeof saved.description === 'string') setDescriptionValue(saved.description)
+      if (typeof saved.price === 'string') setPriceValue(saved.price)
+      if (typeof saved.category === 'string') setSelectedCategory(saved.category)
+      if (typeof saved.brand === 'string') setBrandValue(saved.brand)
+      if (typeof saved.condition === 'string') setSelectedCondition(saved.condition)
+      if (typeof saved.color === 'string') setColorValue(saved.color)
+      if (typeof saved.size === 'string') setSizeValue(saved.size)
+      if (typeof saved.gender === 'string') setGenderValue(saved.gender)
+      if (typeof saved.quantity === 'string') setQuantityValue(saved.quantity)
+      if (typeof saved.bulkMinQty === 'string') setBulkMinQtyValue(saved.bulkMinQty)
+      if (typeof saved.bulkWeight === 'string') setBulkWeightValue(saved.bulkWeight)
+      if (typeof saved.flawNote === 'string') setFlawNoteValue(saved.flawNote)
+      if (Array.isArray(saved.hashtags)) setHashtags(saved.hashtags.filter((tag): tag is string => typeof tag === 'string'))
+    },
+    resourceId: editId || 'new',
+    userId: user?._id,
+    value: draftValue,
+  })
+  const dirty = listing
+    ? titleValue !== (listing.title || '') || descriptionValue !== (listing.description || '') || priceValue !== priceInputValue(listing.price) || selectedFiles.length > 0
+    : Boolean(titleValue || descriptionValue || priceValue || selectedCategory || brandValue || selectedCondition || hashtags.length || selectedFiles.length || selectedListingType)
 
   useEffect(() => {
-    if (!listing) return
+    if (!listing || restoredRef.current) return
     setTitleValue(listing.title || '')
     setPriceValue(priceInputValue(listing.price))
-    setDescriptionLength(listing.description?.length || 0)
+    setDescriptionValue(listing.description || '')
     setQuantityValue(listing.quantity ? String(listing.quantity) : '')
     setBulkMinQtyValue(listing.bulkMinQty ? String(listing.bulkMinQty) : '')
+    setBrandValue(listing.brand || '')
+    setColorValue(listing.color || 'multi')
+    setSizeValue(listing.size || '')
+    setGenderValue(listing.gender || '')
+    setBulkWeightValue(listing.bulkWeight || '')
+    setHashtags(listing.hashtags || [])
   }, [listing])
+
+  function continueListingStep() {
+    if (step === 0 && titleValue.trim().length < 2) {
+      setTouched((current) => ({ ...current, title: true }))
+      setValidationAttempt((attempt) => attempt + 1)
+      return
+    }
+    if (step === 1 && !canSubmitListing) {
+      setTouched({ bulkMinQty: true, price: true, quantity: true, title: true })
+      setValidationAttempt((attempt) => attempt + 1)
+      return
+    }
+    setValidationAttempt(0)
+    setStep((current) => Math.min(3, current + 1))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   async function createListing(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!canSubmitListing) return
+    if (!canSubmitListing) {
+      setTouched({ bulkMinQty: true, price: true, quantity: true, title: true })
+      setStep(titleValue.trim().length < 2 ? 0 : 1)
+      setValidationAttempt((attempt) => attempt + 1)
+      return
+    }
     const form = event.currentTarget
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
     const requestedStatus = submitter?.dataset.status === 'draft' ? 'draft' : 'active'
@@ -293,11 +381,16 @@ export function NewListingPage() {
 
       if (!editId && eventId && requestedStatus === 'active') {
         await apiPost(`/community/events/${eventId}/listings`, { listingId: data.listing._id })
-        navigateTo(`/community/events/${eventId}/manage`)
+        draft.clearDraft()
+        navigateWithFlash(`/community/events/${eventId}/manage`, { message: 'The listing is live and attached to this pop-up.', title: 'Listing published', tone: 'success' })
         return
       }
 
-      navigateTo(requestedStatus === 'draft' ? '/manage-shop' : `/listing/${data.listing._id}`)
+      draft.clearDraft()
+      navigateWithFlash(
+        requestedStatus === 'draft' ? '/manage-shop/drafts' : `/listing/${data.listing._id}`,
+        { message: requestedStatus === 'draft' ? 'Your listing draft was saved.' : `Your listing was ${editId ? 'updated' : 'published'}.`, title: requestedStatus === 'draft' ? 'Draft saved' : 'Listing ready', tone: 'success' },
+      )
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to save listing'))
     } finally {
@@ -309,11 +402,13 @@ export function NewListingPage() {
   if (!user?.isKycVerified) {
     return (
       <AppShell>
-        <EmptyState
+        <NavigationBackButton className="mb-5" fallback={returnFallback} />
+        <StatePanel
           action={<ButtonLink to="/kyc">Complete KYC</ButtonLink>}
           body="KYC approval is required before you can add listings."
-          icon="shield"
+          layout="page"
           title="KYC required"
+          tone="permission"
         />
       </AppShell>
     )
@@ -322,199 +417,111 @@ export function NewListingPage() {
   if (!user.hasShop) {
     return (
       <AppShell>
-        <EmptyState
+        <NavigationBackButton className="mb-5" fallback={returnFallback} />
+        <StatePanel
           action={<ButtonLink to="/open-shop">Open your DigiShop</ButtonLink>}
           body="Create a DigiShop before publishing marketplace listings."
-          icon="store"
+          layout="page"
           title="DigiShop required"
+          tone="permission"
         />
       </AppShell>
     )
   }
 
-  if (editId && editResource.loading) {
+  if (editId && editResource.initialLoading) {
     return (
       <AppShell searchPlaceholder="Search marketplace...">
-        <LoadingState label="Loading listing..." />
+        <NavigationBackButton className="mb-5" fallback={returnFallback} />
+        <FormPageSkeleton label="Loading listing editor" media />
       </AppShell>
     )
   }
 
-  if (editId && editResource.error) {
+  if (editId && editResource.error && !editResource.data) {
     return (
       <AppShell searchPlaceholder="Search marketplace...">
-        <ErrorState message={editResource.error} retry={editResource.refetch} />
+        <NavigationBackButton className="mb-5" fallback={returnFallback} />
+        <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void editResource.refetch()} type="button">Retry</button>} body={editResource.error} layout="page" title="Listing unavailable" tone="unavailable" />
       </AppShell>
     )
   }
 
   return (
     <AppShell searchPlaceholder="Search marketplace...">
-      <div className="dashboard-head mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
-        <div>
-          <a className="back-link mb-6 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted hover:text-accent" href={withBasePath(eventId ? `/community/events/${eventId}/manage` : '/manage-shop')}>
-            <Icon name="arrow" /> {eventId ? 'Back to event' : 'Back to shop'}
-          </a>
-          <h1>{editId ? 'Edit listing' : 'Add listing'}</h1>
-          <p>{editId ? 'Update the listing details buyers see.' : 'Create a listing from your shop inventory.'}</p>
-        </div>
-      </div>
-
-      <section className="form-card rounded-xl border border-foose-border bg-foose-surface p-5 shadow-sm md:p-7 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-foose-text [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-foose-border [&_input]:bg-foose-surface [&_input]:px-3 [&_input]:py-3 [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-foose-border [&_select]:bg-foose-surface [&_select]:px-3 [&_select]:py-3 [&_select]:outline-none [&_select]:transition [&_select]:focus:border-accent [&_select]:focus:ring-2 [&_select]:focus:ring-accent/15 [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-foose-border [&_textarea]:bg-foose-surface [&_textarea]:px-3 [&_textarea]:py-3 [&_textarea]:outline-none [&_textarea]:transition [&_textarea]:focus:border-accent [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-accent/15 max-lg:rounded-lg max-lg:p-4 large listing-form-card">
-        <form className="space-y-6" encType="multipart/form-data" onSubmit={(event) => void createListing(event)}>
-          <div className="listing-form-grid grid gap-5 lg:grid-cols-2 [&_.wide]:sm:col-span-2">
-            <label className="wide">
-              <span className="flex items-center gap-2">Title {requiredBadge(titleInvalid)}</span>
-              <input defaultValue={listing?.title || ''} name="title" onBlur={() => setTouched((current) => ({ ...current, title: true }))} onChange={(event) => setTitleValue(event.target.value)} placeholder="Vintage bomber jacket" required />
-              {titleInvalid && <span className="text-xs font-semibold text-foose-danger">Enter at least 2 characters.</span>}
-            </label>
-            <label className="wide">
-              Description
-              <textarea defaultValue={listing?.description || ''} maxLength={1200} name="description" onChange={(event) => setDescriptionLength(event.target.value.length)} placeholder="Condition, fit, measurements, and pickup notes" rows={5} />
-              <span className="text-xs font-semibold text-foose-muted">{descriptionLength}/1200 characters</span>
-            </label>
-            <div className="wide flex flex-col gap-2 text-sm font-semibold text-foose-text">
-              <span>Vibe hashtags</span>
-              <HashtagInput initialTags={listing?.hashtags} />
-            </div>
-            <label>
-              <span className="flex items-center gap-2">Listing type {requiredBadge(false)}</span>
-              <SelectControl
-                className={listingSelectControl}
-                name="type"
-                onChange={(event) => setSelectedListingType(event.target.value as 'retail' | 'wholesale')}
-                required
-                value={listingType}
-              >
-                <option value="retail">Retail</option>
-                <option value="wholesale">Wholesale</option>
-              </SelectControl>
-              <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">
-                {listingType === 'retail'
-                  ? 'Retail listings are single items. Upload a separate listing for each extra piece.'
-                  : 'Wholesale listings use bulk quantities and minimum order quantities.'}
-              </span>
-            </label>
-            <label>
-              <span className="flex items-center gap-2">{listingType === 'wholesale' ? 'Unit price (GHS)' : 'Price (GHS)'} {requiredBadge(priceInvalid)}</span>
-              <input defaultValue={priceInputValue(listing?.price)} inputMode="decimal" name="price" onBlur={() => setTouched((current) => ({ ...current, price: true }))} onChange={(event) => setPriceValue(event.target.value)} placeholder="240.00" required />
-              <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Use up to two decimal places. The API stores the exact pesewa amount.</span>
-              {priceInvalid && <span className="text-xs font-semibold text-foose-danger">Enter a valid amount, like 240.00.</span>}
-            </label>
-            <label>
-              Category
-              <SelectControl
-                className={listingSelectControl}
-                name="category"
-                onChange={(event) => setSelectedCategory(event.target.value)}
-                value={categoryValue}
-              >
-                <option value="">Select category</option>
-                {LISTING_CATEGORIES.map((category) => (
-                  <option key={category.label} value={category.label}>
-                    {category.label}
-                  </option>
-                ))}
-              </SelectControl>
-            </label>
-            <label>
-              Brand
-              <ListingDropdown dividerAfter="Unbranded" name="brand" options={brandDropdownOptions} placeholder="Select brand" value={listing?.brand || ''} />
-            </label>
-            {listingType === 'retail' && (
-              <>
-                <label>
-                  Size
-                  <input defaultValue={listing?.size || ''} name="size" placeholder={sizePlaceholder} />
-                </label>
-                <label>
-                  Gender
-                  <SelectControl className={listingSelectControl} defaultValue={listing?.gender || ''} name="gender">
-                    <option value="">Select gender</option>
-                    <option value="men">Men</option>
-                    <option value="women">Women</option>
-                    <option value="unisex">Unisex</option>
-                    <option value="kids">Kids</option>
-                  </SelectControl>
-                </label>
-              </>
-            )}
-            <label>
-              Condition
-              <SelectControl className={listingSelectControl} name="condition" onChange={(event) => setSelectedCondition(event.target.value)} value={conditionValue}>
-                <option value="">Select condition</option>
-                {LISTING_CONDITIONS.map((condition) => (
-                  <option key={condition} value={condition}>
-                    {condition[0].toUpperCase() + condition.slice(1)}
-                  </option>
-                ))}
-              </SelectControl>
-            </label>
-            {needsFlawProof && (
-              <label className="wide rounded-xl border border-amber-200 bg-amber-50 p-4">
-                Flaw note for escrow review
-                <textarea name="flawNote" placeholder="Example: Small stain on left sleeve, shown in photo 2." rows={3} />
-                <span className="text-sm font-normal leading-6 text-amber-800">
-                  Fair or poor items need at least one image showing the flaw. This note is added to the listing description.
-                </span>
-              </label>
-            )}
-            <label>
-              Color
-              <ListingDropdown name="color" options={colorDropdownOptions} placeholder="Select color" value={listing?.color || 'multi'} />
-            </label>
-            {listingType === 'wholesale' && (
-              <>
-                <label>
-                  <span className="flex items-center gap-2">Total available quantity {requiredBadge(quantityInvalid)}</span>
-                  <input defaultValue={listing?.quantity || ''} min="1" name="quantity" onBlur={() => setTouched((current) => ({ ...current, quantity: true }))} onChange={(event) => setQuantityValue(event.target.value)} placeholder="100" required step="1" type="number" />
-                  {quantityInvalid && <span className="text-xs font-semibold text-foose-danger">Enter at least 1 item.</span>}
-                </label>
-                <label>
-                  <span className="flex items-center gap-2">Minimum order quantity {requiredBadge(bulkMinQtyInvalid)}</span>
-                  <input defaultValue={listing?.bulkMinQty || ''} min="1" name="bulkMinQty" onBlur={() => setTouched((current) => ({ ...current, bulkMinQty: true }))} onChange={(event) => setBulkMinQtyValue(event.target.value)} placeholder="10" required step="1" type="number" />
-                  {bulkMinQtyInvalid && (!minimumOrderQuantity || minimumOrderQuantity < 1) && <span className="text-xs font-semibold text-foose-danger">Enter at least 1 item.</span>}
-                  {bulkMinQtyInvalid && bulkQuantity && minimumOrderQuantity && minimumOrderQuantity > bulkQuantity && <span className="text-xs font-semibold text-foose-danger">Minimum order cannot exceed total quantity.</span>}
-                </label>
-                <label>
-                  Bulk weight (optional)
-                  <input defaultValue={listing?.bulkWeight || ''} name="bulkWeight" placeholder="25kg" />
-                </label>
-              </>
-            )}
-            <label className="wide">
-              Listing images
-              <ImagePreviewInput
-                accept={ACCEPT_IMAGES}
-                existingImages={listing?.images || []}
-                keptName="keptImages"
-                keptTouchedName="keptImagesTouched"
-                maxFiles={6}
-                multiple
-                name="images"
-              />
-              <span className="muted-copy text-sm leading-6 text-foose-muted md:text-base">
-                {editId ? 'Add or remove images one at a time, up to six total.' : 'Upload up to six JPEG, PNG, or WebP files. You can add them one at a time.'}
-              </span>
-            </label>
+      <FormPage
+        aside={(
+          <div className="rounded-2xl border border-foose-border bg-white p-5 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-accent">Listing preview</p>
+            <h2 className="mt-3 font-display text-2xl font-semibold text-foose-text">{titleValue || 'Your listing title'}</h2>
+            <p className="mt-2 text-xl font-black text-accent">{priceValue ? `GHS ${priceValue}` : 'Add a price'}</p>
+            <p className="mt-3 line-clamp-4 text-sm leading-6 text-foose-muted">{descriptionValue || 'Your description will appear here as you build the listing.'}</p>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-foose-muted"><span className="rounded-full bg-accent-light px-3 py-1.5">{listingType}</span>{categoryValue && <span className="rounded-full bg-foose-surface-low px-3 py-1.5">{categoryValue}</span>}</div>
           </div>
+        )}
+        description={editId ? 'Update the listing details buyers see. All sections stay available on this page.' : 'Build a clear, trustworthy marketplace listing in four short steps.'}
+        eyebrow={(
+          <NavigationBackButton fallback={returnFallback} />
+        )}
+        title={editId ? 'Edit listing' : 'Add listing'}
+        width="wide"
+      >
+        {!editId && (
+          <StepIndicator
+            current={step}
+            label="Listing creation progress"
+            onStepChange={(index) => { if (index < step) setStep(index) }}
+            steps={['Details', 'Pricing', 'Media', 'Review']}
+          />
+        )}
 
-          {error && <ErrorState message={error} />}
+        <form className="space-y-5" encType="multipart/form-data" noValidate onSubmit={(event) => void createListing(event)}>
+          <UnsavedChangesGuard when={dirty && !submitting} />
+          {draft.hasRecoverableDraft && (
+            <InlineNotice action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-white" onClick={() => draft.resumeDraft()} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-white" onClick={() => draft.discardDraft()} type="button">Discard</button></div>} title="Continue your listing draft?">Listing details were saved on this device. Image files were not stored and must be selected again.</InlineNotice>
+          )}
+          <ErrorSummary errors={validationAttempt ? validationErrors : []} focus={validationAttempt > 0} />
 
-          <div className="form-actions flex flex-wrap items-center gap-3">
-            <ButtonLink to={eventId ? `/community/events/${eventId}/manage` : '/manage-shop'} variant="secondary">
-              Cancel
-            </ButtonLink>
-            <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" data-status="draft" disabled={submitting || !canSubmitListing} type="submit">
-              {submitting && submittingAction === 'draft' ? 'Saving draft...' : 'Save as draft'}
-            </button>
-            <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={submitting || !canSubmitListing} type="submit">
-              {submitting && submittingAction === 'active' ? 'Saving...' : editId ? 'Save item' : 'Post item'} <Icon name="plus" />
-            </button>
-            {!canSubmitListing && <p className="w-full text-sm font-bold text-foose-muted">{submitHint}</p>}
-          </div>
+          <FormSection className={!editId && step !== 0 ? 'hidden' : ''} columns={2} description="Give shoppers a concise name, useful context, and the right listing format." title="Details">
+            <TextField error={titleInvalid ? 'Enter at least 2 characters.' : undefined} id="listing-title" label="Title" name="title" onBlur={() => setTouched((current) => ({ ...current, title: true }))} onChange={(event) => setTitleValue(event.target.value)} placeholder="Vintage bomber jacket" required value={titleValue} wrapperClassName="form-field-wide" />
+            <TextAreaField id="listing-description" label="Description" maxLength={1200} name="description" onChange={(event) => setDescriptionValue(event.target.value)} optional placeholder="Condition, fit, measurements, and pickup notes" rows={5} value={descriptionValue} wrapperClassName="form-field-wide" />
+            <div className="form-field-wide"><HashtagInput initialTags={hashtags} label="Vibe hashtags" name="hashtags" onChange={setHashtags} /></div>
+            <FormField hint={listingType === 'retail' ? 'Retail listings are single items.' : 'Wholesale listings use bulk quantities and minimum order quantities.'} htmlFor="listing-type" label="Listing type" required>
+              <SelectControl className={listingSelectControl} id="listing-type" name="type" onChange={(event) => setSelectedListingType(event.target.value as 'retail' | 'wholesale')} required value={listingType}><option value="retail">Retail</option><option value="wholesale">Wholesale</option></SelectControl>
+            </FormField>
+          </FormSection>
+
+          <FormSection className={!editId && step !== 1 ? 'hidden' : ''} columns={2} description="Set the price and attributes buyers use to compare and filter products." title="Pricing and attributes">
+            <TextField error={priceInvalid ? 'Enter a valid amount, like 240.00.' : undefined} hint="Use up to two decimal places." id="listing-price" inputMode="decimal" label={listingType === 'wholesale' ? 'Unit price (GHS)' : 'Price (GHS)'} name="price" onBlur={() => setTouched((current) => ({ ...current, price: true }))} onChange={(event) => setPriceValue(event.target.value)} placeholder="240.00" prefix="GHS" required value={priceValue} />
+            <FormField htmlFor="listing-category" label="Category" optional><SelectControl className={listingSelectControl} id="listing-category" name="category" onChange={(event) => setSelectedCategory(event.target.value)} value={categoryValue}><option value="">Select category</option>{LISTING_CATEGORIES.map((category) => <option key={category.label} value={category.label}>{category.label}</option>)}</SelectControl></FormField>
+            <FormField htmlFor="listing-brand" label="Brand" optional><ListingDropdown dividerAfter="Unbranded" name="brand" onChange={setBrandValue} options={brandDropdownOptions} placeholder="Select brand" value={brandValue} /></FormField>
+            {listingType === 'retail' && <TextField id="listing-size" label="Size" name="size" onChange={(event) => setSizeValue(event.target.value)} optional placeholder={sizePlaceholder} value={sizeValue} />}
+            {listingType === 'retail' && <FormField htmlFor="listing-gender" label="Gender" optional><SelectControl className={listingSelectControl} id="listing-gender" name="gender" onChange={(event) => setGenderValue(event.target.value)} value={genderValue}><option value="">Select gender</option><option value="men">Men</option><option value="women">Women</option><option value="unisex">Unisex</option><option value="kids">Kids</option></SelectControl></FormField>}
+            <FormField htmlFor="listing-condition" label="Condition" optional><SelectControl className={listingSelectControl} id="listing-condition" name="condition" onChange={(event) => setSelectedCondition(event.target.value)} value={conditionValue}><option value="">Select condition</option>{LISTING_CONDITIONS.map((condition) => <option key={condition} value={condition}>{condition[0].toUpperCase() + condition.slice(1)}</option>)}</SelectControl></FormField>
+            <FormField htmlFor="listing-color" label="Color" optional><ListingDropdown name="color" onChange={setColorValue} options={colorDropdownOptions} placeholder="Select color" value={colorValue} /></FormField>
+            {needsFlawProof && <TextAreaField className="border-amber-300 bg-amber-50" hint="Fair or poor items need an image showing the flaw. This note is appended to the description." id="listing-flaw" label="Flaw note for escrow review" name="flawNote" onChange={(event) => setFlawNoteValue(event.target.value)} placeholder="Small stain on the left sleeve, shown in photo 2." required rows={3} value={flawNoteValue} wrapperClassName="form-field-wide rounded-xl bg-amber-50 p-4" />}
+            {listingType === 'wholesale' && <TextField error={quantityInvalid ? 'Enter at least 1 item.' : undefined} id="listing-quantity" label="Total available quantity" min="1" name="quantity" onBlur={() => setTouched((current) => ({ ...current, quantity: true }))} onChange={(event) => setQuantityValue(event.target.value)} placeholder="100" required step="1" type="number" value={quantityValue} />}
+            {listingType === 'wholesale' && <TextField error={bulkMinQtyInvalid ? (minimumOrderQuantity && bulkQuantity && minimumOrderQuantity > bulkQuantity ? 'Minimum order cannot exceed total quantity.' : 'Enter at least 1 item.') : undefined} id="listing-minimum" label="Minimum order quantity" min="1" name="bulkMinQty" onBlur={() => setTouched((current) => ({ ...current, bulkMinQty: true }))} onChange={(event) => setBulkMinQtyValue(event.target.value)} placeholder="10" required step="1" type="number" value={bulkMinQtyValue} />}
+            {listingType === 'wholesale' && <TextField id="listing-weight" label="Bulk weight" name="bulkWeight" onChange={(event) => setBulkWeightValue(event.target.value)} optional placeholder="25kg" value={bulkWeightValue} />}
+          </FormSection>
+
+          <FormSection className={!editId && step !== 2 ? 'hidden' : ''} description="Use clear, consistent photos. Drag to reorder them; the first image becomes the marketplace cover." title="Media">
+            <ImagePreviewInput accept={ACCEPT_IMAGES} aspect="square" existingImages={listing?.images || []} hint={editId ? 'Keep, remove, reorder, or add images up to six total.' : 'Files are not stored in local drafts and must be selected again.'} keptName="keptImages" keptTouchedName="keptImagesTouched" label="Listing images" maxFiles={6} multiple name="images" onFilesChange={setSelectedFiles} />
+          </FormSection>
+
+          {!editId && <FormSection className={step !== 3 ? 'hidden' : ''} description="Check the core details before publishing. You can go back without losing your entries." title="Review and publish"><div className="rounded-2xl bg-accent-light/50 p-5"><h3 className="font-display text-2xl font-semibold text-foose-text">{titleValue || 'Untitled listing'}</h3><p className="mt-2 text-xl font-black text-accent">{priceValue ? `GHS ${priceValue}` : 'Price missing'}</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="font-bold text-foose-faint">Format</dt><dd className="mt-1 font-semibold text-foose-text">{listingType}</dd></div><div><dt className="font-bold text-foose-faint">Category</dt><dd className="mt-1 font-semibold text-foose-text">{categoryValue || 'Not specified'}</dd></div><div><dt className="font-bold text-foose-faint">Images selected</dt><dd className="mt-1 font-semibold text-foose-text">{selectedFiles.length}</dd></div><div><dt className="font-bold text-foose-faint">Hashtags</dt><dd className="mt-1 font-semibold text-foose-text">{hashtags.length}</dd></div></dl></div></FormSection>}
+
+          {error && <InlineNotice title="Listing was not saved" tone="error">{error}</InlineNotice>}
+
+          <FormActions sticky>
+            {!editId && step > 0 ? <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={() => setStep((current) => Math.max(0, current - 1))} type="button">Back</button> : <ButtonLink to={eventId ? `/community/events/${eventId}/manage` : shopReturnPath} variant="secondary">Cancel</ButtonLink>}
+            {!editId && step < 3 ? <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-black text-white shadow-md shadow-accent/15 hover:bg-accent-hover" onClick={continueListingStep} type="button">Continue <Icon name="arrow" /></button> : <>
+              <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-black text-foose-text hover:border-accent hover:text-accent disabled:opacity-50" data-status="draft" disabled={submitting} type="submit">{submitting && submittingAction === 'draft' ? 'Saving draft…' : 'Save as draft'}</button>
+              <SubmitButton loading={submitting && submittingAction === 'active'} loadingLabel="Saving listing…">{editId ? 'Save item' : 'Post item'} <Icon name="plus" /></SubmitButton>
+            </>}
+          </FormActions>
         </form>
-      </section>
+      </FormPage>
     </AppShell>
   )
 }

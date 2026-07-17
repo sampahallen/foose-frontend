@@ -26,6 +26,32 @@
   --font-sans: Inter, system-ui, sans-serif;
 }
 
+:root {
+  --foose-bottom-nav-height: 4.5rem;
+  --foose-bottom-nav-inset: calc(var(--foose-bottom-nav-height) + env(safe-area-inset-bottom));
+  --foose-fab-inset: calc(var(--foose-bottom-nav-height) + 1.5rem + env(safe-area-inset-bottom));
+  --foose-fab-with-actions-inset: calc(var(--foose-bottom-nav-height) + 5rem + env(safe-area-inset-bottom));
+}
+
+.finspo-thin-scrollbar {
+  scrollbar-color: var(--color-foose-border) transparent;
+  scrollbar-width: thin;
+}
+
+.finspo-thin-scrollbar::-webkit-scrollbar {
+  height: 4px;
+  width: 4px;
+}
+
+.finspo-thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.finspo-thin-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-foose-border);
+  border-radius: 999px;
+}
+
 .button.button-primary,
 .button.bg-accent,
 a.bg-accent.text-white,
@@ -149,5 +175,26 @@ button.bg-accent.text-white:disabled {
   .digishop-cta > div::after {
     animation: none;
     transition: none;
+  }
+}
+
+.refresh-indicator-bar {
+  animation: foose-refresh-progress 1.15s ease-in-out infinite;
+}
+
+@keyframes foose-refresh-progress {
+  from {
+    transform: translateX(-110%);
+  }
+
+  to {
+    transform: translateX(310%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh-indicator-bar {
+    animation: none;
+    transform: none;
   }
 }

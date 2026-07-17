@@ -4,6 +4,7 @@ import { apiDelete, apiGet, apiPost } from '../../lib/api'
 import { authHref } from '../../utils/authRedirect'
 import { getErrorMessage } from '../../utils/errorMessage'
 import { navigateTo } from '../../utils/navigation'
+import { useToast } from '../feedback'
 import { Icon } from '../icons/Icon'
 
 type FavoriteTarget = 'event' | 'listing'
@@ -33,9 +34,11 @@ export function FavoriteButton({
   targetType,
 }: FavoriteButtonProps) {
   const { status, user } = useAuth()
+  const { showToast } = useToast()
   const [active, setActive] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [announcement, setAnnouncement] = useState('')
   const displayLabel = label || defaultLabel(targetType)
   const displayActiveLabel = activeLabel || 'Saved'
 
@@ -75,36 +78,45 @@ export function FavoriteButton({
 
     setBusy(true)
     setError('')
+    setAnnouncement('')
 
     try {
       if (active) {
         const result = await apiDelete<{ active: boolean }>(`/favorites/${targetType}/${targetId}`)
         setActive(result.active)
         onChange?.(result.active)
+        setAnnouncement(result.active ? `${displayLabel} saved.` : `${displayLabel} removed.`)
       } else {
         const result = await apiPost<{ active: boolean }>(`/favorites/${targetType}/${targetId}`)
         setActive(result.active)
         onChange?.(result.active)
+        setAnnouncement(result.active ? `${displayLabel} saved.` : `${displayLabel} removed.`)
       }
     } catch (requestError) {
-      setError(getErrorMessage(requestError, 'Could not update favorite'))
+      const message = getErrorMessage(requestError, 'Could not update favorite')
+      setError(message)
+      showToast({ id: `favorite:${targetType}:${targetId}`, message, tone: 'error' })
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <button
-      aria-label={active ? displayActiveLabel : displayLabel}
-      aria-pressed={active}
-      className={` ${className} ${active ? 'is-active' : ''} `}
-      disabled={busy || status === 'checking'}
-      onClick={(event) => void handleClick(event)}
-      title={error || (active ? displayActiveLabel : displayLabel)}
-      type="button"
-    >
-      <Icon name="heart" />
-      {showText && <span>{active ? displayActiveLabel : displayLabel}</span>}
-    </button>
+    <>
+      <button
+        aria-label={active ? displayActiveLabel : displayLabel}
+        aria-pressed={active}
+        className={` ${className} ${active ? 'is-active' : ''} `}
+        disabled={busy || status === 'checking'}
+        onClick={(event) => void handleClick(event)}
+        title={error || (active ? displayActiveLabel : displayLabel)}
+        type="button"
+      >
+        <Icon name="heart" />
+        {showText && <span>{active ? displayActiveLabel : displayLabel}</span>}
+      </button>
+      {announcement && <span className="sr-only" role="status">{announcement}</span>}
+      {error && <span className="sr-only" role="alert">{error}</span>}
+    </>
   )
 }

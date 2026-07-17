@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { MdVerified } from 'react-icons/md'
-import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, Icon, LightboxImage, LoadingState, ProductCard, SectionHeader } from '../components'
+import { AppShell, Badge, ButtonLink, FinspoCaption, FloatingCreateButton, Icon, InlineNotice, LightboxImage, LoadingState, ProductCard, RefreshIndicator, SectionHeader, StatePanel } from '../components'
+import { ProfilePageSkeleton } from '../components/feedback/DiscoverySkeletons'
+import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiPost } from '../lib/api'
@@ -29,12 +31,19 @@ function profileUsername() {
 export function ProfilePage() {
   const { status, user } = useAuth()
   const username = profileUsername()
+  const isExplicitOwnProfile = Boolean(
+    username
+      && user?.username
+      && username.toLocaleLowerCase() === user.username.toLocaleLowerCase(),
+  )
   const path = username ? `/users/${username}/profile` : user ? '/users/me/profile' : null
   const profile = useApiResource<ProfilePayload>(path)
   const followResource = useApiResource<{ followerCount: number; following: boolean }>(
     username && user ? `/users/${username}/follow` : null,
   )
   const [followError, setFollowError] = useState('')
+  const [followAnnouncement, setFollowAnnouncement] = useState('')
+  const [followBusy, setFollowBusy] = useState(false)
   const [followState, setFollowState] = useState<{ count?: number; following?: boolean }>({})
   const data = profile.data
   const isOwnProfile = Boolean(data && user && data.user.username === user.username)
@@ -54,22 +63,30 @@ export function ProfilePage() {
     }
 
     setFollowError('')
+    setFollowBusy(true)
     try {
       const result = await apiPost<{ followerCount: number; following: boolean }>(`/users/${data.user.username}/follow`)
       setFollowState({ count: result.followerCount, following: result.following })
+      setFollowAnnouncement(result.following ? `You are now following ${data.user.name}` : `You unfollowed ${data.user.name}`)
     } catch (error) {
       setFollowError(getErrorMessage(error, 'Could not update follow status'))
+    } finally {
+      setFollowBusy(false)
     }
   }
 
-  if (!username && status === 'checking' && !user) return <LoadingState label="Checking your session..." />
+  if (!username && status === 'checking' && !user) return <LoadingState label="Checking your session" layout="page" variant="spinner" />
 
-  if (shouldRedirectToAuth) return <LoadingState label="Redirecting to sign up..." />
+  if (shouldRedirectToAuth) return <LoadingState label="Redirecting to sign in" layout="page" variant="spinner" />
 
   return (
     <AppShell active="profile" searchPlaceholder="Search Foose...">
-      {profile.loading && <LoadingState label="Loading profile..." />}
-      {profile.error && <ErrorState message={profile.error} retry={profile.refetch} />}
+      {username && !isExplicitOwnProfile && !isOwnProfile && <NavigationBackButton className="mb-5" fallback={{ href: '/', label: 'Home' }} />}
+      {profile.initialLoading && <ProfilePageSkeleton />}
+      <RefreshIndicator active={profile.refreshing} className="mb-4" label="Refreshing profile" />
+      {profile.error && !data && <StatePanel action={<button className="button button-secondary" onClick={profile.refetch} type="button">Try again</button>} body={profile.error} layout="page" title={profile.errorMeta?.status === 404 ? 'This profile is unavailable' : 'Profile could not load'} tone={profile.errorMeta?.status === 403 ? 'permission' : profile.errorMeta?.status === 404 ? 'unavailable' : 'error'} />}
+      {profile.error && data && <InlineNotice action={<button className="font-black text-accent" onClick={profile.refetch} type="button">Retry</button>} tone="warning">This profile could not refresh. Showing the last loaded details.</InlineNotice>}
+      <span aria-live="polite" className="sr-only">{followAnnouncement}</span>
       {data && (
         <>
           <section className="mb-7 rounded-2xl border border-foose-border bg-foose-surface p-5 shadow-sm md:p-8">
@@ -99,8 +116,16 @@ export function ProfilePage() {
                 </div>
                 <div className="mt-6 flex flex-wrap items-center justify-center gap-3 md:justify-start">
                   {!isOwnProfile && (
-                    <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-6 text-sm font-black text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover" onClick={() => void toggleFollow()} type="button">
-                      {isFollowing ? 'Following' : 'Follow'}
+                    <button
+                      aria-busy={followBusy}
+                      aria-label={`${isFollowing ? 'Unfollow' : 'Follow'} @${data.user.username}`}
+                      aria-pressed={isFollowing}
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-6 text-sm font-black text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-60"
+                      disabled={followBusy}
+                      onClick={() => void toggleFollow()}
+                      type="button"
+                    >
+                      {followBusy ? 'Updating…' : isFollowing ? 'Following' : 'Follow'}
                     </button>
                   )}
                   {isOwnProfile && (
@@ -112,7 +137,7 @@ export function ProfilePage() {
               </div>
             </div>
           </section>
-          {followError && <ErrorState message={followError} />}
+          {followError && <InlineNotice className="mb-5" title="Follow status did not update" tone="error">{followError}</InlineNotice>}
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
             <section className="rounded-2xl border border-foose-border bg-foose-surface p-5 shadow-sm md:p-6">
@@ -172,16 +197,11 @@ export function ProfilePage() {
                   <button className="inline-flex size-11 items-center justify-center rounded-xl border border-foose-border bg-white text-foose-text transition hover:border-accent hover:text-accent" type="button">
                     <Icon name="filter" />
                   </button>
-                  {isOwnProfile && (
-                    <ButtonLink to="/listings/new">
-                      <Icon name="plus" /> New Listing
-                    </ButtonLink>
-                  )}
                 </div>
               }
               title="Active Listings"
             />
-            {!data.listings.length && <EmptyState body="Listings from this profile will appear here." title="No listings" />}
+            {!data.listings.length && <StatePanel body={isOwnProfile ? 'Create a listing to start filling your marketplace profile.' : 'Active listings from this profile will appear here.'} layout="section" title="No active listings" tone="empty" />}
             {!!data.listings.length && (
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {data.listings.map((listing) => (
@@ -194,7 +214,7 @@ export function ProfilePage() {
           <section className="profile-grid grid gap-6 md:grid-cols-2">
             <div>
               <SectionHeader title="Events posted" />
-              {!data.events.length && <EmptyState body="Hosted events will appear here." title="No events" />}
+              {!data.events.length && <StatePanel body={isOwnProfile ? 'Events you host will appear here.' : 'This member has not published an event.'} layout="compact" title="No hosted events" tone="empty" />}
               {!!data.events.length && (
                 <div className="event-row compact">
                   {data.events.slice(0, 3).map((event) => (
@@ -209,11 +229,14 @@ export function ProfilePage() {
             </div>
             <div>
               <SectionHeader title="Gallery items" />
-              {!data.gallery.length && <EmptyState body="Gallery posts will appear here." title="No gallery posts" />}
+              {!data.gallery.length && <StatePanel body={isOwnProfile ? 'Post Finspo to build your inspiration gallery.' : 'This member has not shared Finspo yet.'} layout="compact" title="No Finspo posts" tone="empty" />}
               {!!data.gallery.length && (
                 <div className="profile-gallery grid grid-cols-2 gap-3 md:grid-cols-3 [&_img]:aspect-square [&_img]:rounded-lg [&_img]:object-cover">
                   {data.gallery.slice(0, 6).map((post) => (
-                    <LightboxImage alt={post.caption || 'Gallery post'} key={post._id} src={post.imageUrl} />
+                    <article className="min-w-0" key={post._id}>
+                      <LightboxImage alt={post.caption || 'Gallery post'} src={post.imageUrl} />
+                      <FinspoCaption caption={post.caption} />
+                    </article>
                   ))}
                 </div>
               )}
@@ -221,6 +244,7 @@ export function ProfilePage() {
           </section>
         </>
       )}
+      {isOwnProfile && <FloatingCreateButton href="/listings/new" label="Add listing" />}
     </AppShell>
   )
 }

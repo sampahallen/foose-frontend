@@ -41,6 +41,8 @@ function formatPostCount(value: number) {
 export type HashtagInputProps = {
   ariaLabel?: string
   disabled?: boolean
+  error?: string
+  hint?: string
   id?: string
   initialTags?: string[]
   label?: string
@@ -48,6 +50,7 @@ export type HashtagInputProps = {
   name?: string
   onChange?: (tags: string[]) => void
   placeholder?: string
+  required?: boolean
 }
 
 export function HashtagInput(props: HashtagInputProps) {
@@ -60,6 +63,8 @@ export function HashtagInput(props: HashtagInputProps) {
 function HashtagInputState({
   ariaLabel = 'Hashtags',
   disabled = false,
+  error,
+  hint = 'Type a hashtag, then press Enter.',
   id,
   initialTags = [],
   label,
@@ -67,6 +72,7 @@ function HashtagInputState({
   name = 'hashtags',
   onChange,
   placeholder = '#streetwear',
+  required = false,
 }: HashtagInputProps) {
   const [tags, setTags] = useState<string[]>(() => normalizeTags(initialTags, maxTags))
   const [draft, setDraft] = useState('')
@@ -208,28 +214,28 @@ function HashtagInputState({
   return (
     <div className="relative">
       {label && (
-        <label className="mb-2 block text-sm font-semibold text-foose-text" htmlFor={inputId}>
-          {label}
+        <label className="mb-2 block text-sm font-bold text-foose-text" htmlFor={inputId}>
+          {label}{required && <span aria-hidden className="ml-1 text-foose-danger">*</span>}
         </label>
       )}
       <div
         className={`rounded-xl border bg-foose-surface px-3 py-2 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15 ${
-          disabled ? 'cursor-not-allowed border-foose-border opacity-60' : 'border-foose-border'
+          disabled ? 'cursor-not-allowed border-foose-border opacity-60' : error ? 'border-foose-danger bg-foose-danger-bg/10 focus-within:border-foose-danger focus-within:ring-foose-danger/15' : 'border-foose-border'
         }`}
         onClick={() => inputRef.current?.focus()}
       >
         {/* Keep the empty value in FormData so clearing every tag also clears it on edit. */}
         <input name={name} readOnly type="hidden" value={tags.join(',')} />
-        <div className="flex min-h-8 flex-wrap items-center gap-2">
+        <div className="flex min-h-12 flex-wrap items-center gap-2">
           {tags.map((tag) => (
             <span
-              className="inline-flex items-center gap-1 rounded-full bg-accent-light px-2.5 py-1 text-xs font-black text-accent"
+              className="inline-flex min-h-11 items-center gap-1 rounded-full bg-accent-light py-1 pl-3 pr-1 text-xs font-black text-accent"
               key={tag}
             >
               #{tag}
               <button
                 aria-label={`Remove #${tag}`}
-                className="inline-flex size-4 items-center justify-center rounded-full text-accent transition hover:bg-accent hover:text-white focus:outline-none focus:ring-2 focus:ring-accent/30"
+                className="inline-flex size-11 items-center justify-center rounded-full text-accent transition hover:bg-accent hover:text-white focus:outline-none focus:ring-2 focus:ring-accent/30"
                 disabled={disabled}
                 onClick={(event) => {
                   event.stopPropagation()
@@ -246,7 +252,9 @@ function HashtagInputState({
               aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
               aria-autocomplete="list"
               aria-controls={suggestionsOpen ? listboxId : undefined}
+              aria-describedby={error ? `${inputId}-error` : `${inputId}-hint`}
               aria-expanded={suggestionsOpen}
+              aria-invalid={Boolean(error) || undefined}
               aria-label={ariaLabel}
               autoComplete="off"
               className="!w-auto min-w-32 flex-1 !rounded-none !border-0 !bg-transparent !px-1 !py-1 text-sm outline-none placeholder:text-foose-faint focus:!ring-0"
@@ -268,8 +276,8 @@ function HashtagInputState({
         </div>
       </div>
 
-      <div className="mt-1 flex items-center justify-between gap-3 text-xs font-semibold text-foose-muted">
-        <span>Type a hashtag, then press Enter.</span>
+      <div className="mt-1 flex items-start justify-between gap-3 text-xs font-semibold text-foose-muted">
+        {error ? <span className="text-foose-danger" id={`${inputId}-error`} role="alert">{error}</span> : <span id={`${inputId}-hint`}>{hint}</span>}
         <span className="shrink-0">{tags.length}/{maxTags}</span>
       </div>
 

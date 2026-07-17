@@ -1,5 +1,8 @@
 import { useState } from 'react'
-import { AppShell, Badge, EmptyState, ErrorState, FavoriteButton, Icon, LightboxImage, LoadingState, SectionHeader } from '../components'
+import { AppShell, Badge, FavoriteButton, Icon, InlineNotice, LightboxImage, RefreshIndicator, SectionHeader, StatePanel } from '../components'
+import { EventDetailSkeleton } from '../components/feedback/DiscoverySkeletons'
+import { DiscoveryImage } from '../components/feedback/DiscoveryMedia'
+import { NavigationBackButton } from '../components/navigation'
 import { useApiResource } from '../hooks/useApiResource'
 import { useCart } from '../hooks/useCart'
 import type { Event, Listing } from '../types/api'
@@ -39,7 +42,7 @@ export function EventDetailPage() {
     return (
       <article className="event-catalog-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 overflow-hidden p-0 [&_img]:aspect-[4/3] [&_img]:w-full [&_img]:object-cover [&_.image-placeholder]:aspect-[4/3] [&_.image-placeholder]:w-full [&_.image-placeholder]:object-cover [&>div]:flex [&>div]:flex-col [&>div]:gap-3 [&>div]:p-4 max-lg:rounded-lg max-lg:p-3" key={listing._id}>
         <a href={withBasePath(`/listing/${listing._id}`)}>
-          {image ? <img alt="" src={image} /> : <span className="image-placeholder flex min-h-32 items-center justify-center bg-foose-surface-mid text-sm font-semibold text-foose-faint">No image</span>}
+          <DiscoveryImage alt={listing.title} fallback="Listing image unavailable" fallbackClassName="aspect-[4/3] min-h-32 w-full" src={image} />
         </a>
         <div>
           <p className="product-meta text-xs uppercase tracking-wide text-foose-faint">{listingMeta(listing)}</p>
@@ -57,17 +60,16 @@ export function EventDetailPage() {
     <AppShell active="community" searchPlaceholder="Search events...">
       <div className="dashboard-head mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
         <div>
-          <a className="back-link mb-6 inline-flex items-center gap-2 text-sm font-semibold text-foose-muted hover:text-accent" href="/community">
-            <Icon name="arrow" /> Back to Community
-          </a>
+          <NavigationBackButton className="mb-6" fallback={{ href: '/community?tab=events', label: 'Community events' }} />
           <h1>{event?.title || 'Event'}</h1>
           {event && <p>{eventTimeLabel(event)}{event.location ? ` - ${event.location}` : ''}</p>}
         </div>
       </div>
 
-      {!eventId && <EmptyState body="This event link is missing an event id." title="Event not found" />}
-      {eventResource.loading && <LoadingState label="Loading event..." />}
-      {eventResource.error && <ErrorState message={eventResource.error} retry={eventResource.refetch} />}
+      {!eventId && <StatePanel action={<a className="button button-secondary" href={withBasePath('/community?tab=events')}>Browse community events</a>} body="This link does not identify a community event." layout="page" title="Event link is incomplete" tone="unavailable" />}
+      {eventResource.initialLoading && <EventDetailSkeleton />}
+      <RefreshIndicator active={eventResource.refreshing} className="mb-4" label="Refreshing event details" />
+      {eventResource.error && <StatePanel action={<button className="button button-secondary" onClick={eventResource.refetch} type="button">Try again</button>} body={eventResource.error} layout="page" title={eventResource.errorMeta?.status === 404 ? 'This event is no longer available' : 'Event could not load'} tone={eventResource.errorMeta?.status === 403 ? 'permission' : eventResource.errorMeta?.status === 404 ? 'unavailable' : 'error'} />}
 
       {event && (
         <section className="event-detail grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] max-lg:grid-cols-1">
@@ -118,7 +120,8 @@ export function EventDetailPage() {
       {event && onlineEvent && (
         <section className="event-management-section rounded-xl border border-foose-border bg-foose-surface p-5">
           <SectionHeader title="Pop-up catalog" eyebrow={checkoutOpen ? 'Checkout is open now' : 'Browse before the shopping window opens'} />
-          {!listings.length && <EmptyState body="The host has not added items to this pop-up yet." title="No catalog items yet" />}
+          {eventWindowHasClosed(event) && <InlineNotice className="mb-4" title="This pop-up has ended" tone="info">Its catalog remains available to review, but checkout is closed.</InlineNotice>}
+          {!listings.length && <StatePanel body="The host has not added items to this pop-up yet." layout="section" title="No catalog items yet" tone="empty" />}
           {!!listings.length && <div className="event-catalog-grid grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">{listings.map(renderListing)}</div>}
         </section>
       )}

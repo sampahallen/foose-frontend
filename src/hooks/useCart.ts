@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getCartStorageKey } from '../config/env'
 import type { Listing } from '../types/api'
 import { getListingImage, getShop, getShopName } from '../utils/format'
@@ -26,6 +26,8 @@ function storageKey() {
   return getCartStorageKey()
 }
 
+const cartChangeEvent = 'foose:cart-change'
+
 function readCart() {
   const rawCart = window.localStorage.getItem(storageKey())
   if (!rawCart) return []
@@ -48,6 +50,24 @@ export function useCart() {
   const commit = useCallback((nextItems: CartItem[]) => {
     setItems(nextItems)
     writeCart(nextItems)
+    window.dispatchEvent(new Event(cartChangeEvent))
+  }, [])
+
+  useEffect(() => {
+    function syncCart() {
+      setItems(readCart())
+    }
+
+    function syncStoredCart(event: StorageEvent) {
+      if (event.key === storageKey()) syncCart()
+    }
+
+    window.addEventListener(cartChangeEvent, syncCart)
+    window.addEventListener('storage', syncStoredCart)
+    return () => {
+      window.removeEventListener(cartChangeEvent, syncCart)
+      window.removeEventListener('storage', syncStoredCart)
+    }
   }, [])
 
   const addListing = useCallback(

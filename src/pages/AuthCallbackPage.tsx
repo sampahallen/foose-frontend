@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AppShell, ErrorState, LoadingState } from '../components'
+import { AppShell, ButtonLink, LoadingRegion, SkeletonBlock, StatePanel } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import type { AuthTokens } from '../types/api'
 import { navigateTo } from '../utils/navigation'
@@ -48,8 +48,7 @@ export function AuthCallbackPage() {
       try {
         completeOAuth(tokens)
         await refreshUser()
-        window.history.replaceState(null, '', window.location.pathname)
-        navigateTo(redirectTarget)
+        navigateTo(redirectTarget, { replace: true })
       } catch {
         setError('Sign-in completed, but we could not load your profile.')
       }
@@ -62,7 +61,23 @@ export function AuthCallbackPage() {
     <AppShell flush>
       <section className="fixed inset-0 z-100 flex items-center justify-center bg-black/45 p-4">
         <div className="w-full max-w-sm rounded-2xl border border-accent/20 bg-white p-6 text-center shadow-2xl shadow-black/20">
-          {error ? <ErrorState message={error} /> : <LoadingState label="Finishing sign in..." />}
+          {error ? (
+            <StatePanel
+              action={<ButtonLink to="/login">Back to login</ButtonLink>}
+              body={error}
+              layout="compact"
+              title="Sign-in could not finish"
+              tone="error"
+            />
+          ) : (
+            <LoadingRegion label="Finishing sign in" layout="compact">
+              <div className="flex flex-col items-center gap-4 py-3">
+                <SkeletonBlock className="size-12 rounded-full" />
+                <SkeletonBlock className="h-5 w-40" />
+                <SkeletonBlock className="h-3 w-56 max-w-full" />
+              </div>
+            </LoadingRegion>
+          )}
         </div>
       </section>
     </AppShell>

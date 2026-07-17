@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { clearLocalDrafts } from '../components/forms/useLocalDraft'
 import { apiGet, apiPost, clearStoredTokens, getStoredTokens, storeTokens } from '../lib/api'
 import type { AuthPayload, AuthTokens, User } from '../types/api'
+import { clearNavigationSession } from '../utils/navigation'
 import { AuthContext, type AuthStatus } from './auth-context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -90,9 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Local logout still wins if the server cannot be reached.
     } finally {
+      clearLocalDrafts(user?._id)
+      clearNavigationSession()
       becomeGuest()
     }
-  }, [becomeGuest])
+  }, [becomeGuest, user?._id])
 
   const value = useMemo(
     () => ({ completeOAuth, login, logout, refreshUser, register, status, user }),
