@@ -32,8 +32,8 @@ function appendText(formData: FormData, name: string, value: string | number | u
 }
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
-const listingSelectControl =
-  'h-12 w-full appearance-none rounded-xl border border-foose-border bg-foose-surface px-3 pr-10 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
+const LISTING_DESCRIPTION_MAX = 500
+const listingSelectControl = 'w-full'
 
 type ListingDropdownOption = {
   label: string
@@ -92,7 +92,7 @@ function ListingDropdown({
       <input name={name} type="hidden" value={selectedValue} />
       <button
         aria-expanded={open}
-        className={`flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-foose-border bg-foose-surface px-3 text-left text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 ${!selectedOption ? 'text-foose-faint' : ''}`}
+        className={`flex min-h-11 w-full min-w-0 items-center justify-between gap-2.5 rounded-xl border border-foose-border bg-foose-surface px-3 text-left text-base font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 sm:min-h-12 sm:gap-3 sm:text-sm ${!selectedOption ? 'text-foose-faint' : ''}`}
         onClick={() => setOpen((current) => !current)}
         type="button"
       >
@@ -105,15 +105,15 @@ function ListingDropdown({
         </span>
       </button>
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 max-h-72 overflow-y-auto rounded-xl border border-foose-border bg-white p-1.5 shadow-2xl">
+        <div className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 max-h-72 overflow-y-auto overscroll-contain rounded-xl border border-foose-border bg-white p-1 shadow-2xl sm:p-1.5">
           {options.map((option) => (
             <div key={option.value}>
               <button
-                className={`flex min-h-10 w-full items-center justify-between gap-4 rounded-lg px-3 text-left text-sm font-semibold transition hover:bg-accent-light hover:text-accent ${option.value === selectedValue ? 'bg-accent-light text-accent' : 'text-foose-text'}`}
+                className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold leading-5 transition hover:bg-accent-light hover:text-accent ${option.value === selectedValue ? 'bg-accent-light text-accent' : 'text-foose-text'}`}
                 onClick={() => selectOption(option)}
                 type="button"
               >
-                <span className="min-w-0 truncate">{option.label}</span>
+                <span className="min-w-0 break-words">{option.label}</span>
                 {option.swatch && <span aria-hidden className="size-5 shrink-0 rounded-full border border-black/15" style={{ background: option.swatch }} />}
               </button>
               {dividerAfter === option.value && <hr className="my-1.5 border-0 border-t border-foose-border" />}
@@ -283,7 +283,7 @@ export function NewListingPage() {
       return
     }
     setValidationAttempt(0)
-    setStep((current) => Math.min(3, current + 1))
+    setStep((current) => Math.min(2, current + 1))
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -304,6 +304,8 @@ export function NewListingPage() {
     const bulkQuantity = optionalNumber(readFormText(sourceData, 'quantity'))
     const minimumOrderQuantity = optionalNumber(readFormText(sourceData, 'bulkMinQty'))
     const flawNote = readFormText(sourceData, 'flawNote')
+    const submittedDescription = readFormText(sourceData, 'description')
+    const completeDescription = needsFlawProof ? `${submittedDescription}\n\nFlaws: ${flawNote}`.trim() : submittedDescription
     const imageInput = form.elements.namedItem('images') as HTMLInputElement | null
     const selectedFiles = Array.from(imageInput?.files || []).slice(0, 6)
     const keptImageCount = sourceData.getAll('keptImages').filter(Boolean).length
@@ -342,6 +344,12 @@ export function NewListingPage() {
       }
     }
 
+    if (completeDescription.length > LISTING_DESCRIPTION_MAX) {
+      setError(`Keep the complete listing description within ${LISTING_DESCRIPTION_MAX} characters.`)
+      setStep(needsFlawProof ? 1 : 0)
+      return
+    }
+
     appendText(uploadData, 'currency', 'GHS')
     appendText(uploadData, 'price', price)
     appendText(uploadData, 'status', requestedStatus)
@@ -351,7 +359,7 @@ export function NewListingPage() {
     sourceData.getAll('keptImages').forEach((image) => appendText(uploadData, 'keptImages', String(image)))
     if (sourceData.has('keptImagesTouched')) appendText(uploadData, 'keptImagesTouched', '1')
 
-    appendText(uploadData, 'description', needsFlawProof ? `${readFormText(sourceData, 'description')}\n\nFlaws: ${flawNote}`.trim() : readFormText(sourceData, 'description'))
+    appendText(uploadData, 'description', completeDescription)
     uploadData.append('hashtags', readFormText(sourceData, 'hashtags'))
     ;['category', 'brand', 'condition', 'color'].forEach((field) => {
       appendText(uploadData, field, readFormText(sourceData, field))
@@ -459,7 +467,7 @@ export function NewListingPage() {
             <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-foose-muted"><span className="rounded-full bg-accent-light px-3 py-1.5">{listingType}</span>{categoryValue && <span className="rounded-full bg-foose-surface-low px-3 py-1.5">{categoryValue}</span>}</div>
           </div>
         )}
-        description={editId ? 'Update the listing details buyers see. All sections stay available on this page.' : 'Build a clear, trustworthy marketplace listing in four short steps.'}
+        description={editId ? 'Update the listing details buyers see. All sections stay available on this page.' : 'Build a clear, trustworthy marketplace listing in three short steps.'}
         eyebrow={(
           <NavigationBackButton fallback={returnFallback} />
         )}
@@ -471,7 +479,7 @@ export function NewListingPage() {
             current={step}
             label="Listing creation progress"
             onStepChange={(index) => { if (index < step) setStep(index) }}
-            steps={['Details', 'Pricing', 'Media', 'Review']}
+            steps={['Details & media', 'Pricing', 'Review']}
           />
         )}
 
@@ -482,9 +490,12 @@ export function NewListingPage() {
           )}
           <ErrorSummary errors={validationAttempt ? validationErrors : []} focus={validationAttempt > 0} />
 
-          <FormSection className={!editId && step !== 0 ? 'hidden' : ''} columns={2} description="Give shoppers a concise name, useful context, and the right listing format." title="Details">
+          <FormSection className={!editId && step !== 0 ? 'hidden' : ''} columns={2} description="Add clear photos and the essential information shoppers need to understand the item." title="Details and media">
+            <div className="form-field-wide">
+              <ImagePreviewInput accept={ACCEPT_IMAGES} aspect="square" existingImages={listing?.images || []} hint={editId ? 'Images stay in the order added. You can keep, remove, or add up to six.' : 'Images stay in the order added. Save as draft to store selected images securely.'} keptName="keptImages" keptTouchedName="keptImagesTouched" label="Listing images" maxFiles={6} multiple name="images" onFilesChange={setSelectedFiles} presentation="strip" />
+            </div>
             <TextField error={titleInvalid ? 'Enter at least 2 characters.' : undefined} id="listing-title" label="Title" name="title" onBlur={() => setTouched((current) => ({ ...current, title: true }))} onChange={(event) => setTitleValue(event.target.value)} placeholder="Vintage bomber jacket" required value={titleValue} wrapperClassName="form-field-wide" />
-            <TextAreaField id="listing-description" label="Description" maxLength={1200} name="description" onChange={(event) => setDescriptionValue(event.target.value)} optional placeholder="Condition, fit, measurements, and pickup notes" rows={5} value={descriptionValue} wrapperClassName="form-field-wide" />
+            <TextAreaField id="listing-description" label="Description" maxLength={LISTING_DESCRIPTION_MAX} name="description" onChange={(event) => setDescriptionValue(event.target.value)} optional placeholder="Condition, fit, measurements, and pickup notes" rows={5} value={descriptionValue} wrapperClassName="form-field-wide" />
             <div className="form-field-wide"><HashtagInput initialTags={hashtags} label="Vibe hashtags" name="hashtags" onChange={setHashtags} /></div>
             <FormField hint={listingType === 'retail' ? 'Retail listings are single items.' : 'Wholesale listings use bulk quantities and minimum order quantities.'} htmlFor="listing-type" label="Listing type" required>
               <SelectControl className={listingSelectControl} id="listing-type" name="type" onChange={(event) => setSelectedListingType(event.target.value as 'retail' | 'wholesale')} required value={listingType}><option value="retail">Retail</option><option value="wholesale">Wholesale</option></SelectControl>
@@ -505,17 +516,13 @@ export function NewListingPage() {
             {listingType === 'wholesale' && <TextField id="listing-weight" label="Bulk weight" name="bulkWeight" onChange={(event) => setBulkWeightValue(event.target.value)} optional placeholder="25kg" value={bulkWeightValue} />}
           </FormSection>
 
-          <FormSection className={!editId && step !== 2 ? 'hidden' : ''} description="Use clear, consistent photos. Drag to reorder them; the first image becomes the marketplace cover." title="Media">
-            <ImagePreviewInput accept={ACCEPT_IMAGES} aspect="square" existingImages={listing?.images || []} hint={editId ? 'Keep, remove, reorder, or add images up to six total.' : 'Files are not stored in local drafts and must be selected again.'} keptName="keptImages" keptTouchedName="keptImagesTouched" label="Listing images" maxFiles={6} multiple name="images" onFilesChange={setSelectedFiles} />
-          </FormSection>
-
-          {!editId && <FormSection className={step !== 3 ? 'hidden' : ''} description="Check the core details before publishing. You can go back without losing your entries." title="Review and publish"><div className="rounded-2xl bg-accent-light/50 p-5"><h3 className="font-display text-2xl font-semibold text-foose-text">{titleValue || 'Untitled listing'}</h3><p className="mt-2 text-xl font-black text-accent">{priceValue ? `GHS ${priceValue}` : 'Price missing'}</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="font-bold text-foose-faint">Format</dt><dd className="mt-1 font-semibold text-foose-text">{listingType}</dd></div><div><dt className="font-bold text-foose-faint">Category</dt><dd className="mt-1 font-semibold text-foose-text">{categoryValue || 'Not specified'}</dd></div><div><dt className="font-bold text-foose-faint">Images selected</dt><dd className="mt-1 font-semibold text-foose-text">{selectedFiles.length}</dd></div><div><dt className="font-bold text-foose-faint">Hashtags</dt><dd className="mt-1 font-semibold text-foose-text">{hashtags.length}</dd></div></dl></div></FormSection>}
+          {!editId && <FormSection className={step !== 2 ? 'hidden' : ''} description="Check the core details before publishing. You can go back without losing your entries." title="Review and publish"><div className="rounded-2xl bg-accent-light/50 p-5"><h3 className="font-display text-2xl font-semibold text-foose-text">{titleValue || 'Untitled listing'}</h3><p className="mt-2 text-xl font-black text-accent">{priceValue ? `GHS ${priceValue}` : 'Price missing'}</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="font-bold text-foose-faint">Format</dt><dd className="mt-1 font-semibold text-foose-text">{listingType}</dd></div><div><dt className="font-bold text-foose-faint">Category</dt><dd className="mt-1 font-semibold text-foose-text">{categoryValue || 'Not specified'}</dd></div><div><dt className="font-bold text-foose-faint">Images selected</dt><dd className="mt-1 font-semibold text-foose-text">{selectedFiles.length}</dd></div><div><dt className="font-bold text-foose-faint">Hashtags</dt><dd className="mt-1 font-semibold text-foose-text">{hashtags.length}</dd></div></dl></div></FormSection>}
 
           {error && <InlineNotice title="Listing was not saved" tone="error">{error}</InlineNotice>}
 
           <FormActions sticky>
             {!editId && step > 0 ? <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={() => setStep((current) => Math.max(0, current - 1))} type="button">Back</button> : <ButtonLink to={eventId ? `/community/events/${eventId}/manage` : shopReturnPath} variant="secondary">Cancel</ButtonLink>}
-            {!editId && step < 3 ? <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-black text-white shadow-md shadow-accent/15 hover:bg-accent-hover" onClick={continueListingStep} type="button">Continue <Icon name="arrow" /></button> : <>
+            {!editId && step < 2 ? <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-black text-white shadow-md shadow-accent/15 hover:bg-accent-hover" onClick={continueListingStep} type="button">Continue <Icon name="arrow" /></button> : <>
               <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-black text-foose-text hover:border-accent hover:text-accent disabled:opacity-50" data-status="draft" disabled={submitting} type="submit">{submitting && submittingAction === 'draft' ? 'Saving draft…' : 'Save as draft'}</button>
               <SubmitButton loading={submitting && submittingAction === 'active'} loadingLabel="Saving listing…">{editId ? 'Save item' : 'Post item'} <Icon name="plus" /></SubmitButton>
             </>}

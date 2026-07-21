@@ -45,6 +45,7 @@ export function EventManagementPage() {
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [eventPromotionPackage, setEventPromotionPackage] = useState<PromotionPackageName>('basic')
+  const [promotionBusy, setPromotionBusy] = useState(false)
   const catalogOpen = event ? eventWindowHasOpened(event) && !eventWindowHasClosed(event) : false
 
   async function refreshEvent() {
@@ -83,10 +84,14 @@ export function EventManagementPage() {
     if (!event) return
     setActionError('')
     setActionStatus('')
+    setPromotionBusy(true)
     try {
-      await startPromotionCheckout('event', event._id, eventPromotionPackage)
+      const result = await startPromotionCheckout('event', event._id, eventPromotionPackage)
+      if (result.status === 'cancelled') setActionStatus('Payment cancelled. You were not charged.')
     } catch (err) {
       setActionError(getErrorMessage(err, 'Could not start event promotion'))
+    } finally {
+      setPromotionBusy(false)
     }
   }
 
@@ -191,8 +196,8 @@ export function EventManagementPage() {
                         ))}
                       </SelectControl>
                     </label>
-                    <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void promoteEvent()} type="button">
-                      <IoMegaphone /> Promote
+                    <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" disabled={promotionBusy} onClick={() => void promoteEvent()} type="button">
+                      <IoMegaphone /> {promotionBusy ? 'Opening secure payment...' : 'Promote'}
                     </button>
                   </span>
                 )}

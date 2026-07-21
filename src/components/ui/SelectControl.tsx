@@ -21,6 +21,7 @@ type SelectOption = {
 }
 
 export type SelectControlProps = ComponentPropsWithoutRef<'select'> & {
+  menuZIndex?: number
   variant?: 'default' | 'filter'
 }
 
@@ -104,6 +105,7 @@ function SelectControlState({
   defaultValue,
   disabled = false,
   id,
+  menuZIndex = 1200,
   onChange,
   onInvalid,
   options,
@@ -304,7 +306,7 @@ function SelectControlState({
         aria-label={nativeProps['aria-label']}
         aria-labelledby={nativeProps['aria-labelledby']}
         aria-required={required || undefined}
-        className={`flex w-full items-center justify-between gap-3 rounded-xl border border-foose-border bg-foose-surface px-3 text-left text-sm font-semibold outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-foose-surface-low disabled:text-foose-faint disabled:opacity-70 ${selectedValue ? 'text-foose-text' : 'text-foose-faint'} ${filterVariant ? 'h-11 border-accent/30 bg-accent-light/30' : 'h-12'} ${className}`}
+        className={`flex min-w-0 max-w-full items-center justify-between gap-2.5 rounded-xl border border-foose-border bg-foose-surface px-3 text-left text-base font-semibold outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-foose-surface-low disabled:text-foose-faint disabled:opacity-70 sm:gap-3 sm:text-sm ${selectedValue ? 'text-foose-text' : 'text-foose-faint'} ${filterVariant ? 'min-h-11 border-accent/30 bg-accent-light/30' : 'min-h-11 sm:min-h-12'} ${className}`}
         disabled={disabled}
         id={buttonId}
         onClick={() => (open ? closeMenu() : openMenu())}
@@ -337,18 +339,18 @@ function SelectControlState({
 
       {open && position && createPortal(
         <div
-          className="fixed z-[1200] overflow-y-auto rounded-xl border border-foose-border bg-white p-1.5 shadow-2xl [scrollbar-width:thin]"
+          className="fixed overflow-y-auto overscroll-contain rounded-xl border border-foose-border bg-white p-1 shadow-2xl [scrollbar-width:thin] sm:p-1.5"
           id={listboxId}
           ref={menuRef}
           role="listbox"
-          style={position}
+          style={{ ...position, zIndex: menuZIndex }}
         >
           {options.map((option, index) => {
             const active = option.value === selectedValue
             return (
               <button
                 aria-selected={active}
-                className={`flex min-h-11 w-full items-center justify-between gap-4 rounded-lg px-3 text-left text-sm font-semibold transition hover:bg-accent-light hover:text-accent focus:bg-accent-light focus:text-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-45 ${active ? 'bg-accent-light text-accent' : 'text-foose-text'} ${activeIndex === index ? 'bg-accent-light/70' : ''}`}
+                className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold leading-5 transition hover:bg-accent-light hover:text-accent focus:bg-accent-light focus:text-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-45 ${active ? 'bg-accent-light text-accent' : 'text-foose-text'} ${activeIndex === index ? 'bg-accent-light/70' : ''}`}
                 data-active={activeIndex === index ? 'true' : undefined}
                 disabled={disabled || option.disabled}
                 id={`${listboxId}-${index}`}
@@ -360,7 +362,7 @@ function SelectControlState({
                 tabIndex={-1}
                 type="button"
               >
-                <span className="min-w-0 truncate">{option.label}</span>
+                <span className="min-w-0 break-words">{option.label}</span>
                 {filterVariant && (
                   <span className={`size-4 shrink-0 rounded border ${active ? 'border-accent bg-accent' : 'border-foose-border bg-white'}`} />
                 )}

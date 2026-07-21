@@ -3,11 +3,12 @@ import { AppShell, Badge, FavoriteButton, Icon, InlineNotice, LightboxImage, Ref
 import { EventDetailSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { DiscoveryImage } from '../components/feedback/DiscoveryMedia'
 import { NavigationBackButton } from '../components/navigation'
+import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useCart } from '../hooks/useCart'
 import type { Event, Listing } from '../types/api'
 import { concreteEventListings, eventHostHref, eventHostName, eventTimeLabel, eventTimeTerm, eventTypeLabel, eventWindowHasClosed, eventWindowHasOpened, isOnlinePopUp } from '../utils/events'
-import { formatMoney, getListingImage, listingMeta } from '../utils/format'
+import { formatMoney, getListingImage, getShop, listingMeta } from '../utils/format'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
 
 function eventIdFromPath() {
@@ -16,25 +17,30 @@ function eventIdFromPath() {
 }
 
 export function EventDetailPage() {
+  const { user } = useAuth()
   const eventId = eventIdFromPath()
   const eventResource = useApiResource<{ event: Event }>(eventId ? `/community/events/${eventId}` : null, Boolean(eventId))
   const { addListing } = useCart()
   const event = eventResource.data?.event
   const [addedListingId, setAddedListingId] = useState('')
-  const listings = event ? concreteEventListings(event) : []
+  const listings = event ? concreteEventListings(event).filter((listing) => {
+    const owner = getShop(listing)?.ownerId
+    const ownerId = typeof owner === 'string' ? owner : owner?._id
+    return !user?._id || ownerId !== user._id
+  }) : []
   const hostHref = event ? eventHostHref(event) : ''
   const onlineEvent = event ? isOnlinePopUp(event) : false
   const checkoutOpen = event ? eventWindowHasOpened(event) && !eventWindowHasClosed(event) : false
 
   function addPopUpListing(listing: Listing) {
     if (!event) return
-    addListing(listing, 1, {
+    const added = addListing(listing, 1, {
       availableFrom: event.startsAt,
       availableUntil: event.endsAt,
       sourceEventId: event._id,
       sourceEventTitle: event.title,
     })
-    setAddedListingId(listing._id)
+    if (added) setAddedListingId(listing._id)
   }
 
   function renderListing(listing: Listing) {

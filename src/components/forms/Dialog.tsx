@@ -104,14 +104,14 @@ export function Dialog({
         aria-describedby={description ? descriptionId : undefined}
         aria-labelledby={titleId}
         aria-modal="true"
-        className={`flex max-h-[min(90dvh,52rem)] w-full flex-col overflow-hidden rounded-t-3xl border border-foose-border bg-white shadow-2xl sm:rounded-3xl ${sizeClass} ${className}`}
+        className={`flex max-h-[min(92dvh,52rem)] min-w-0 w-full flex-col overflow-hidden rounded-t-2xl border border-foose-border bg-white shadow-2xl sm:max-h-[min(90dvh,52rem)] sm:rounded-3xl ${sizeClass} ${className}`}
         ref={panelRef}
         role="dialog"
         tabIndex={-1}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-foose-border/70 px-5 py-4 sm:px-6 sm:py-5">
+        <header className="flex items-start justify-between gap-3 border-b border-foose-border/70 px-4 py-3.5 sm:gap-4 sm:px-6 sm:py-5">
           <div className="min-w-0">
-            <h2 className="font-display text-xl font-semibold leading-tight text-foose-text sm:text-2xl" id={titleId}>{title}</h2>
+            <h2 className="font-display text-lg font-semibold leading-tight text-foose-text min-[380px]:text-xl sm:text-2xl" id={titleId}>{title}</h2>
             {description && <div className="mt-1 text-sm leading-6 text-foose-muted" id={descriptionId}>{description}</div>}
           </div>
           {dismissible && (
@@ -125,8 +125,8 @@ export function Dialog({
             </button>
           )}
         </header>
-        <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-5 py-5 [scrollbar-width:thin] sm:px-6">{children}</div>
-        {footer && <footer className="flex flex-col-reverse gap-2 border-t border-foose-border/70 bg-foose-surface-low/45 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 sm:flex-row sm:justify-end sm:px-6 sm:py-4 [&_button]:min-h-11">{footer}</footer>}
+        <div className="min-h-0 min-w-0 flex-1 overscroll-contain overflow-y-auto px-4 py-4 [scrollbar-width:thin] sm:px-6 sm:py-5">{children}</div>
+        {footer && <footer className="flex flex-col-reverse gap-2 border-t border-foose-border/70 bg-foose-surface-low/45 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:flex-row sm:justify-end sm:px-6 sm:py-4 [&_button]:min-h-11 [&_button]:w-full sm:[&_button]:w-auto">{footer}</footer>}
       </div>
     </div>,
     document.body,

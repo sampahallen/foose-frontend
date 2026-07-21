@@ -43,13 +43,13 @@ export function ChoiceCardGroup<Value extends string = string>({
 
   return (
     <FormField className={className} error={error} hint={hint} htmlFor={groupId} label={label} labelId={`${groupId}-label`} required={required}>
-      <div aria-describedby={describedBy} aria-invalid={error ? true : undefined} aria-labelledby={`${groupId}-label`} className="grid gap-3 sm:grid-cols-2" id={groupId} role="radiogroup">
+      <div aria-describedby={describedBy} aria-invalid={error ? true : undefined} aria-labelledby={`${groupId}-label`} className="grid min-w-0 gap-2.5 sm:grid-cols-2 sm:gap-3" id={groupId} role="radiogroup">
         {options.map((option, index) => {
           const optionId = `${groupId}-${index}`
           const active = selected === option.value
           return (
             <label
-              className={`group relative flex min-h-20 cursor-pointer items-start gap-3 rounded-xl border p-4 outline-none transition focus-within:ring-2 focus-within:ring-accent/20 ${active ? 'border-accent bg-accent-light/55 shadow-sm' : 'border-foose-border bg-white hover:border-accent/60 hover:bg-accent-light/20'} ${(disabled || option.disabled) ? 'cursor-not-allowed opacity-55' : ''}`}
+              className={`group relative flex min-h-16 min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border p-3 outline-none transition focus-within:ring-2 focus-within:ring-accent/20 sm:min-h-20 sm:gap-3 sm:p-4 ${active ? 'border-accent bg-accent-light/55 shadow-sm' : 'border-foose-border bg-white hover:border-accent/60 hover:bg-accent-light/20'} ${(disabled || option.disabled) ? 'cursor-not-allowed opacity-55' : ''}`}
               htmlFor={optionId}
               key={option.value}
             >
@@ -69,7 +69,7 @@ export function ChoiceCardGroup<Value extends string = string>({
                 type="radio"
                 value={option.value}
               />
-              {option.visual && <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-lg bg-white text-accent">{option.visual}</span>}
+              {option.visual && <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-lg bg-white text-accent sm:size-9">{option.visual}</span>}
               <span className="min-w-0">
                 <span className="block text-sm font-bold text-foose-text" id={`${optionId}-label`}>{option.label}</span>
                 {option.description && <span className="mt-1 block text-sm leading-5 text-foose-muted" id={`${optionId}-description`}>{option.description}</span>}
@@ -97,7 +97,7 @@ export function SubmitButton({
     <button
       {...props}
       aria-busy={loading || undefined}
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-accent bg-accent px-5 py-3 text-sm font-black text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-accent bg-accent px-4 py-2.5 text-sm font-black text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:border-foose-border disabled:bg-foose-surface-mid disabled:text-foose-faint disabled:shadow-none sm:min-h-12 sm:px-5 sm:py-3 ${className}`}
       disabled={disabled || loading}
       type={props.type || 'submit'}
     >

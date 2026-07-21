@@ -97,7 +97,7 @@ describe('ShopDraftListingsPage', () => {
       expect(screen.getByText(value)).toBeVisible()
     }
     expect(screen.getByRole('textbox', { name: 'Search draft listings' })).toBeVisible()
-    expect(screen.getByRole('textbox', { name: 'Search draft listings' }).closest('div.mb-5')).toHaveClass('grid-cols-1', 'min-[360px]:grid-cols-2')
+    expect(screen.getByRole('textbox', { name: 'Search draft listings' }).closest('div.mb-5')).toHaveClass('grid-cols-1', 'sm:grid-cols-2')
     expect(screen.queryByRole('combobox', { name: /status/i })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Continue editing/i })).toHaveAttribute('href', '/listings/draft-1/edit')
     expect(screen.queryByRole('link', { name: /Open listing/i })).not.toBeInTheDocument()

@@ -1,12 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useImagePreviewStore } from '../../stores/imagePreviewStore'
 import { ImagePreviewInput } from './ImagePreviewInput'
 
 describe('ImagePreviewInput', () => {
   beforeEach(() => {
+    useImagePreviewStore.getState().closePreview()
     vi.stubGlobal('URL', {
       ...URL,
-      createObjectURL: vi.fn(() => 'blob:preview'),
+      createObjectURL: vi.fn((file: File) => `blob:${file.name}`),
       revokeObjectURL: vi.fn(),
     })
   })
@@ -29,5 +31,36 @@ describe('ImagePreviewInput', () => {
     expect(screen.getByText('jacket.png')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Remove selected upload 1' })).toHaveClass('min-h-11')
     expect(screen.getByText('Maximum of 1 image reached.')).toBeVisible()
+  })
+
+  it('renders listing images in one six-slot FIFO strip and hides the add tile at the limit', () => {
+    render(<ImagePreviewInput accept="image/*" label="Listing images" maxFiles={6} multiple name="images" presentation="strip" />)
+    const input = screen.getByLabelText('Listing images')
+    const firstBatch = ['one', 'two', 'three'].map((name) => new File(['image'], `${name}.png`, { type: 'image/png' }))
+    const secondBatch = ['four', 'five', 'six'].map((name) => new File(['image'], `${name}.png`, { type: 'image/png' }))
+
+    fireEvent.change(input, { target: { files: firstBatch } })
+    fireEvent.change(input, { target: { files: secondBatch } })
+
+    const strip = screen.getByTestId('image-preview-strip')
+    expect(strip).toHaveClass('grid-cols-6')
+    expect(screen.queryByRole('button', { name: 'Add listing images' })).not.toBeInTheDocument()
+    const previews = screen.getAllByRole('button', { name: /^Open / })
+    expect(previews.map((preview) => preview.getAttribute('aria-label'))).toEqual([
+      'Open one.png',
+      'Open two.png',
+      'Open three.png',
+      'Open four.png',
+      'Open five.png',
+      'Open six.png',
+    ])
+
+    fireEvent.click(previews[2])
+    expect(useImagePreviewStore.getState().index).toBe(2)
+    expect(useImagePreviewStore.getState().items).toHaveLength(6)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove selected upload 1' }))
+    expect(screen.getByRole('button', { name: 'Add listing images' })).toBeVisible()
+    expect(strip.lastElementChild).toBe(screen.getByRole('button', { name: 'Add listing images' }))
   })
 })

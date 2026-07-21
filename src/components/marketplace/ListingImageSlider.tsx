@@ -112,24 +112,26 @@ export function ListingImageSlider({
 
         {hasNavigation && (
           <>
-            <button
-              aria-label="Previous listing image"
-              className="absolute left-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-foose-text shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-35 md:inline-flex"
-              disabled={activeIndex === 0}
-              onClick={() => selectImage(activeIndex - 1)}
-              type="button"
-            >
-              <span className="rotate-180"><Icon name="chevron" /></span>
-            </button>
-            <button
-              aria-label="Next listing image"
-              className="absolute right-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-foose-text shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-35 md:inline-flex"
-              disabled={activeIndex === sources.length - 1}
-              onClick={() => selectImage(activeIndex + 1)}
-              type="button"
-            >
-              <Icon name="chevron" />
-            </button>
+            {activeIndex > 0 && (
+              <button
+                aria-label="Previous listing image"
+                className="absolute left-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/95 text-foose-text shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:inline-flex"
+                onClick={() => selectImage(activeIndex - 1)}
+                type="button"
+              >
+                <span className="rotate-180"><Icon name="chevron" /></span>
+              </button>
+            )}
+            {activeIndex < sources.length - 1 && (
+              <button
+                aria-label="Next listing image"
+                className="absolute right-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/95 text-foose-text shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:inline-flex"
+                onClick={() => selectImage(activeIndex + 1)}
+                type="button"
+              >
+                <Icon name="chevron" />
+              </button>
+            )}
             <span className="absolute bottom-3 right-3 z-20 rounded-full bg-black/65 px-2.5 py-1 text-xs font-black text-white" aria-hidden="true">
               {activeIndex + 1}/{sources.length}
             </span>
@@ -143,7 +145,7 @@ export function ListingImageSlider({
             <button
               aria-label={`Show image ${index + 1} of ${sources.length}`}
               aria-pressed={activeIndex === index}
-              className={`relative size-14 shrink-0 overflow-hidden rounded-lg border-2 bg-foose-surface-low transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:size-16 ${activeIndex === index ? 'border-accent shadow-sm' : 'border-transparent opacity-75 hover:opacity-100'}`}
+              className={`relative size-14 shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 bg-foose-surface-low transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:size-16 ${activeIndex === index ? 'border-accent shadow-sm' : 'border-transparent opacity-75 hover:opacity-100'}`}
               key={src}
               onClick={() => selectImage(index)}
               type="button"

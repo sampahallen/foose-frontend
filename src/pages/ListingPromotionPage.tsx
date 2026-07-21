@@ -32,6 +32,7 @@ export function ListingPromotionPage() {
   const [packageName, setPackageName] = useState<PromotionPackageName>('basic')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [error, setError] = useState('')
+  const [paymentStatus, setPaymentStatus] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const selectedPackage = listingPromotionPackages.find((item) => item.value === packageName) || listingPromotionPackages[0]
@@ -41,7 +42,7 @@ export function ListingPromotionPage() {
   )
   const limitReached = selectedIds.length >= selectedPackage.itemLimit
   const promotionCtaLabel = submitting
-    ? 'Opening Paystack...'
+    ? 'Opening secure payment...'
     : selectedIds.length
       ? `Promote ${selectedIds.length} listing${selectedIds.length === 1 ? '' : 's'}`
       : 'Select listings to promote'
@@ -67,11 +68,14 @@ export function ListingPromotionPage() {
     }
 
     setError('')
+    setPaymentStatus('')
     setSubmitting(true)
     try {
-      await startListingBundlePromotionCheckout(selectedIds, packageName)
+      const result = await startListingBundlePromotionCheckout(selectedIds, packageName)
+      if (result.status === 'cancelled') setPaymentStatus('Payment cancelled. You were not charged and can try again when ready.')
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to start promotion checkout'))
+    } finally {
       setSubmitting(false)
     }
   }
@@ -94,6 +98,7 @@ export function ListingPromotionPage() {
           </p>
         </div>
 
+        {paymentStatus && <InlineNotice title="Payment not completed" tone="info">{paymentStatus}</InlineNotice>}
         {error && <InlineNotice title="Promotion could not start" tone="error">{error}</InlineNotice>}
         <section className="grid gap-3 sm:grid-cols-3">
           {listingPromotionPackages.map((item) => {

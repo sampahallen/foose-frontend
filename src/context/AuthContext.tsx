@@ -25,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await apiGet<{ user: User }>('/users/me')
     setUser(data.user)
     setStatus('authenticated')
+    return data.user
   }, [])
 
   useEffect(() => {

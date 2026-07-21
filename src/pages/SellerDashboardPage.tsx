@@ -16,6 +16,8 @@ import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
 import { canSellerMarkPickupReady, isHistoricalOrder, orderAddress, orderProgressLabel, participantContact, participantName } from '../utils/orderStatus'
 
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
+const shopSettingsControl = 'min-h-11 w-full min-w-0 rounded-xl border border-foose-border bg-white px-3 py-2.5 text-base text-foose-text outline-none transition placeholder:text-foose-faint focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-accent-light/50 disabled:text-foose-muted sm:min-h-12 sm:py-3 sm:text-sm'
+const shopSettingsTextarea = `${shopSettingsControl} min-h-24 resize-y sm:min-h-28`
 
 function appendIfPresent(source: FormData, target: FormData, name: string) {
   if (source.has(name)) target.append(name, String(source.get(name) || ''))
@@ -139,7 +141,7 @@ function ShopSettingsPanel({
 
   return (
     <section>
-      <form className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px] [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-foose-border [&_input]:bg-white [&_input]:px-3 [&_input]:py-3 [&_input]:outline-none [&_input]:transition [&_input]:disabled:bg-accent-light/50 [&_input]:disabled:text-foose-muted [&_input]:focus:border-accent [&_input]:focus:ring-2 [&_input]:focus:ring-accent/15 [&_select]:w-full [&_select]:rounded-xl [&_select]:border [&_select]:border-foose-border [&_select]:bg-white [&_select]:px-3 [&_select]:py-3 [&_select]:outline-none [&_select]:disabled:bg-accent-light/50 [&_textarea]:w-full [&_textarea]:rounded-xl [&_textarea]:border [&_textarea]:border-foose-border [&_textarea]:bg-white [&_textarea]:px-3 [&_textarea]:py-3 [&_textarea]:outline-none [&_textarea]:disabled:bg-accent-light/50" encType="multipart/form-data" onSubmit={(event) => void saveShop(event)}>
+      <form className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_360px]" encType="multipart/form-data" onSubmit={(event) => void saveShop(event)}>
         <div className="space-y-5">
           <section className="scroll-mt-28 overflow-hidden rounded-2xl border border-foose-border bg-foose-surface shadow-sm" id="shop-general">
             <header className="flex items-start justify-between gap-3 border-b border-foose-border bg-accent-light/50 px-3 py-4 sm:px-4 md:px-6">
@@ -152,7 +154,7 @@ function ShopSettingsPanel({
               </button>
             </header>
             <div className="grid gap-4 p-3 sm:p-4 md:grid-cols-2 md:p-6">
-              {fieldFrame('shopName', 'Shop name', <input defaultValue={shop.shopName} disabled={!isEditable('shopName')} id="shopName" name="shopName" required />)}
+              {fieldFrame('shopName', 'Shop name', <input className={shopSettingsControl} defaultValue={shop.shopName} disabled={!isEditable('shopName')} id="shopName" name="shopName" required />)}
               {fieldFrame(
                 'category',
                 'Primary category',
@@ -163,7 +165,7 @@ function ShopSettingsPanel({
                 </SelectControl>,
               )}
               <div className="md:col-span-2">
-                {fieldFrame('bio', 'Shop bio', <textarea defaultValue={shop.bio || ''} disabled={!isEditable('bio')} id="bio" name="bio" rows={5} />)}
+                {fieldFrame('bio', 'Shop bio', <textarea className={shopSettingsTextarea} defaultValue={shop.bio || ''} disabled={!isEditable('bio')} id="bio" name="bio" rows={5} />)}
               </div>
             </div>
           </section>
@@ -179,7 +181,7 @@ function ShopSettingsPanel({
               </button>
             </header>
             <div className="grid gap-4 p-3 sm:p-4 md:grid-cols-2 md:p-6">
-              {fieldFrame('city', 'City or town', <input defaultValue={city} disabled={!isEditable('city')} id="city" name="city" placeholder="e.g. Accra" required />)}
+              {fieldFrame('city', 'City or town', <input className={shopSettingsControl} defaultValue={city} disabled={!isEditable('city')} id="city" name="city" placeholder="e.g. Accra" required />)}
               {fieldFrame(
                 'region',
                 'Region',
@@ -203,8 +205,8 @@ function ShopSettingsPanel({
               </button>
             </header>
             <div className="grid gap-4 p-3 sm:p-4 md:grid-cols-2 md:p-6">
-              {fieldFrame('instagram', 'Instagram', <input defaultValue={shop.socialLinks?.instagram || ''} disabled={!isEditable('instagram')} id="instagram" name="instagram" placeholder="@yourshop" />)}
-              {fieldFrame('whatsapp', 'WhatsApp', <input defaultValue={shop.socialLinks?.whatsapp || ''} disabled={!isEditable('whatsapp')} id="whatsapp" name="whatsapp" placeholder="+233..." />)}
+              {fieldFrame('instagram', 'Instagram', <input className={shopSettingsControl} defaultValue={shop.socialLinks?.instagram || ''} disabled={!isEditable('instagram')} id="instagram" name="instagram" placeholder="@yourshop" />)}
+              {fieldFrame('whatsapp', 'WhatsApp', <input className={shopSettingsControl} defaultValue={shop.socialLinks?.whatsapp || ''} disabled={!isEditable('whatsapp')} id="whatsapp" name="whatsapp" placeholder="+233..." />)}
             </div>
           </section>
 
@@ -227,11 +229,11 @@ function ShopSettingsPanel({
                   <option value="bank_transfer">Bank transfer</option>
                 </SelectControl>,
               )}
-              {fieldFrame('payoutProvider', 'Provider', <input defaultValue={shop.payoutMethod?.provider || ''} disabled={!isEditable('payoutProvider')} id="payoutProvider" name="payoutProvider" placeholder="MTN, Vodafone, bank..." />)}
-              {fieldFrame('payoutAccountName', 'Account name', <input defaultValue={shop.payoutMethod?.accountName || ''} disabled={!isEditable('payoutAccountName')} id="payoutAccountName" name="payoutAccountName" />)}
-              {fieldFrame('payoutAccountNumber', 'Account / phone number', <input defaultValue={shop.payoutMethod?.accountNumber || ''} disabled={!isEditable('payoutAccountNumber')} id="payoutAccountNumber" name="payoutAccountNumber" />)}
-              {fieldFrame('payoutBankName', 'Bank name', <input defaultValue={shop.payoutMethod?.bankName || ''} disabled={!isEditable('payoutBankName')} id="payoutBankName" name="payoutBankName" />)}
-              {fieldFrame('payoutBranch', 'Branch', <input defaultValue={shop.payoutMethod?.branch || ''} disabled={!isEditable('payoutBranch')} id="payoutBranch" name="payoutBranch" />)}
+              {fieldFrame('payoutProvider', 'Provider', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.provider || ''} disabled={!isEditable('payoutProvider')} id="payoutProvider" name="payoutProvider" placeholder="MTN, Vodafone, bank..." />)}
+              {fieldFrame('payoutAccountName', 'Account name', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.accountName || ''} disabled={!isEditable('payoutAccountName')} id="payoutAccountName" name="payoutAccountName" />)}
+              {fieldFrame('payoutAccountNumber', 'Account / phone number', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.accountNumber || ''} disabled={!isEditable('payoutAccountNumber')} id="payoutAccountNumber" name="payoutAccountNumber" />)}
+              {fieldFrame('payoutBankName', 'Bank name', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.bankName || ''} disabled={!isEditable('payoutBankName')} id="payoutBankName" name="payoutBankName" />)}
+              {fieldFrame('payoutBranch', 'Branch', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.branch || ''} disabled={!isEditable('payoutBranch')} id="payoutBranch" name="payoutBranch" />)}
             </div>
           </section>
         </div>
@@ -610,8 +612,8 @@ export function SellerDashboardPage() {
                     visual={<Icon name="grid" size={26} />}
                   />
                 )}
-                {listings.data && !!activeListings.length && <div className="mb-5 grid min-w-0 grid-cols-1 gap-3 rounded-xl bg-foose-surface-low p-3 min-[360px]:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_150px_150px_150px] [&_input]:h-11 [&_input]:min-w-0 [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-foose-border [&_input]:bg-white [&_input]:px-3 [&_input]:text-sm [&_input]:outline-none [&_input]:focus:border-accent [&_label]:grid [&_label]:min-w-0 [&_label]:gap-1 [&_label_span]:text-xs [&_label_span]:font-bold [&_label_span]:text-foose-muted">
-                  <label className="min-[360px]:col-span-2 sm:col-span-1">
+                {listings.data && !!activeListings.length && <div className="mb-5 grid min-w-0 grid-cols-1 gap-3 rounded-xl bg-foose-surface-low p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_150px_150px_150px] [&_input]:min-h-11 [&_input]:min-w-0 [&_input]:max-w-full [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-foose-border [&_input]:bg-white [&_input]:px-3 [&_input]:text-base [&_input]:outline-none [&_input]:focus:border-accent sm:[&_input]:text-sm [&_label]:grid [&_label]:min-w-0 [&_label]:gap-1 [&_label_span]:text-xs [&_label_span]:font-bold [&_label_span]:text-foose-muted">
+                  <label>
                     <span>Search listings</span>
                     <input
                       aria-label="Search active listings"
@@ -623,7 +625,7 @@ export function SellerDashboardPage() {
                       value={listingQuery}
                     />
                   </label>
-                  <div className="grid min-w-0 gap-1 min-[360px]:col-span-2 sm:col-span-1">
+                  <div className="grid min-w-0 gap-1">
                     <span className="text-xs font-bold text-foose-muted">Listing type</span>
                     <SelectControl
                       aria-label="Filter by type"

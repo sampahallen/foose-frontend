@@ -7,6 +7,12 @@ export type RealtimeMessageEvent = {
   message: ChatMessage
 }
 
+export type RealtimeReactionEvent = RealtimeMessageEvent & {
+  reactedBy: string
+  removed: boolean
+  unreadReactionDelta: number
+}
+
 export type MessagesReadEvent = {
   conversationId: string
   readBy?: string
@@ -36,9 +42,12 @@ export type MessagingContextValue = {
   joinConversation: (conversationId: string) => void
   markAllNotificationsRead: () => Promise<void>
   markConversationRead: (conversationId: string) => void
+  markConversationReactionsRead: (conversationId: string) => Promise<void>
   markNotificationRead: (notificationId: string) => Promise<void>
   messageConfirmedEvent: RealtimeMessageEvent | null
   messageEvent: RealtimeMessageEvent | null
+  messageReactionEvent: RealtimeReactionEvent | null
+  messageReactionEvents: RealtimeReactionEvent[]
   messagesReadEvent: MessagesReadEvent | null
   notificationError: string
   notificationLoading: boolean

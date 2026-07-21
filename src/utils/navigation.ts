@@ -168,6 +168,7 @@ function routeParts(href: string) {
 function safeStoredHref(parts: ReturnType<typeof routeParts>, route: ReturnType<typeof resolveRoute>) {
   if (route === 'authCallback') return '/auth/callback'
   if (route === 'resetPassword') return '/reset-password'
+  if (route === 'verifyEmail') return '/verify-email'
   return parts.href
 }
 
@@ -553,6 +554,8 @@ export function initializeNavigation() {
       ? '/auth/callback'
       : entry.route === 'resetPassword'
         ? '/reset-password'
+        : entry.route === 'verifyEmail'
+          ? '/verify-email'
         : entry.href
     if (safeHref !== entry.href) store.updateEntry(entry.id, { href: safeHref })
   })

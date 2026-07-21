@@ -12,7 +12,7 @@ export function AppShell({
   showFooter = true,
   wide = false,
 }: {
-  active?: 'home' | 'browse' | 'cart' | 'community' | 'explore' | 'profile' | 'saved' | 'shop'
+  active?: 'home' | 'browse' | 'cart' | 'community' | 'explore' | 'inbox' | 'profile' | 'saved' | 'shop'
   children: ReactNode
   compactImmersive?: boolean
   searchPlaceholder?: string

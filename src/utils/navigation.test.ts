@@ -65,6 +65,18 @@ describe('navigation controller', () => {
     expect(window.sessionStorage.getItem('foose-navigation')).not.toContain('private-reset-token')
   })
 
+  it('does not persist an email-verification token embedded in a hash route', () => {
+    resetNavigationForTests()
+    useNavigationStore.getState().resetSession('verification-test')
+    window.history.replaceState({}, '', '/#/verify-email/private-verification-token')
+
+    initializeNavigation()
+
+    expect(window.location.hash).toBe('#/verify-email/private-verification-token')
+    expect(getCurrentNavigationEntry()?.href).toBe('/verify-email')
+    expect(window.sessionStorage.getItem('foose-navigation')).not.toContain('private-verification-token')
+  })
+
   it('pushes an internal entry, preserves supplied state, and emits only the app event', () => {
     const appListener = vi.fn()
     const popListener = vi.fn()

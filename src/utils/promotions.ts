@@ -1,5 +1,7 @@
 import { apiPost } from '../lib/api'
-import { withBasePath } from './navigation'
+import type { PaystackPaymentSession } from '../types/api'
+import { navigateTo } from './navigation'
+import { openPaystackInline, type PaystackInlineResult } from './paystackInline'
 
 export type PromotionTargetType = 'event' | 'listing'
 export type PromotionPackageName = 'basic' | 'lite' | 'premium'
@@ -17,13 +19,23 @@ export const eventPromotionPackages = [
 ] as const
 
 type PromotionInitializeResponse = {
-  payment: {
+  payment: PaystackPaymentSession & {
     amountGhs: number
-    authorizationUrl?: string
-    reference?: string
-    targetId: string
+    targetId?: string
+    targetIds?: string[]
     targetType: PromotionTargetType
   }
+}
+
+async function completePromotionPayment(data: PromotionInitializeResponse): Promise<PaystackInlineResult> {
+  const result = await openPaystackInline(data.payment.accessCode)
+  if (result.status === 'success') {
+    if (result.reference !== data.payment.reference) {
+      throw new Error('Paystack returned an unexpected transaction reference')
+    }
+    navigateTo(`/promotions/confirm?reference=${encodeURIComponent(result.reference)}`)
+  }
+  return result
 }
 
 export function isActiveTopPick(promotionTags?: string[], promotionExpiresAt?: string) {
@@ -34,30 +46,20 @@ export function isActiveTopPick(promotionTags?: string[], promotionExpiresAt?: s
 
 export async function startPromotionCheckout(targetType: PromotionTargetType, targetId: string, packageName: PromotionPackageName = 'basic') {
   const data = await apiPost<PromotionInitializeResponse>('/payments/promotions/initialize', {
-    callbackUrl: `${window.location.origin}${withBasePath('/promotions/confirm')}`,
     packageName,
     targetId,
     targetType,
   })
 
-  if (!data.payment.authorizationUrl) {
-    throw new Error('Paystack did not return a checkout link')
-  }
-
-  window.location.assign(data.payment.authorizationUrl)
+  return completePromotionPayment(data)
 }
 
 export async function startListingBundlePromotionCheckout(listingIds: string[], packageName: PromotionPackageName = 'basic') {
   const data = await apiPost<PromotionInitializeResponse>('/payments/promotions/initialize', {
-    callbackUrl: `${window.location.origin}${withBasePath('/promotions/confirm')}`,
     packageName,
     targetIds: listingIds,
     targetType: 'listing',
   })
 
-  if (!data.payment.authorizationUrl) {
-    throw new Error('Paystack did not return a checkout link')
-  }
-
-  window.location.assign(data.payment.authorizationUrl)
+  return completePromotionPayment(data)
 }

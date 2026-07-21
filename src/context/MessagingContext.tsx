@@ -9,6 +9,7 @@ import {
   MessagingContext,
   type MessagesReadEvent,
   type RealtimeMessageEvent,
+  type RealtimeReactionEvent,
   type SendSocketMessageAck,
   type SendSocketMessagePayload,
 } from './messaging-context'
@@ -57,6 +58,7 @@ function upsertConversationFromMessage(conversations: ChatConversation[], event:
         listing: message.listingId,
         participant,
         unreadCount: incoming ? 1 : 0,
+        unreadReactionCount: 0,
       },
       ...conversations,
     ]
@@ -89,11 +91,14 @@ function upsertNotification(notifications: Notification[], notification: Notific
 export function MessagingProvider({ children }: { children: ReactNode }) {
   const { status, user } = useAuth()
   const userId = user?._id || ''
+  const emailVerified = Boolean(user?.isEmailVerified)
   const socketRef = useRef<Socket | null>(null)
   const [connected, setConnected] = useState(false)
   const [conversations, setConversations] = useState<ChatConversation[]>([])
   const [messageEvent, setMessageEvent] = useState<RealtimeMessageEvent | null>(null)
   const [messageConfirmedEvent, setMessageConfirmedEvent] = useState<RealtimeMessageEvent | null>(null)
+  const [messageReactionEvent, setMessageReactionEvent] = useState<RealtimeReactionEvent | null>(null)
+  const [messageReactionEvents, setMessageReactionEvents] = useState<RealtimeReactionEvent[]>([])
   const [messagesReadEvent, setMessagesReadEvent] = useState<MessagesReadEvent | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [notificationError, setNotificationError] = useState('')
@@ -105,25 +110,41 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    let mounted = true
+
     if (status !== 'authenticated' || !userId) {
-      setConversations([])
-      setNotifications([])
-      setNotificationLoading(false)
-      setNotificationError('')
-      return undefined
+      queueMicrotask(() => {
+        if (!mounted) return
+        setConversations([])
+        setNotifications([])
+        setNotificationLoading(false)
+        setNotificationError('')
+      })
+      return () => {
+        mounted = false
+      }
     }
 
-    let mounted = true
-    setNotificationLoading(true)
-    setNotificationError('')
+    queueMicrotask(() => {
+      if (!mounted) return
+      setNotificationLoading(true)
+      setNotificationError('')
+      if (!emailVerified) setConversations([])
+    })
 
-    Promise.all([
-      apiGet<{ conversations: ChatConversation[] }>('/chat?page=1&limit=40'),
-      apiGet<{ notifications: Notification[] }>('/notifications?limit=40'),
-    ])
-      .then(([conversationData, notificationData]) => {
+    if (emailVerified) {
+      void apiGet<{ conversations: ChatConversation[] }>('/chat?page=1&limit=40')
+        .then((conversationData) => {
+          if (mounted) setConversations(conversationData.conversations || [])
+        })
+        .catch((error) => {
+          if (mounted) setNotificationError(getErrorMessage(error, 'Unable to load live inbox data'))
+        })
+    }
+
+    void apiGet<{ notifications: Notification[] }>('/notifications?limit=40')
+      .then((notificationData) => {
         if (!mounted) return
-        setConversations(conversationData.conversations || [])
         setNotifications((notificationData.notifications || []).filter((notification) => notification.type !== 'chat'))
       })
       .catch((error) => {
@@ -136,14 +157,13 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false
     }
-  }, [status, userId])
+  }, [emailVerified, status, userId])
 
   useEffect(() => {
     const token = getStoredTokens()?.accessToken
     if (status !== 'authenticated' || !userId || !token) {
       socketRef.current?.disconnect()
       socketRef.current = null
-      setConnected(false)
       return undefined
     }
 
@@ -174,6 +194,44 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
       if (!event) return
       setMessageConfirmedEvent({ ...event })
       setConversations((current) => upsertConversationFromMessage(current, event, userId))
+    }
+
+    function handleMessageReaction(rawEvent: RealtimeReactionEvent) {
+      const event = normalizeMessageEvent(rawEvent)
+      if (!event) return
+      const reactionEvent = { ...rawEvent, ...event }
+      setMessageReactionEvent(reactionEvent)
+      setMessageReactionEvents((current) => [...current, reactionEvent].slice(-50))
+      if (reactionEvent.reactedBy === userId || !reactionEvent.unreadReactionDelta) return
+      setConversations((current) => {
+        if (!current.some((conversation) => conversation.conversationId === reactionEvent.conversationId)) {
+          return [{
+            conversationId: reactionEvent.conversationId,
+            latestMessage: reactionEvent.message,
+            participant: participantForMessage(reactionEvent.message, userId),
+            unreadCount: 0,
+            unreadReactionCount: Math.max(0, reactionEvent.unreadReactionDelta),
+          }, ...current]
+        }
+        return current.map((conversation) => (
+          conversation.conversationId === reactionEvent.conversationId
+            ? {
+                ...conversation,
+                unreadReactionCount: Math.max(0, (conversation.unreadReactionCount || 0) + reactionEvent.unreadReactionDelta),
+              }
+            : conversation
+        ))
+      })
+    }
+
+    function handleMessageReactionsRead(event: MessagesReadEvent) {
+      if (event.readBy !== userId) return
+      setMessageReactionEvents((current) => current.filter((item) => item.conversationId !== event.conversationId))
+      setConversations((current) => current.map((conversation) => (
+        conversation.conversationId === event.conversationId
+          ? { ...conversation, unreadReactionCount: 0 }
+          : conversation
+      )))
     }
 
     function handleMessagesRead(event: MessagesReadEvent) {
@@ -215,9 +273,13 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
 
     nextSocket.on('connect', handleConnect)
     nextSocket.on('disconnect', handleDisconnect)
-    nextSocket.on('new-message', handleNewMessage)
-    nextSocket.on('message-confirmed', handleMessageConfirmed)
-    nextSocket.on('messages-read', handleMessagesRead)
+    if (emailVerified) {
+      nextSocket.on('new-message', handleNewMessage)
+      nextSocket.on('message-confirmed', handleMessageConfirmed)
+      nextSocket.on('message-reaction-updated', handleMessageReaction)
+      nextSocket.on('message-reactions-read', handleMessageReactionsRead)
+      nextSocket.on('messages-read', handleMessagesRead)
+    }
     nextSocket.on('notification', handleNotification)
     nextSocket.on('new-notification', handleNotification)
     nextSocket.on('notification-read', handleNotificationRead)
@@ -226,9 +288,13 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
     return () => {
       nextSocket.off('connect', handleConnect)
       nextSocket.off('disconnect', handleDisconnect)
-      nextSocket.off('new-message', handleNewMessage)
-      nextSocket.off('message-confirmed', handleMessageConfirmed)
-      nextSocket.off('messages-read', handleMessagesRead)
+      if (emailVerified) {
+        nextSocket.off('new-message', handleNewMessage)
+        nextSocket.off('message-confirmed', handleMessageConfirmed)
+        nextSocket.off('message-reaction-updated', handleMessageReaction)
+        nextSocket.off('message-reactions-read', handleMessageReactionsRead)
+        nextSocket.off('messages-read', handleMessagesRead)
+      }
       nextSocket.off('notification', handleNotification)
       nextSocket.off('new-notification', handleNotification)
       nextSocket.off('notification-read', handleNotificationRead)
@@ -236,7 +302,7 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
       setConnected(false)
       if (socketRef.current === nextSocket) socketRef.current = null
     }
-  }, [status, userId])
+  }, [emailVerified, status, userId])
 
   const joinConversation = useCallback((conversationId: string) => {
     if (!conversationId) return
@@ -251,6 +317,17 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
         conversation.conversationId === conversationId ? { ...conversation, unreadCount: 0 } : conversation,
       ),
     )
+  }, [])
+
+  const markConversationReactionsRead = useCallback(async (conversationId: string) => {
+    if (!conversationId) return
+    await apiPut(`/chat/${encodeURIComponent(conversationId)}/reactions/read`)
+    setMessageReactionEvents((current) => current.filter((event) => event.conversationId !== conversationId))
+    setConversations((current) => current.map((conversation) => (
+      conversation.conversationId === conversationId
+        ? { ...conversation, unreadReactionCount: 0 }
+        : conversation
+    )))
   }, [])
 
   const markNotificationRead = useCallback(async (notificationId: string) => {
@@ -289,7 +366,9 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const unreadMessageCount = conversations.reduce((sum, conversation) => sum + (conversation.unreadCount || 0), 0)
+  const unreadMessageCount = conversations.reduce((sum, conversation) => (
+    sum + (conversation.unreadCount || 0) + (conversation.unreadReactionCount || 0)
+  ), 0)
   const unreadNotificationCount = notifications.filter((notification) => notification.type !== 'chat' && !notification.isRead).length
   const hasUnreadMessages = unreadMessageCount > 0
 
@@ -301,9 +380,12 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
       joinConversation,
       markAllNotificationsRead,
       markConversationRead,
+      markConversationReactionsRead,
       markNotificationRead,
       messageConfirmedEvent,
       messageEvent,
+      messageReactionEvent,
+      messageReactionEvents,
       messagesReadEvent,
       notificationError,
       notificationLoading,
@@ -321,9 +403,12 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
       joinConversation,
       markAllNotificationsRead,
       markConversationRead,
+      markConversationReactionsRead,
       markNotificationRead,
       messageConfirmedEvent,
       messageEvent,
+      messageReactionEvent,
+      messageReactionEvents,
       messagesReadEvent,
       notificationError,
       notificationLoading,

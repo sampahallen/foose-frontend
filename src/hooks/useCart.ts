@@ -3,6 +3,7 @@ import { getCartStorageKey } from '../config/env'
 import type { Listing } from '../types/api'
 import { getListingImage, getShop, getShopName } from '../utils/format'
 import { recordListingSignal } from '../utils/recommendations'
+import { useAuth } from './useAuth'
 
 export type CartItem = {
   listingId: string
@@ -45,6 +46,8 @@ function writeCart(items: CartItem[]) {
 }
 
 export function useCart() {
+  const { user } = useAuth()
+  const userId = user?._id
   const [items, setItems] = useState<CartItem[]>(() => readCart())
 
   const commit = useCallback((nextItems: CartItem[]) => {
@@ -77,6 +80,9 @@ export function useCart() {
       options: Pick<CartItem, 'availableFrom' | 'availableUntil' | 'sourceEventId' | 'sourceEventTitle'> = {},
     ) => {
       const shop = getShop(listing)
+      const ownerId = typeof shop?.ownerId === 'string' ? shop.ownerId : shop?.ownerId?._id
+      if (userId && ownerId === userId) return false
+
       const listingType = listing.type || 'retail'
       const nextQuantity = listingType === 'retail' ? 1 : Math.max(quantity, listing.bulkMinQty || 1)
       const nextItem: CartItem = {
@@ -105,8 +111,9 @@ export function useCart() {
 
       commit(nextItems)
       void recordListingSignal(listing._id, 'add_to_cart')
+      return true
     },
-    [commit],
+    [commit, userId],
   )
 
   const updateQuantity = useCallback(

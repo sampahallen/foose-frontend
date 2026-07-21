@@ -44,7 +44,7 @@ export function OrderSummary({
   )
 
   return (
-    <aside className="order-summary rounded-2xl border border-foose-border/80 bg-foose-surface p-4 shadow-sm md:p-6 [&_h2]:mb-1 [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-semibold [&>.button]:mt-5 max-lg:[&>.button]:sticky max-lg:[&>.button]:bottom-[calc(5rem+env(safe-area-inset-bottom))] max-lg:[&>.button]:z-20">
+    <aside className="order-summary rounded-2xl border border-foose-border/80 bg-foose-surface p-4 shadow-sm md:p-6 [&_h2]:mb-1 [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-semibold max-lg:[&>.button]:sticky max-lg:[&>.button]:bottom-[calc(5rem+env(safe-area-inset-bottom))] max-lg:[&>.button]:z-20">
       <h2>Order summary</h2>
       <p className="mb-4 text-sm leading-6 text-foose-muted">Review the costs before continuing.</p>
       <div className="summary-row flex flex-wrap items-center gap-3 justify-between border-b border-foose-border py-3">
@@ -72,12 +72,12 @@ export function OrderSummary({
         <p className="mt-1 text-xs leading-5 text-foose-faint">Discount codes are not available yet.</p>
       </div>
       {href ? (
-        <ButtonLink className="full" to={href}>
+        <ButtonLink className="full mt-5" to={href}>
           {actionContent}
         </ButtonLink>
       ) : (
         <button
-          className="button inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-5 py-3 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover full"
+          className="button mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-5 py-3 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover full"
           disabled={disabled}
           onClick={onAction}
           type={submit ? 'submit' : 'button'}

@@ -16,6 +16,7 @@ import { navigateTo, withBasePath } from '../utils/navigation'
 type InboxChatMessage = ChatMessage & {
   clientMessageId?: string
   deliveryStatus?: 'failed' | 'sending' | 'sent'
+  liveReactionVersion?: number
 }
 
 type DraftAttachment = {
@@ -102,6 +103,10 @@ function conversationPreview(message: ChatConversation['latestMessage']) {
   return text.length > 46 ? `${text.slice(0, 43).trimEnd()}...` : text
 }
 
+function conversationUnreadTotal(conversation: ChatConversation) {
+  return (conversation.unreadCount || 0) + (conversation.unreadReactionCount || 0)
+}
+
 function conversationTimestamp(value?: string) {
   if (!value) return ''
 
@@ -153,7 +158,17 @@ function mergeMessageList(current: InboxChatMessage[], incoming: InboxChatMessag
 }
 
 function mergeMessagePage(current: InboxChatMessage[], pageMessages: InboxChatMessage[]) {
-  return pageMessages.reduce((nextMessages, message) => mergeMessageList(nextMessages, message), current)
+  return pageMessages.reduce((nextMessages, message) => {
+    const currentMessage = nextMessages.find((item) => messageIdentity(item) === messageIdentity(message))
+    const incoming = currentMessage?.liveReactionVersion
+      ? {
+          ...message,
+          liveReactionVersion: currentMessage.liveReactionVersion,
+          reactions: currentMessage.reactions,
+        }
+      : message
+    return mergeMessageList(nextMessages, incoming)
+  }, current)
 }
 
 function tempMessageId() {
@@ -210,9 +225,11 @@ export function InboxPage() {
     conversations: conversationItems,
     joinConversation,
     markConversationRead,
+    markConversationReactionsRead,
     markNotificationRead,
     messageConfirmedEvent,
     messageEvent,
+    messageReactionEvents,
     messagesReadEvent,
     notificationError,
     notificationLoading,
@@ -247,11 +264,16 @@ export function InboxPage() {
   const [selectedAttachments, setSelectedAttachments] = useState<DraftAttachment[]>([])
   const [dismissedListingId, setDismissedListingId] = useState('')
   const [replyTarget, setReplyTarget] = useState<InboxChatMessage | null>(null)
+  const [newReactionMessageId, setNewReactionMessageId] = useState('')
+  const [pendingReactionMessageId, setPendingReactionMessageId] = useState('')
   const selectedAttachmentsRef = useRef<DraftAttachment[]>([])
   const messageInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<HTMLDivElement | null>(null)
   const lastConversationRef = useRef('')
   const lastNewestMessageRef = useRef('')
+  const initialReactionCheckRef = useRef('')
+  const reactionReadOnExitRef = useRef('')
+  const processedReactionEventsRef = useRef(new WeakSet<object>())
   const openPreview = useImagePreviewStore((store) => store.openPreview)
   const myId = user?._id || ''
   const orderedConversations = [...conversationItems].sort((first, second) => {
@@ -262,7 +284,7 @@ export function InboxPage() {
   const activeConversation = orderedConversations.find((conversation) => conversation.conversationId === params.conversationId)
   const canCompose = Boolean(params.conversationId || params.receiverId)
   const compactThreadOpen = params.section === 'inbox' && canCompose
-  const unreadConversationCount = orderedConversations.reduce((total, conversation) => total + (conversation.unreadCount || 0), 0)
+  const unreadConversationCount = orderedConversations.reduce((total, conversation) => total + conversationUnreadTotal(conversation), 0)
   const notificationItems = notifications
   const productMessages = liveMessages
   const orderedMessages = [...productMessages].sort((first, second) => {
@@ -309,6 +331,9 @@ export function InboxPage() {
 
   useEffect(() => {
     setOlderMessagesEnabled(false)
+    setNewReactionMessageId('')
+    setPendingReactionMessageId('')
+    initialReactionCheckRef.current = ''
     setReplyTarget(null)
     setLiveMessages([])
   }, [params.conversationId])
@@ -343,6 +368,43 @@ export function InboxPage() {
       }),
     )
   }, [messageConfirmedEvent, params.conversationId])
+
+  useEffect(() => {
+    const pendingEvents = messageReactionEvents.filter((event) => (
+      event.conversationId === params.conversationId && !processedReactionEventsRef.current.has(event)
+    ))
+    if (!pendingEvents.length) return
+    pendingEvents.forEach((event) => processedReactionEventsRef.current.add(event))
+    const version = Date.now()
+    setLiveMessages((current) => pendingEvents.reduce((messages, event, index) => mergeMessageList(messages, {
+      ...event.message,
+      liveReactionVersion: version + index,
+    }), current))
+
+    pendingEvents.forEach((event) => {
+      if (event.reactedBy === myId) return
+      if (event.removed) {
+        setNewReactionMessageId((current) => current === event.message._id ? '' : current)
+        setPendingReactionMessageId((current) => current === event.message._id ? '' : current)
+      } else {
+        setPendingReactionMessageId(event.message._id)
+      }
+    })
+  }, [messageReactionEvents, myId, params.conversationId])
+
+  useEffect(() => {
+    if (!pendingReactionMessageId) return undefined
+    const detectionFrame = window.requestAnimationFrame(() => {
+      const viewport = messagesRef.current
+      const target = document.getElementById(`chat-message-${pendingReactionMessageId}`)
+      if (!viewport || !target) return
+      const viewportRect = viewport.getBoundingClientRect()
+      const targetRect = target.getBoundingClientRect()
+      if (targetRect.bottom <= viewportRect.top + 8) setNewReactionMessageId(pendingReactionMessageId)
+      setPendingReactionMessageId('')
+    })
+    return () => window.cancelAnimationFrame(detectionFrame)
+  }, [liveMessages, pendingReactionMessageId])
 
   useEffect(() => {
     if (!messagesReadEvent || messagesReadEvent.conversationId !== params.conversationId || messagesReadEvent.readBy === myId) return
@@ -383,6 +445,35 @@ export function InboxPage() {
     if (!params.conversationId || !activeConversation?.unreadCount) return
     markConversationRead(params.conversationId)
   }, [activeConversation?.unreadCount, markConversationRead, params.conversationId])
+
+  useEffect(() => {
+    if (messagesLoading || newReactionMessageId || pendingReactionMessageId || !activeConversation?.unreadReactionCount) return
+    const reactedMessage = [...liveMessages].find((message) => (
+      message.reactions?.some((reaction) => userIdValue(reaction.userId) !== myId && reaction.isRead === false)
+    ))
+    if (reactedMessage && initialReactionCheckRef.current !== reactedMessage._id) {
+      initialReactionCheckRef.current = reactedMessage._id
+      setPendingReactionMessageId(reactedMessage._id)
+    }
+  }, [activeConversation?.unreadReactionCount, liveMessages, messagesLoading, myId, newReactionMessageId, pendingReactionMessageId])
+
+  useEffect(() => {
+    const conversationId = params.conversationId
+    if (!conversationId) return undefined
+    let armed = false
+    const armTimer = window.setTimeout(() => {
+      armed = true
+      reactionReadOnExitRef.current = conversationId
+    }, 0)
+
+    return () => {
+      window.clearTimeout(armTimer)
+      if (armed && reactionReadOnExitRef.current === conversationId) {
+        reactionReadOnExitRef.current = ''
+        void markConversationReactionsRead(conversationId).catch(() => undefined)
+      }
+    }
+  }, [markConversationReactionsRead, params.conversationId])
 
   useEffect(() => {
     if (!params.receiverId || params.conversationId || !myId) return
@@ -542,10 +633,23 @@ export function InboxPage() {
   async function reactToMessage(messageId: string, reaction: ChatReactionName) {
     try {
       const result = await apiPut<{ message: InboxChatMessage }>(`/chat/messages/${encodeURIComponent(messageId)}/reaction`, { reaction })
-      setLiveMessages((current) => mergeMessageList(current, result.message))
+      setLiveMessages((current) => mergeMessageList(current, { ...result.message, liveReactionVersion: Date.now() }))
     } catch (err) {
       setSendErrorTitle('Reaction not saved')
       setSendError(getErrorMessage(err, 'Could not save reaction'))
+    }
+  }
+
+  function jumpToNewReaction() {
+    if (!newReactionMessageId) return
+    document.getElementById(`chat-message-${newReactionMessageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setNewReactionMessageId('')
+    setPendingReactionMessageId('')
+    if (params.conversationId) {
+      void markConversationReactionsRead(params.conversationId).catch(() => {
+        setSendErrorTitle('Reaction not marked as read')
+        setSendError('Please try opening the reaction again.')
+      })
     }
   }
 
@@ -581,7 +685,7 @@ export function InboxPage() {
   }, [])
 
   return (
-    <AppShell compactImmersive={compactThreadOpen} searchPlaceholder="Search messages..." flush showFooter={false}>
+    <AppShell active="inbox" compactImmersive={compactThreadOpen} searchPlaceholder="Search messages..." flush showFooter={false}>
       <main className={`inbox-shell grid min-h-[calc(100dvh-4rem)] border-x border-foose-border bg-foose-surface xl:h-[calc(100dvh-4rem)] xl:min-h-0 xl:grid-cols-[360px_minmax(0,1fr)] xl:overflow-hidden ${compactThreadOpen ? 'max-xl:h-dvh max-xl:min-h-0 max-xl:overflow-hidden' : 'max-lg:pb-20'}`}>
         <aside className={`conversation-list flex min-h-0 flex-col border-b border-foose-border xl:h-full xl:border-b-0 xl:border-r ${compactThreadOpen ? 'max-xl:hidden' : ''}`}>
           <div className="inbox-heading shrink-0 border-b border-foose-border bg-foose-surface px-4 pb-3 pt-4">
@@ -594,7 +698,7 @@ export function InboxPage() {
               >
                 Inbox
                 {unreadConversationCount > 0 && (
-                  <span className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black leading-none ${params.section === 'inbox' ? 'bg-white text-accent' : 'bg-red-500 text-white'}`}>
+                  <span className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black leading-none ring-1 ring-white/70 ${params.section === 'inbox' ? 'bg-white text-accent-strong' : 'bg-accent-strong text-white'}`}>
                     {unreadConversationCount > 99 ? '99+' : unreadConversationCount}
                   </span>
                 )}
@@ -606,7 +710,7 @@ export function InboxPage() {
               >
                 System
                 {notificationItems.some((notification) => !notification.isRead) && (
-                  <span aria-label="Unread system notification" className={`size-2.5 rounded-full ${params.section === 'system' ? 'bg-white' : 'bg-red-500'}`} />
+                  <span aria-label="Unread system notification" className={`size-2.5 rounded-full ring-1 ring-white/70 ${params.section === 'system' ? 'bg-white' : 'bg-accent-strong'}`} />
                 )}
               </a>
             </nav>
@@ -624,6 +728,7 @@ export function InboxPage() {
                 const participant = conversation.participant
                 const active = conversation.conversationId === params.conversationId
                 const image = userPhoto(participant)
+                const unread = conversationUnreadTotal(conversation)
 
                 return (
                   <a
@@ -635,13 +740,13 @@ export function InboxPage() {
                     {image ? <img alt="" className="size-13 rounded-full object-cover" src={image} /> : <span className="conversation-avatar inline-flex size-13 shrink-0 items-center justify-center rounded-full bg-accent-light text-sm font-bold text-accent">{initials(displayUser(participant))}</span>}
                     <span className="min-w-0">
                       <strong className="block truncate text-sm font-bold text-foose-text">{displayUser(participant)}</strong>
-                      <p className={`truncate text-sm ${conversation.unreadCount > 0 ? 'font-semibold text-foose-text' : 'text-foose-muted'}`} title={conversation.latestMessage.content || attachmentLabel(conversation.latestMessage.attachments?.length || 0)}>
+                      <p className={`truncate text-sm ${unread > 0 ? 'font-semibold text-foose-text' : 'text-foose-muted'}`} title={conversation.latestMessage.content || attachmentLabel(conversation.latestMessage.attachments?.length || 0)}>
                         {conversationPreview(conversation.latestMessage)}
                       </p>
                     </span>
                     <span className="flex min-w-12 flex-col items-end gap-1">
-                      {conversation.latestMessage.createdAt && <time className={`whitespace-nowrap text-xs ${conversation.unreadCount > 0 ? 'font-bold text-accent' : 'text-foose-faint'}`}>{conversationTimestamp(conversation.latestMessage.createdAt)}</time>}
-                      {conversation.unreadCount > 0 && <b className="inline-flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-black leading-none text-white">{conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</b>}
+                      {conversation.latestMessage.createdAt && <time className={`whitespace-nowrap text-xs ${unread > 0 ? 'font-bold text-accent' : 'text-foose-faint'}`}>{conversationTimestamp(conversation.latestMessage.createdAt)}</time>}
+                      {unread > 0 && <b className="inline-flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-black leading-none text-white">{unread > 99 ? '99+' : unread}</b>}
                     </span>
                   </a>
                 )
@@ -696,6 +801,7 @@ export function InboxPage() {
               )}
             </div>
           </header>
+          <div className="relative flex min-h-0 flex-1">
           <div className="messages flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 pb-6 max-md:px-3" ref={messagesRef}>
             {params.conversationId && olderMessagesEnabled && (
               <div ref={messagesSentinelRef} className="flex min-h-10 flex-col items-center justify-center gap-2 py-2">
@@ -737,6 +843,18 @@ export function InboxPage() {
                   </Message>
                 )
               })}
+          </div>
+          {newReactionMessageId && (
+            <button
+              aria-label="Jump up to the new reaction"
+              className="message-new-reaction absolute left-1/2 top-3 z-30 inline-flex min-h-9 -translate-x-1/2 items-center gap-2 rounded-full border border-accent/20 bg-white px-4 text-xs font-black text-accent shadow-lg transition hover:-translate-y-0.5 hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:hover:translate-y-0"
+              onClick={jumpToNewReaction}
+              type="button"
+            >
+              <span aria-hidden>↑</span>
+              New reaction
+            </button>
+          )}
           </div>
           {sendError && <InlineNotice className="mx-3 mb-2" title={sendErrorTitle} tone="error">{sendError}</InlineNotice>}
           {replyTarget && <ReplyContextBand message={replyTarget} onDismiss={() => setReplyTarget(null)} />}

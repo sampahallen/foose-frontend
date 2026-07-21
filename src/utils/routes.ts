@@ -3,6 +3,7 @@ export type AppRoute =
   | 'authCallback'
   | 'register'
   | 'resetPassword'
+  | 'verifyEmail'
   | 'adminKyc'
   | 'adminKycDetail'
   | 'adminDisputes'
@@ -124,6 +125,7 @@ export const routeStateRegistry = {
   promotionReturn: { defaultScene: 'spinner', family: 'status', supportedLayouts: IMMERSIVE },
   register: { defaultScene: 'form', family: 'auth', supportedLayouts: IMMERSIVE },
   resetPassword: { defaultScene: 'form', family: 'auth', supportedLayouts: IMMERSIVE },
+  verifyEmail: { defaultScene: 'spinner', family: 'auth', supportedLayouts: IMMERSIVE },
   retailDetail: { defaultScene: 'detail', family: 'detail', supportedLayouts: PAGE },
   saved: { defaultScene: 'cards', family: 'discovery', supportedLayouts: PAGE },
   search: { defaultScene: 'cards', family: 'discovery', supportedLayouts: PAGE },
@@ -178,6 +180,7 @@ export const routeNavigationRegistry = {
   promotionReturn: { kind: 'terminal', label: 'Promotion confirmation' },
   register: { kind: 'nested', label: 'Register', fallback: { href: '/', label: 'Home' } },
   resetPassword: { kind: 'nested', label: 'Reset password', fallback: { href: '/login', label: 'Log in' } },
+  verifyEmail: { kind: 'terminal', label: 'Email verification' },
   retailDetail: { kind: 'nested', label: 'Listing', fallback: { href: '/browse', label: 'Browse' } },
   saved: { kind: 'root', label: 'Saved' },
   search: { kind: 'root', label: 'Explore' },
@@ -195,6 +198,7 @@ export function resolveRoute(pathname: string, search: string): AppRoute {
   if (pathname.startsWith('/login')) return 'login'
   if (pathname.startsWith('/register')) return 'register'
   if (pathname.startsWith('/reset-password')) return 'resetPassword'
+  if (pathname.startsWith('/verify-email')) return 'verifyEmail'
   if (/^\/admin\/kyc\/[^/]+/.test(pathname)) return 'adminKycDetail'
   if (pathname.startsWith('/admin/kyc')) return 'adminKyc'
   if (pathname.startsWith('/admin/disputes')) return 'adminDisputes'

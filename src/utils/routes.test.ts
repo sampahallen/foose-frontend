@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { resolveRoute, routeStateRegistry, type AppRoute } from './routes'
 
 const allRoutes: AppRoute[] = [
-  'login', 'authCallback', 'register', 'resetPassword', 'adminKyc', 'adminKycDetail',
+  'login', 'authCallback', 'register', 'resetPassword', 'verifyEmail', 'adminKyc', 'adminKycDetail',
   'adminDisputes', 'adminOverview', 'newListing', 'editListing', 'browse', 'search',
   'suggestedForYou', 'freshDrops', 'digishops', 'bales', 'topPicks', 'shop', 'retailDetail',
   'community', 'eventDetail', 'eventManage', 'communityEventForm', 'communityFinspoArchived',
@@ -25,6 +25,10 @@ describe('route feedback registry', () => {
   it('resolves the home route explicitly and unknown locations as not found', () => {
     expect(resolveRoute('/', '')).toBe('home')
     expect(resolveRoute('/definitely-not-a-route', '')).toBe('notFound')
+  })
+
+  it('resolves frontend email verification links', () => {
+    expect(resolveRoute('/verify-email/secure-token', '')).toBe('verifyEmail')
   })
 
   it('resolves listing drafts to their dedicated management page', () => {

@@ -23,22 +23,34 @@ function analyticsUrl() {
 
 function currentPath() {
   if (typeof window === 'undefined') return ''
-  if (isSensitiveAuthRoute(window.location.pathname)) return window.location.pathname
+  const sensitiveRoot = sensitiveAuthRouteRoot(window.location.pathname)
+  if (sensitiveRoot) return sensitiveRoot
   return `${window.location.pathname}${window.location.search}`
 }
 
-function isSensitiveAuthRoute(pathname: string) {
-  return pathname.startsWith('/auth/callback') || pathname.startsWith('/reset-password')
+function sensitiveAuthRouteRoot(pathname: string) {
+  return ['/auth/callback', '/reset-password', '/verify-email']
+    .find((root) => pathname === root || pathname.startsWith(`${root}/`)) || ''
 }
 
-function currentSafeUrl() {
-  if (typeof window === 'undefined') return ''
-  const url = new URL(window.location.href)
-  if (isSensitiveAuthRoute(url.pathname)) {
+function isSensitiveAuthHash(hash: string) {
+  return /^#\/(?:auth\/callback|reset-password|verify-email)(?:[/?#]|$)/.test(hash)
+}
+
+export function sanitizeTelemetryUrl(rawUrl: string) {
+  const url = new URL(rawUrl)
+  const sensitiveRoot = sensitiveAuthRouteRoot(url.pathname)
+  if (sensitiveRoot || isSensitiveAuthHash(url.hash)) {
+    if (sensitiveRoot) url.pathname = sensitiveRoot
     url.search = ''
     url.hash = ''
   }
   return url.toString()
+}
+
+function currentSafeUrl() {
+  if (typeof window === 'undefined') return ''
+  return sanitizeTelemetryUrl(window.location.href)
 }
 
 function trackPageView() {

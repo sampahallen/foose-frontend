@@ -13,7 +13,7 @@ export function TopNav({
   active,
   className = '',
 }: {
-  active?: 'home' | 'browse' | 'cart' | 'community' | 'explore' | 'profile' | 'saved' | 'shop'
+  active?: 'home' | 'browse' | 'cart' | 'community' | 'explore' | 'inbox' | 'profile' | 'saved' | 'shop'
   className?: string
   searchPlaceholder?: string
 }) {
@@ -85,7 +85,7 @@ export function TopNav({
             <a aria-current={active === 'cart' ? 'page' : undefined} aria-label={cartLabel} className={`icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white ${active === 'cart' ? '!bg-white !text-accent hover:!text-accent' : ''}`} href={withBasePath('/cart')}>
               <Icon name="cart" />
               {cartCount > 0 && (
-                <span aria-hidden className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black leading-none text-white ring-2 ring-accent">
+                <span aria-hidden className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-accent-light px-1.5 py-0.5 text-[10px] font-black leading-none text-accent ring-2 ring-accent">
                   {cartCountLabel}
                 </span>
               )}
@@ -184,7 +184,7 @@ export function TopNav({
             <a aria-current={active === 'cart' ? 'page' : undefined} aria-label={cartLabel} className={`icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent ${active === 'cart' ? 'active' : ''}`} href={withBasePath('/cart')}>
               <Icon name="cart" />
               {cartCount > 0 && (
-                <span aria-hidden className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black leading-none text-white ring-2 ring-accent">
+                <span aria-hidden className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-accent-light px-1.5 py-0.5 text-[10px] font-black leading-none text-accent ring-2 ring-accent">
                   {cartCountLabel}
                 </span>
               )}
@@ -194,11 +194,11 @@ export function TopNav({
                 <a aria-label="Inbox" className="icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent" href={withBasePath('/inbox')}>
                   <Icon name="mail" />
                   {unreadMessageCount > 0 ? (
-                    <span aria-label={`${unreadMessageCount} unread messages`} className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black leading-none text-white ring-2 ring-accent">
+                    <span aria-label={`${unreadMessageCount} unread messages`} className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-accent-light px-1.5 py-0.5 text-[10px] font-black leading-none text-accent ring-2 ring-accent">
                       {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
                     </span>
                   ) : hasSystemNotificationDot && (
-                    <span aria-label="Unread system notification" className="absolute right-2 top-2 size-2.5 rounded-full bg-red-500 ring-2 ring-accent" />
+                    <span aria-label="Unread system notification" className="absolute right-2 top-2 size-2.5 rounded-full bg-accent-light ring-2 ring-accent" />
                   )}
                 </a>
                 <a aria-current={active === 'shop' ? 'page' : undefined} aria-label={shopLabel} className={`icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent ${active === 'shop' ? 'active' : ''}`} href={withBasePath(shopHref)}>

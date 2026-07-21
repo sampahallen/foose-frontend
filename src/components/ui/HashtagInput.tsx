@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -54,10 +55,7 @@ export type HashtagInputProps = {
 }
 
 export function HashtagInput(props: HashtagInputProps) {
-  const maxTags = props.maxTags ?? DEFAULT_MAX_TAGS
-  const initialKey = normalizeTags(props.initialTags || [], maxTags).join('\u0000')
-
-  return <HashtagInputState {...props} key={`${maxTags}:${initialKey}`} />
+  return <HashtagInputState {...props} />
 }
 
 function HashtagInputState({
@@ -74,7 +72,9 @@ function HashtagInputState({
   placeholder = '#streetwear',
   required = false,
 }: HashtagInputProps) {
-  const [tags, setTags] = useState<string[]>(() => normalizeTags(initialTags, maxTags))
+  const [uncontrolledTags, setUncontrolledTags] = useState<string[]>(() => normalizeTags(initialTags, maxTags))
+  const controlledTags = useMemo(() => normalizeTags(initialTags, maxTags), [initialTags, maxTags])
+  const tags = onChange ? controlledTags : uncontrolledTags
   const [draft, setDraft] = useState('')
   const [suggestions, setSuggestions] = useState<HashtagSuggestion[]>([])
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -131,7 +131,7 @@ function HashtagInputState({
 
   function updateTags(nextTags: string[]) {
     const normalized = normalizeTags(nextTags, maxTags)
-    setTags(normalized)
+    if (!onChange) setUncontrolledTags(normalized)
     onChange?.(normalized)
   }
 
@@ -219,23 +219,23 @@ function HashtagInputState({
         </label>
       )}
       <div
-        className={`rounded-xl border bg-foose-surface px-3 py-2 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15 ${
+        className={`rounded-xl border bg-foose-surface px-2 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15 lg:px-3 lg:py-2 ${
           disabled ? 'cursor-not-allowed border-foose-border opacity-60' : error ? 'border-foose-danger bg-foose-danger-bg/10 focus-within:border-foose-danger focus-within:ring-foose-danger/15' : 'border-foose-border'
         }`}
         onClick={() => inputRef.current?.focus()}
       >
         {/* Keep the empty value in FormData so clearing every tag also clears it on edit. */}
         <input name={name} readOnly type="hidden" value={tags.join(',')} />
-        <div className="flex min-h-12 flex-wrap items-center gap-2">
+        <div className="flex min-h-11 flex-wrap items-center gap-1.5 lg:min-h-12 lg:gap-2">
           {tags.map((tag) => (
             <span
-              className="inline-flex min-h-11 items-center gap-1 rounded-full bg-accent-light py-1 pl-3 pr-1 text-xs font-black text-accent"
+              className="inline-flex min-h-8 max-w-full items-center gap-0.5 rounded-full bg-accent-light py-0.5 pl-2 pr-0.5 text-[11px] font-black leading-4 text-accent lg:min-h-11 lg:gap-1 lg:py-1 lg:pl-3 lg:pr-1 lg:text-xs"
               key={tag}
             >
               #{tag}
               <button
                 aria-label={`Remove #${tag}`}
-                className="inline-flex size-11 items-center justify-center rounded-full text-accent transition hover:bg-accent hover:text-white focus:outline-none focus:ring-2 focus:ring-accent/30"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-accent transition hover:bg-accent hover:text-white focus:outline-none focus:ring-2 focus:ring-accent/30 lg:size-11"
                 disabled={disabled}
                 onClick={(event) => {
                   event.stopPropagation()
@@ -257,7 +257,7 @@ function HashtagInputState({
               aria-invalid={Boolean(error) || undefined}
               aria-label={ariaLabel}
               autoComplete="off"
-              className="!w-auto min-w-32 flex-1 !rounded-none !border-0 !bg-transparent !px-1 !py-1 text-sm outline-none placeholder:text-foose-faint focus:!ring-0"
+              className="!w-auto min-w-24 flex-1 !rounded-none !border-0 !bg-transparent !px-1 !py-1 text-[13px] outline-none placeholder:text-foose-faint focus:!ring-0 lg:min-w-32 lg:text-sm"
               disabled={disabled}
               id={inputId}
               onBlur={() => {

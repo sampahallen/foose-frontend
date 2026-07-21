@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { ChoiceCardGroup, ErrorSummary, PasswordField, SubmitButton, TextField } from '.'
+import { ChoiceCardGroup, ErrorSummary, FormActions, FormSection, PasswordField, SubmitButton, TextField } from '.'
 import { Dialog } from './Dialog'
 import { UnsavedChangesGuard } from './UnsavedChangesGuard'
 import { useFormValidation } from './useFormValidation'
@@ -16,6 +16,38 @@ describe('modern form primitives', () => {
     expect(input).toBeRequired()
     expect(input).toHaveAttribute('aria-invalid', 'true')
     expect(input).toHaveAccessibleDescription('We only use this for receipts. Enter a valid email')
+  })
+
+  it('uses narrow-screen control sizing and delays two-column fields until the small breakpoint', () => {
+    const { container } = render(
+      <FormSection columns={2} title="Contact details">
+        <TextField label="Name" />
+        <TextField label="Email" />
+        <FormActions sticky><button type="button">Cancel</button><button type="button">Save</button></FormActions>
+      </FormSection>,
+    )
+
+    expect(screen.getByLabelText('Name')).toHaveClass('min-h-11', 'sm:min-h-12', 'text-base', 'sm:text-sm')
+    expect(container.querySelector('section > div:last-child')).toHaveClass('sm:grid-cols-2')
+    expect(screen.getByRole('button', { name: 'Save' }).parentElement).toHaveClass('[&_button]:w-full', 'sm:[&_button]:w-auto')
+  })
+
+  it('can render an accessible field error in the label row', () => {
+    render(<TextField error="Enter a valid email" errorPlacement="inline" label="Email" name="email" />)
+
+    const input = screen.getByRole('textbox', { name: 'Email' })
+    const error = screen.getByText('Enter a valid email')
+    expect(screen.getByText('Email').parentElement).toContainElement(error)
+    expect(input).toHaveAccessibleDescription('Enter a valid email')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('styles an explicitly invalid field without requiring an error message', () => {
+    render(<TextField aria-invalid label="Password" name="password" type="password" />)
+
+    const input = screen.getByLabelText('Password')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveClass('border-foose-danger', 'bg-foose-danger-bg/15')
   })
 
   it('reveals passwords without changing the field value', async () => {

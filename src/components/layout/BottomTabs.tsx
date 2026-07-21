@@ -4,7 +4,7 @@ import { authHref } from '../../utils/authRedirect'
 import { withBasePath } from '../../utils/navigation'
 import { Icon } from '../icons/Icon'
 
-export function BottomTabs({ active }: { active?: 'home' | 'browse' | 'cart' | 'community' | 'explore' | 'profile' | 'saved' | 'shop' }) {
+export function BottomTabs({ active }: { active?: 'home' | 'browse' | 'cart' | 'community' | 'explore' | 'inbox' | 'profile' | 'saved' | 'shop' }) {
   const { status, user } = useAuth()
   const { unreadMessageCount, unreadNotificationCount } = useMessaging()
   const guardedHref = (target: string) => (user || status === 'checking' ? withBasePath(target) : authHref('/login', target))
@@ -28,14 +28,14 @@ export function BottomTabs({ active }: { active?: 'home' | 'browse' | 'cart' | '
         <Icon name="heart" />
         Saved
       </a>
-      <a className="relative" href={guardedHref('/inbox')}>
+      <a className={`relative ${active === 'inbox' ? 'active' : ''}`} href={guardedHref('/inbox')}>
         <Icon name="mail" />
         {unreadMessageCount > 0 ? (
-          <span aria-label={`${unreadMessageCount} unread messages`} className="absolute right-2 top-0 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black leading-none text-white ring-2 ring-white">
+          <span aria-label={`${unreadMessageCount} unread messages`} className={`absolute right-2 top-0 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black leading-none ring-2 ring-white ${active === 'inbox' ? 'bg-white text-accent-strong' : 'bg-accent-strong text-white'}`}>
             {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
           </span>
         ) : hasSystemNotificationDot && (
-          <span aria-label="Unread system notification" className="absolute right-4 top-1 size-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+          <span aria-label="Unread system notification" className={`absolute right-4 top-1 size-2.5 rounded-full ring-2 ring-white ${active === 'inbox' ? 'bg-white' : 'bg-accent-strong'}`} />
         )}
         Inbox
       </a>

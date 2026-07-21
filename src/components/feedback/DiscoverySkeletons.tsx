@@ -173,17 +173,53 @@ export function EventDetailSkeleton() {
 export function ProfilePageSkeleton() {
   return (
     <LoadingRegion label="Loading profile" layout="page">
-      <div className="rounded-xl border border-foose-border bg-foose-surface p-4 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <SkeletonBlock className="size-24 shrink-0 rounded-full" />
-          <div className="flex-1 space-y-3">
-            <SkeletonBlock className="h-7 w-52 max-w-full" />
-            <SkeletonBlock className="h-4 w-72 max-w-full" />
-            <div className="flex gap-2"><SkeletonBlock className="h-9 w-24" /><SkeletonBlock className="h-9 w-24" /></div>
+      <div className="rounded-2xl bg-foose-surface p-3 sm:p-4 lg:p-6">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-3 sm:gap-x-4 lg:gap-x-6">
+          <SkeletonBlock className="size-20 shrink-0 rounded-full sm:size-24 lg:size-28" />
+          <div className="min-w-0 space-y-2">
+            <SkeletonBlock className="h-7 w-52 max-w-full lg:h-9" />
+            <SkeletonBlock className="h-4 w-28 max-w-full" />
+          </div>
+          <div className="col-span-2 space-y-2 lg:col-start-2">
+            <SkeletonBlock className="h-4 w-full max-w-xl" />
+            <SkeletonBlock className="h-4 w-3/4 max-w-lg" />
+          </div>
+          <div className="col-span-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between lg:col-start-2">
+            <div className="flex gap-5 sm:gap-7">
+              <div className="space-y-1"><SkeletonBlock className="h-5 w-8" /><SkeletonBlock className="h-3 w-16" /></div>
+              <div className="space-y-1"><SkeletonBlock className="h-5 w-8" /><SkeletonBlock className="h-3 w-16" /></div>
+            </div>
+            <div className="flex gap-2">
+              <SkeletonBlock className="h-11 flex-1 sm:w-28 sm:flex-none" />
+              <SkeletonBlock className="h-11 flex-1 sm:w-28 sm:flex-none" />
+              <SkeletonBlock className="size-11 shrink-0" />
+              <SkeletonBlock className="size-11 shrink-0" />
+            </div>
           </div>
         </div>
       </div>
-      <div className="mt-6"><ProductGridSkeleton count={10} label="Loading profile listings" /></div>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="order-first overflow-hidden rounded-2xl border border-foose-border bg-foose-surface lg:order-last">
+          <SkeletonBlock className="hidden h-28 w-full rounded-none lg:block" />
+          <div className="flex items-center gap-3 p-3 sm:p-4 lg:block lg:space-y-3 lg:p-5">
+            <SkeletonBlock className="size-14 shrink-0 rounded-full lg:-mt-12 lg:size-16 lg:rounded-xl lg:ring-4 lg:ring-foose-surface" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex items-center gap-2"><SkeletonBlock className="h-5 w-28" /><SkeletonBlock className="h-5 w-14 rounded-full" /></div>
+              <SkeletonBlock className="hidden h-4 w-full lg:block" />
+              <SkeletonBlock className="hidden h-4 w-4/5 lg:block" />
+            </div>
+            <SkeletonBlock className="h-10 w-24 shrink-0 lg:w-full" />
+          </div>
+        </div>
+        <div className="min-w-0">
+          <div className="grid grid-cols-3 border-b border-foose-border pb-2">
+            {Array.from({ length: 3 }, (_, index) => <SkeletonBlock className="mx-auto h-10 w-20 max-w-[85%]" key={index} />)}
+          </div>
+          <div className="mt-5 grid grid-cols-2 items-start gap-3 sm:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }, (_, index) => <SkeletonBlock className={index % 3 === 0 ? 'aspect-[3/4]' : index % 3 === 1 ? 'aspect-square' : 'aspect-[4/5]'} key={index} />)}
+          </div>
+        </div>
+      </div>
     </LoadingRegion>
   )
 }

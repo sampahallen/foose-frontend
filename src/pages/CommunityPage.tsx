@@ -296,7 +296,10 @@ export function CommunityPage() {
     setActionError('')
     setPromotingEventId(event._id)
     try {
-      await startPromotionCheckout('event', event._id, eventPromotionPackage)
+      const result = await startPromotionCheckout('event', event._id, eventPromotionPackage)
+      if (result.status === 'cancelled') {
+        showToast({ message: 'You were not charged. You can promote this event whenever you are ready.', title: 'Payment cancelled', tone: 'info' })
+      }
     } catch (err) {
       setActionError(getErrorMessage(err, 'Could not start event promotion'))
     } finally {
@@ -379,7 +382,7 @@ export function CommunityPage() {
                     </SelectControl>
                   </label>
                   <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" disabled={promotingEventId === event._id} onClick={() => void promoteEvent(event)} type="button">
-                    <IoMegaphone /> {promotingEventId === event._id ? 'Opening Paystack...' : 'Promote'}
+                    <IoMegaphone /> {promotingEventId === event._id ? 'Opening secure payment...' : 'Promote'}
                   </button>
                 </div>
               )}
@@ -411,7 +414,7 @@ export function CommunityPage() {
       <article className="finspo-tile relative mb-3 break-inside-avoid max-md:mb-2" key={post._id}>
         <a
           aria-label={post.caption || `Finspo by ${finspoAuthor(post)}`}
-          className="finspo-image block overflow-hidden rounded-none border-0 bg-transparent [&_img]:h-auto [&_img]:w-full [&_img]:object-contain finspo-tile-link"
+          className="finspo-image block overflow-hidden rounded-none border-0 bg-transparent [&_img]:h-auto [&_img]:w-full [&_img]:object-contain [&_img]:transition-transform [&_img]:duration-300 [&_img]:ease-out hover:[&_img]:scale-[1.025] motion-reduce:[&_img]:transform-none motion-reduce:[&_img]:transition-none finspo-tile-link"
           href={withBasePath(`/community/finspo/${post._id}`)}
           id={`finspo-community-${finspoScope}-${post._id}`}
           onClick={(event) => openFinspo(event, post, sourceLabel)}

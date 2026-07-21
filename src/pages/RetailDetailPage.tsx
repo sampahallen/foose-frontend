@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { MdVerified } from 'react-icons/md'
-import { AppShell, Badge, ButtonLink, DropdownChevron, FavoriteButton, Icon, InlineNotice, ListingImageSlider, ProductCard, RefreshIndicator, SectionHeader, ShopReviewPanel, StatePanel } from '../components'
+import { AppShell, Badge, ButtonLink, DropdownChevron, FavoriteButton, Icon, InlineNotice, ListingImageSlider, ProductCard, RefreshIndicator, SectionHeader, ShopReviewPanel, StatePanel, useToast } from '../components'
 import { ListingDetailSkeleton, ProductBandSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
@@ -116,6 +116,7 @@ function ListingBand({
 
 export function RetailDetailPage() {
   const { user } = useAuth()
+  const { showToast } = useToast()
   const listingId = currentListingId()
   const listingResource = useApiResource<{ listing: Listing }>(listingId ? `/listings/${listingId}` : null)
   const { addListing } = useCart()
@@ -125,14 +126,15 @@ export function RetailDetailPage() {
   const listing = listingResource.data?.listing
   const shop = listing ? getShop(listing) : undefined
   const shopId = shopIdValue(listing?.shopId)
-  const sellerListingsResource = useApiResource<{ listings: Listing[] }>(shopId ? `/listings/shop/${shopId}` : null, Boolean(shopId))
+  const sellerId = shopOwnerId(shop?.ownerId)
+  const isOwner = Boolean(user?._id && sellerId === user._id)
+  const sellerListingsResource = useApiResource<{ listings: Listing[] }>(shopId ? `/listings/shop/${shopId}` : null, Boolean(shopId && !isOwner))
   const relatedListingsResource = useApiResource<PaginatedListings>(
     listing?.category ? `/search/items?category=${encodeURIComponent(listing.category)}&limit=12&sort=newest` : null,
     Boolean(listing?.category),
   )
   const mainImage = listing ? getListingImage(listing) : undefined
   const listingImages = listing?.images?.length ? listing.images : mainImage ? [mainImage] : []
-  const sellerId = shopOwnerId(shop?.ownerId)
   const askQuestionHref = sellerChatHref({ includeListing: true, listingId, sellerId, userId: user?._id })
   const messageSellerHref = sellerChatHref({ listingId, sellerId, userId: user?._id })
   const sellerListings = useMemo(
@@ -144,8 +146,10 @@ export function RetailDetailPage() {
     [listing?._id, sellerListings],
   )
   const youMightLike = useMemo(
-    () => compactListings(relatedListingsResource.data?.results, listing?._id, 6).filter((item) => shopIdValue(item.shopId) !== shopId),
-    [listing?._id, relatedListingsResource.data?.results, shopId],
+    () => compactListings(relatedListingsResource.data?.results, listing?._id, 6).filter((item) => (
+      shopIdValue(item.shopId) !== shopId && shopOwnerId(getShop(item)?.ownerId) !== user?._id
+    )),
+    [listing?._id, relatedListingsResource.data?.results, shopId, user?._id],
   )
   useListingRecommendationSignals(listing?._id, Boolean(user))
 
@@ -167,14 +171,17 @@ export function RetailDetailPage() {
   }, [isModal])
 
   function handleAddToCart() {
-    if (!listing) return
-    addListing(listing)
-    navigateTo('/cart')
+    if (!listing || isOwner || !addListing(listing)) return
+    showToast({
+      id: `cart:add:${listing._id}`,
+      message: `${listing.title} was added to your cart.`,
+      title: 'Added to cart',
+      tone: 'success',
+    })
   }
 
   function handleBuyNow() {
-    if (!listing) return
-    addListing(listing)
+    if (!listing || isOwner || !addListing(listing)) return
     navigateTo('/checkout')
   }
 
@@ -196,7 +203,7 @@ export function RetailDetailPage() {
             <section className="space-y-3 lg:sticky lg:top-24">
               <div className="relative">
                 <ListingImageSlider images={listingImages} key={listing._id} title={listing.title} />
-                <FavoriteButton className="absolute right-3 top-3 z-10 inline-flex size-10 items-center justify-center rounded-full border border-foose-border bg-white/95 text-foose-text shadow transition hover:bg-accent hover:text-white [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />
+                {!isOwner && <FavoriteButton className="absolute right-3 top-3 z-10 inline-flex size-10 items-center justify-center rounded-full border border-foose-border bg-white/95 text-foose-text shadow transition hover:bg-accent hover:text-white [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />}
               </div>
             </section>
 
@@ -262,7 +269,12 @@ export function RetailDetailPage() {
                     </tbody>
                   </table>
                 )}
-                <div className="mt-5 grid gap-2">
+                {isOwner ? (
+                  <div className="mt-5 grid gap-2">
+                    <InlineNotice tone="info">This is your listing. Buyer actions are hidden while you preview it.</InlineNotice>
+                    <ButtonLink className="h-11 rounded-md" to={`/listings/${listing._id}/edit`}>Manage listing</ButtonLink>
+                  </div>
+                ) : <div className="mt-5 grid gap-2">
                   <button className="inline-flex h-11 items-center justify-center rounded-md border border-foose-text bg-foose-text px-4 text-sm font-black text-white transition hover:bg-black disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleBuyNow} type="button">
                     Buy now
                   </button>
@@ -272,10 +284,10 @@ export function RetailDetailPage() {
                   <ButtonLink to={askQuestionHref} className="h-11 rounded-md" variant="secondary">
                     Ask a question
                   </ButtonLink>
-                </div>
-                <div className="mt-4 flex items-center justify-center gap-2 text-sm font-semibold text-foose-success">
+                </div>}
+                {!isOwner && <div className="mt-4 flex items-center justify-center gap-2 text-sm font-semibold text-foose-success">
                   <Icon name="box" size={17} /> Checkout protected by Foose escrow
-                </div>
+                </div>}
               </section>
 
               <section className="rounded-xl border border-foose-border bg-foose-surface p-4 shadow-sm sm:p-5">
@@ -327,7 +339,7 @@ export function RetailDetailPage() {
             </aside>
           </div>
 
-          <ListingBand action={shop?.slug ? `/shops/${shop.slug}` : undefined} error={sellerListingsResource.error} listings={moreFromSeller} loading={sellerListingsResource.initialLoading} retry={sellerListingsResource.refetch} title="More from this seller" />
+          {!isOwner && <ListingBand action={shop?.slug ? `/shops/${shop.slug}` : undefined} error={sellerListingsResource.error} listings={moreFromSeller} loading={sellerListingsResource.initialLoading} retry={sellerListingsResource.refetch} title="More from this seller" />}
           <ListingBand action={listing.category ? `/browse?category=${encodeURIComponent(listing.category)}` : '/browse'} error={relatedListingsResource.error} listings={youMightLike} loading={relatedListingsResource.initialLoading} retry={relatedListingsResource.refetch} title="You might also like" />
         </>
       )}

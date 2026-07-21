@@ -20,6 +20,13 @@ export type AuthTokens = {
   expiresIn?: string
 }
 
+export type PaystackPaymentSession = {
+  accessCode: string
+  provider: 'paystack'
+  reference: string
+  status: 'pending'
+}
+
 export type User = {
   _id: string
   name: string
@@ -228,6 +235,40 @@ export type GalleryPost = {
   createdAt?: string
 }
 
+export type ProfileContentType = 'finspo' | 'listings' | 'events'
+
+export type ProfileConnectionType = 'followers' | 'following'
+
+export type ProfileConnectionMember = Pick<User, '_id' | 'hasShop' | 'isKycVerified' | 'name' | 'profilePhoto' | 'username'>
+
+export type PaginatedProfileConnections = {
+  items: ProfileConnectionMember[]
+  page: number
+  pages: number
+  restricted: boolean
+  total: number
+  type: ProfileConnectionType
+}
+
+export type ProfileContentCounts = Record<ProfileContentType, number>
+
+export type ProfileSummary = {
+  user: User
+  contentCounts: ProfileContentCounts
+  followerCount: number
+  followingCount: number
+  isFollowing?: boolean
+  shop?: Shop | null
+}
+
+export type PaginatedProfileContent<T extends GalleryPost | Listing | Event> = {
+  items: T[]
+  page: number
+  pages: number
+  total: number
+  type: ProfileContentType
+}
+
 export type FinspoComment = {
   _id: string
   body: string
@@ -370,6 +411,7 @@ export type ChatConversation = {
   conversationId: string
   latestMessage: ChatMessage
   unreadCount: number
+  unreadReactionCount?: number
   participant?: User | string
   listing?: Listing | string
 }
@@ -384,6 +426,7 @@ export type ChatAttachment = {
 export type ChatReactionName = 'thumbs_up' | 'heart' | 'thumbs_down' | 'fire' | 'sad' | 'laugh'
 
 export type ChatReaction = {
+  isRead?: boolean
   userId?: User | string
   reaction: ChatReactionName
 }

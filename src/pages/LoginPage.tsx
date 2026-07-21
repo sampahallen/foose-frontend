@@ -54,13 +54,13 @@ function ForgotPasswordDialog({
   }
 
   return (
-    <Dialog description="Enter your account email and we’ll send a secure reset link if it matches a Foose account." onClose={onClose} open size="sm" title="Reset password">
+    <Dialog description="Enter your account email. We’ll confirm it belongs to a Foose account before sending a secure reset link." onClose={onClose} open size="sm" title="Reset password">
         {sent ? (
           <div className="grid gap-4">
             <SuccessState
               action={<button className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-accent bg-accent px-5 text-sm font-bold text-white transition hover:bg-accent-hover" onClick={onClose} type="button">Back to login</button>}
               layout="compact"
-              message="If that email is in our records, we sent a password reset link."
+              message={`We sent a password reset link to ${email.trim()}.`}
               title="Check your email"
             />
           </div>

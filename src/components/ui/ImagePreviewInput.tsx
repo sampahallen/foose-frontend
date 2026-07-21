@@ -28,6 +28,7 @@ export type ImagePreviewInputProps = {
   multiple?: boolean
   name: string
   onFilesChange?: (files: File[]) => void
+  presentation?: 'dropzone' | 'strip'
   required?: boolean
 }
 
@@ -75,6 +76,7 @@ export function ImagePreviewInput({
   multiple = false,
   name,
   onFilesChange,
+  presentation = 'dropzone',
   required = false,
 }: ImagePreviewInputProps) {
   const generatedId = useId()
@@ -103,6 +105,7 @@ export function ImagePreviewInput({
     ? { aspectRatio: aspect }
     : undefined
   const aspectClass = aspect === 'original' ? '' : aspect === 'wide' ? 'aspect-[16/9]' : aspect === 'square' ? 'aspect-square' : 'aspect-square'
+  const stripPresentation = presentation === 'strip'
 
   function syncInputFiles(nextFiles: PreviewFile[]) {
     const input = inputRef.current
@@ -191,7 +194,79 @@ export function ImagePreviewInput({
 
   const uploader = (
     <>
-      <div
+      {stripPresentation && (
+        <div
+          className="grid w-full grid-cols-6 gap-1.5 sm:gap-2.5"
+          data-testid="image-preview-strip"
+          onDragEnter={(event) => {
+            event.preventDefault()
+            dragDepthRef.current += 1
+            setDragging(true)
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault()
+            dragDepthRef.current -= 1
+            if (dragDepthRef.current <= 0) setDragging(false)
+          }}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={drop}
+        >
+          <input
+            accept={accept}
+            aria-describedby={describedBy}
+            aria-invalid={Boolean(error || localErrors.length) || undefined}
+            className="sr-only"
+            id={inputId}
+            multiple={multiple}
+            name={name}
+            onChange={(event) => addFiles(event.target.files)}
+            ref={inputRef}
+            required={required && !keptImages.length && !visibleFiles.length}
+            type="file"
+          />
+          {keptImages.map((image, index) => (
+            <div className="group relative aspect-square min-w-0 overflow-hidden rounded-lg border border-foose-border bg-foose-surface-mid sm:rounded-xl" key={`${image}-${index}`}>
+              <LightboxImage alt={`Current upload ${index + 1}`} className="h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover" index={index} items={previewItems} src={image} />
+              <button
+                aria-label={`Remove current upload ${index + 1}`}
+                className="absolute right-0.5 top-0.5 grid size-7 place-items-center rounded-full bg-black/65 text-white shadow-sm transition hover:bg-foose-danger focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white sm:right-1 sm:top-1 sm:size-8"
+                onClick={() => {
+                  setKeptImages((images) => images.filter((_, imageIndex) => imageIndex !== index))
+                  setLocalErrors([])
+                }}
+                type="button"
+              >
+                <Icon name="close" size={14} />
+              </button>
+            </div>
+          ))}
+          {visibleFiles.map((file, index) => (
+            <div className="group relative aspect-square min-w-0 overflow-hidden rounded-lg border border-foose-border bg-foose-surface-mid sm:rounded-xl" key={file.id}>
+              <LightboxImage alt={file.name || `Selected upload ${index + 1}`} className="h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover" index={keptImages.length + index} items={previewItems} src={file.url} />
+              <button
+                aria-label={`Remove selected upload ${index + 1}`}
+                className="absolute right-0.5 top-0.5 grid size-7 place-items-center rounded-full bg-black/65 text-white shadow-sm transition hover:bg-foose-danger focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white sm:right-1 sm:top-1 sm:size-8"
+                onClick={() => removeSelectedFile(file.id)}
+                type="button"
+              >
+                <Icon name="close" size={14} />
+              </button>
+            </div>
+          ))}
+          {remainingSlots > 0 && (
+            <button
+              aria-label={`Add listing ${multiple ? 'images' : 'image'}`}
+              className={`grid aspect-square min-w-0 place-items-center rounded-lg border border-dashed text-foose-muted transition hover:border-accent hover:bg-accent-light hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:rounded-xl ${dragging ? 'border-accent bg-accent-light text-accent' : 'border-foose-border bg-foose-surface-low'}`}
+              onClick={() => inputRef.current?.click()}
+              type="button"
+            >
+              <Icon name="plus" size={22} />
+            </button>
+          )}
+        </div>
+      )}
+
+      {!stripPresentation && <div
         className={`relative flex min-h-36 flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${dragging ? 'border-accent bg-accent-light/65 shadow-inner' : 'border-foose-border bg-foose-surface-low/60 hover:border-accent/60 hover:bg-accent-light/25'} ${remainingSlots <= 0 ? 'opacity-70' : ''}`}
         onDragEnter={(event) => {
           event.preventDefault()
@@ -233,12 +308,12 @@ export function ImagePreviewInput({
         <p className="mt-3 text-xs font-semibold text-foose-faint">
           Up to {formatBytes(maxBytes)}{maxFiles ? ` · ${maxFiles} image${maxFiles === 1 ? '' : 's'} maximum` : ''}
         </p>
-      </div>
+      </div>}
 
       {keptName && keptImages.map((image) => <input key={image} name={keptName} type="hidden" value={image} />)}
       {keptTouchedName && hasExistingImages && <input name={keptTouchedName} type="hidden" value="1" />}
 
-      {(keptImages.length > 0 || visibleFiles.length > 0) && (
+      {!stripPresentation && (keptImages.length > 0 || visibleFiles.length > 0) && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="image-preview-grid">
           {keptImages.map((image, index) => (
             <article className="overflow-hidden rounded-xl border border-foose-border bg-white" key={`${image}-${index}`}>

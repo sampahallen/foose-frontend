@@ -36,6 +36,7 @@ import {
   ProfileSettingsPage,
   RegisterPage,
   ResetPasswordPage,
+  VerifyEmailPage,
   RetailDetailPage,
   SavedPage,
   SearchPage,
@@ -65,6 +66,9 @@ function App() {
       break
     case 'resetPassword':
       page = <ResetPasswordPage />
+      break
+    case 'verifyEmail':
+      page = <VerifyEmailPage />
       break
     case 'adminKyc':
       page = (
@@ -128,7 +132,7 @@ function App() {
     case 'newListing':
     case 'editListing':
       page = (
-        <AuthRequired>
+        <AuthRequired verifiedOnly="listing">
           <NewListingPage />
         </AuthRequired>
       )
@@ -196,7 +200,7 @@ function App() {
       break
     case 'inbox':
       page = (
-        <AuthRequired>
+        <AuthRequired verifiedOnly={new URLSearchParams(search).get('view') === 'system' ? undefined : 'messaging'}>
           <InboxPage />
         </AuthRequired>
       )
@@ -206,7 +210,7 @@ function App() {
       break
     case 'checkout':
       page = (
-        <AuthRequired>
+        <AuthRequired verifiedOnly="checkout">
           <CheckoutPage />
         </AuthRequired>
       )
@@ -256,7 +260,7 @@ function App() {
       break
     case 'openShop':
       page = (
-        <AuthRequired>
+        <AuthRequired verifiedOnly="shop">
           <OpenShopPage />
         </AuthRequired>
       )

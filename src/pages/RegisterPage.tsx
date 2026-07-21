@@ -5,7 +5,6 @@ import blueLogo from '../assets/foose-logo-blue.png'
 import {
   AppShell,
   Dialog,
-  ErrorSummary,
   FormField,
   InlineNotice,
   PasswordField,
@@ -50,6 +49,35 @@ const initialValues: RegisterValues = {
   username: '',
 }
 
+type ValidatedRegisterField = 'name' | 'email' | 'username' | 'region' | 'city' | 'password'
+
+const VALIDATED_FIELDS: ValidatedRegisterField[] = ['name', 'email', 'username', 'region', 'city', 'password']
+
+function validateRegisterValues(values: RegisterValues): Record<ValidatedRegisterField, string> {
+  return {
+    name: values.name.trim().length >= 2 ? '' : 'Enter at least 2 characters.',
+    email: emailLooksValid(values.email) ? '' : 'Enter a valid email address.',
+    username: usernameLooksValid(values.username) ? '' : 'Use 3-20 letters, numbers, underscores, or dots.',
+    region: GHANA_REGIONS.some((region) => region === values.region) ? '' : 'Select a Ghana region.',
+    city: values.city.trim().length >= 2 ? '' : 'Enter your city or town.',
+    password: passwordMeetsRequirements(values.password) ? '' : 'Complete the password requirements.',
+  }
+}
+
+function registerValuesFromForm(form: HTMLFormElement): RegisterValues {
+  const data = new FormData(form)
+  const value = (name: keyof RegisterValues) => String(data.get(name) || '')
+  return {
+    city: value('city'),
+    email: value('email'),
+    name: value('name'),
+    password: value('password'),
+    phone: value('phone'),
+    region: value('region'),
+    username: value('username'),
+  }
+}
+
 function registerErrorMessage(error: unknown) {
   const message = getErrorMessage(error, 'Unable to register')
   const normalizedMessage = message.toLowerCase()
@@ -71,20 +99,12 @@ export function RegisterPage() {
   const redirectTarget = redirectFromSearch()
   const closeTarget = closeTargetForAuthModal(redirectTarget)
 
-  const validation = useMemo(() => ({
-    email: emailLooksValid(values.email) ? '' : 'Enter a valid email address.',
-    name: values.name.trim().length >= 2 ? '' : 'Enter at least 2 characters for your name.',
-    password: passwordMeetsRequirements(values.password) ? '' : 'Complete all password requirements.',
-    username: usernameLooksValid(values.username) ? '' : 'Use 3-20 letters, numbers, underscores, or dots.',
-  }), [values.email, values.name, values.password, values.username])
-  const validationErrors = Object.entries(validation).flatMap(([field, message]) => (
-    message ? [{ fieldId: `register-${field}`, message }] : []
-  ))
-  const canSubmit = validationErrors.length === 0
+  const validation = useMemo(() => validateRegisterValues(values), [values])
   const showPasswordRules = passwordFocused || touched.password || values.password.length > 0
+  const passwordInvalid = Boolean(fieldError('password'))
 
   function updateField(name: keyof RegisterValues, value: string) {
-    setValues((current) => ({ ...current, [name]: value }))
+    setValues((current) => current[name] === value ? current : { ...current, [name]: value })
     setError('')
   }
 
@@ -92,15 +112,35 @@ export function RegisterPage() {
     setTouched((current) => ({ ...current, [name]: true }))
   }
 
-  function fieldError(name: keyof typeof validation) {
+  function fieldError(name: ValidatedRegisterField) {
     return touched[name] || submittedInvalid ? validation[name] : ''
+  }
+
+  function syncFormControl(target: EventTarget | null) {
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return
+    if (!Object.prototype.hasOwnProperty.call(initialValues, target.name)) return
+    updateField(target.name as keyof RegisterValues, target.value)
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!canSubmit) {
+    const submittedValues = registerValuesFromForm(event.currentTarget)
+    const submittedValidation = validateRegisterValues(submittedValues)
+    const firstInvalidField = VALIDATED_FIELDS.find((field) => submittedValidation[field])
+    setValues(submittedValues)
+
+    if (firstInvalidField) {
       setSubmittedInvalid(true)
-      setTouched((current) => ({ ...current, email: true, name: true, password: true, username: true }))
+      setTouched((current) => ({
+        ...current,
+        city: true,
+        email: true,
+        name: true,
+        password: true,
+        region: true,
+        username: true,
+      }))
+      window.requestAnimationFrame(() => document.getElementById(`register-${firstInvalidField}`)?.focus())
       return
     }
 
@@ -108,14 +148,14 @@ export function RegisterPage() {
     setError('')
     try {
       await register({
-        email: values.email.trim(),
-        location: { city: values.city.trim(), region: values.region },
-        name: values.name.trim(),
-        password: values.password,
-        phone: normalizePhone(values.phone),
-        username: values.username.trim(),
+        email: submittedValues.email.trim(),
+        location: { city: submittedValues.city.trim(), region: submittedValues.region },
+        name: submittedValues.name.trim(),
+        password: submittedValues.password,
+        phone: normalizePhone(submittedValues.phone),
+        username: submittedValues.username.trim(),
       })
-      setVerificationEmail(values.email.trim())
+      setVerificationEmail(submittedValues.email.trim())
     } catch (requestError) {
       setError(registerErrorMessage(requestError))
     } finally {
@@ -127,7 +167,7 @@ export function RegisterPage() {
     <AppShell flush>
       <Dialog
         closeLabel="Close sign up"
-        description={verificationEmail ? 'Your account is ready for email verification.' : 'Create one account for buying, saving, messaging, and selling on Foose.'}
+        description={verificationEmail ? 'Your account is ready. Verify your email to unlock protected actions.' : 'Create one account for buying, saving, messaging, and selling on Foose.'}
         onClose={() => navigateTo(closeTarget, { replace: true })}
         open
         size="lg"
@@ -137,14 +177,20 @@ export function RegisterPage() {
           <div className="grid gap-5">
             <img alt="Foose" className="h-auto w-32" src={blueLogo} />
             <SuccessState
-              action={<a className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-accent px-5 text-sm font-black text-white transition hover:bg-accent-hover" href={authHref('/login', redirectTarget)}>Back to login</a>}
+              action={<a className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-accent px-5 text-sm font-black text-white transition hover:bg-accent-hover" href={authHref('/login', redirectTarget)}>Continue to login</a>}
               layout="compact"
-              message={<>We sent a secure sign-in link to <strong className="text-foose-text">{verificationEmail}</strong>. It expires in 15 minutes and works once.</>}
+              message={<>We sent a one-time verification link to <strong className="text-foose-text">{verificationEmail}</strong>. You can log in now to browse, save favorites, and add items to your cart. Verify before messaging, checking out, listing an item, or opening a DigiShop.</>}
               title="Verify your email"
             />
           </div>
         ) : (
-          <form aria-busy={submitting} className="grid gap-5" noValidate onSubmit={(event) => void handleSubmit(event)}>
+          <form
+            aria-busy={submitting}
+            className="grid gap-5"
+            noValidate
+            onInputCapture={(event) => syncFormControl(event.target)}
+            onSubmit={(event) => void handleSubmit(event)}
+          >
             <img alt="Foose" className="h-auto w-32" src={blueLogo} />
             <div className="grid gap-3 sm:grid-cols-2">
               <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={() => startOAuth('google', redirectTarget)} type="button">
@@ -156,27 +202,40 @@ export function RegisterPage() {
             </div>
 
             {error && <InlineNotice title="Could not create your account" tone="error">{error}</InlineNotice>}
-            <ErrorSummary errors={validationErrors} focus={submittedInvalid && validationErrors.length > 0} />
 
             <div className="grid gap-5 sm:grid-cols-2">
-              <TextField autoComplete="name" error={fieldError('name')} id="register-name" label="Name" name="name" onBlur={() => markTouched('name')} onChange={(event) => updateField('name', event.target.value)} required value={values.name} wrapperClassName="sm:col-span-2" />
-              <TextField autoComplete="email" error={fieldError('email')} id="register-email" label="Email" name="email" onBlur={() => markTouched('email')} onChange={(event) => updateField('email', event.target.value)} required type="email" value={values.email} />
-              <TextField autoCapitalize="none" autoComplete="username" error={fieldError('username')} hint="3-20 letters, numbers, underscores, or dots." id="register-username" label="Username" name="username" onBlur={() => markTouched('username')} onChange={(event) => updateField('username', event.target.value)} required spellCheck={false} value={values.username} />
-              <TextField autoComplete="tel" id="register-phone" inputMode="tel" label="Phone" name="phone" onBlur={() => updateField('phone', normalizePhone(values.phone))} onChange={(event) => updateField('phone', event.target.value)} optional placeholder="0240000000" type="tel" value={values.phone} />
-              <FormField htmlFor="register-region" label="Region" optional>
-                <SelectControl id="register-region" name="region" onChange={(event) => updateField('region', event.currentTarget.value)} value={values.region}>
-                  <option value="">Select region</option>
-                  {GHANA_REGIONS.map((region) => <option key={region} value={region}>{region}</option>)}
-                </SelectControl>
+              <TextField autoComplete="name" error={fieldError('name')} errorPlacement="inline" id="register-name" label="Name" name="name" onBlur={(event) => { updateField('name', event.currentTarget.value); markTouched('name') }} onChange={(event) => updateField('name', event.target.value)} required value={values.name} wrapperClassName="sm:col-span-2" />
+              <TextField autoComplete="email" error={fieldError('email')} errorPlacement="inline" id="register-email" label="Email" name="email" onBlur={(event) => { updateField('email', event.currentTarget.value); markTouched('email') }} onChange={(event) => updateField('email', event.target.value)} required type="email" value={values.email} />
+              <TextField autoCapitalize="none" autoComplete="username" error={fieldError('username')} errorPlacement="inline" hint="3-20 letters, numbers, underscores, or dots." id="register-username" label="Username" name="username" onBlur={(event) => { updateField('username', event.currentTarget.value); markTouched('username') }} onChange={(event) => updateField('username', event.target.value)} required spellCheck={false} value={values.username} />
+              <TextField autoComplete="tel" id="register-phone" inputMode="tel" label="Phone" name="phone" onBlur={(event) => updateField('phone', normalizePhone(event.currentTarget.value))} onChange={(event) => updateField('phone', event.target.value)} optional placeholder="0240000000" type="tel" value={values.phone} />
+              <FormField error={fieldError('region')} errorPlacement="inline" htmlFor="register-region" label="Region" required>
+                <div onBlurCapture={() => markTouched('region')}>
+                  <SelectControl
+                    aria-describedby={fieldError('region') ? 'register-region-error' : undefined}
+                    aria-invalid={Boolean(fieldError('region')) || undefined}
+                    autoComplete="address-level1"
+                    className={fieldError('region') ? 'border-foose-danger bg-foose-danger-bg/15 focus:border-foose-danger focus:ring-foose-danger/15' : ''}
+                    id="register-region"
+                    menuZIndex={1500}
+                    name="region"
+                    onChange={(event) => updateField('region', event.currentTarget.value)}
+                    required
+                    value={values.region}
+                  >
+                    <option value="">Select region</option>
+                    {GHANA_REGIONS.map((region) => <option key={region} value={region}>{region}</option>)}
+                  </SelectControl>
+                </div>
               </FormField>
-              <TextField autoComplete="address-level2" id="register-city" label="City" name="city" onChange={(event) => updateField('city', event.target.value)} optional value={values.city} />
+              <TextField autoComplete="address-level2" error={fieldError('city')} errorPlacement="inline" id="register-city" label="City or town" name="city" onBlur={(event) => { updateField('city', event.currentTarget.value); markTouched('city') }} onChange={(event) => updateField('city', event.target.value)} required value={values.city} />
               <PasswordField
+                aria-describedby={showPasswordRules ? 'register-password-requirements' : undefined}
+                aria-invalid={passwordInvalid || undefined}
                 autoComplete="new-password"
-                error={fieldError('password')}
                 id="register-password"
                 label="Password"
                 name="password"
-                onBlur={() => { setPasswordFocused(false); markTouched('password') }}
+                onBlur={(event) => { updateField('password', event.currentTarget.value); setPasswordFocused(false); markTouched('password') }}
                 onChange={(event) => updateField('password', event.target.value)}
                 onFocus={() => setPasswordFocused(true)}
                 required
@@ -186,12 +245,12 @@ export function RegisterPage() {
             </div>
 
             {showPasswordRules && (
-              <ul aria-label="Password requirements" className="grid gap-2 rounded-xl bg-foose-surface-low p-4 text-sm font-semibold sm:grid-cols-2">
+              <ul aria-label="Password requirements" className="flex flex-col gap-1 rounded-xl bg-foose-surface-low p-3 text-xs font-semibold" id="register-password-requirements">
                 {passwordRules.map((rule) => {
                   const met = rule.test(values.password)
                   return (
-                    <li className={`flex items-center gap-2 ${met ? 'text-foose-success' : 'text-foose-muted'}`} key={rule.id}>
-                      {met ? <FaCheckCircle aria-hidden /> : <FaExclamationCircle aria-hidden className="text-foose-faint" />} {rule.label}
+                    <li className={`flex items-center gap-1.5 leading-4 ${met ? 'text-foose-success' : 'text-foose-danger'}`} key={rule.id}>
+                      {met ? <FaCheckCircle aria-hidden /> : <FaExclamationCircle aria-hidden />} {rule.label}
                     </li>
                   )
                 })}

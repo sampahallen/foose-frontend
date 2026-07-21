@@ -56,7 +56,7 @@ function renderImageTile(post: GalleryPost, currentUserId?: string, mediaFailed 
     <article className="finspo-tile relative mb-3 break-inside-avoid max-md:mb-2" key={post._id}>
       <a
         aria-label={post.caption || `Finspo by ${authorName(post)}`}
-        className="finspo-image block overflow-hidden rounded-none border-0 bg-transparent [&_img]:h-auto [&_img]:w-full [&_img]:object-contain finspo-tile-link"
+        className="finspo-image block overflow-hidden rounded-none border-0 bg-transparent [&_img]:h-auto [&_img]:w-full [&_img]:object-contain [&_img]:transition-transform [&_img]:duration-300 [&_img]:ease-out hover:[&_img]:scale-[1.025] motion-reduce:[&_img]:transform-none motion-reduce:[&_img]:transition-none finspo-tile-link"
         href={withBasePath(`/community/finspo/${post._id}`)}
         id={`finspo-related-${post._id}`}
         onClick={(event) => openFinspo(event, post)}
