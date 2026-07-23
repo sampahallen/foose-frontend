@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { IoArchiveOutline, IoEllipsisVertical, IoMegaphone } from 'react-icons/io5'
-import { AppShell, Badge, ButtonLink, ConfirmDialog, FavoriteButton, FinspoAccountSuggestions, FinspoAccountSuggestionsSkeleton, FinspoCaption, FinspoFeedSkeleton, FinspoLikeButton, FinspoSkeletonTiles, FloatingCreateButton, Icon, InlineNotice, RefreshIndicator, SectionHeader, SelectControl, StatePanel, useToast } from '../components'
+import { AppShell, Badge, ButtonLink, ConfirmDialog, EventPromotionDialog, FavoriteButton, FinspoAccountSuggestions, FinspoAccountSuggestionsSkeleton, FinspoCaption, FinspoFeedSkeleton, FinspoLikeButton, FinspoSkeletonTiles, FloatingCreateButton, Icon, InlineNotice, RefreshIndicator, SectionHeader, StatePanel, useToast } from '../components'
 import { AppendFeedback, EventGridSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { DiscoveryImage } from '../components/feedback/DiscoveryMedia'
 import { useAuth } from '../hooks/useAuth'
@@ -16,7 +16,7 @@ import { authHref } from '../utils/authRedirect'
 import { eventHostName, eventTimeLabel, eventTypeLabel, eventWindowHasClosed, isOnlinePopUp } from '../utils/events'
 import { getErrorMessage } from '../utils/errorMessage'
 import { cacheFinspoPreview, captureNavigationTrigger, navigateTo, withBasePath } from '../utils/navigation'
-import { eventPromotionPackages, startPromotionCheckout, type PromotionPackageName } from '../utils/promotions'
+import { isActiveEventPromotion } from '../utils/promotions'
 
 type CommunityMainTab = 'events' | 'finspo'
 type EventScope = 'featured' | 'mine' | 'public'
@@ -111,9 +111,7 @@ function isArchivedEvent(event: Event) {
 }
 
 function isPromotedEvent(event: Event) {
-  if (event.status === 'past') return false
-  if (event.promotionExpiresAt && new Date(event.promotionExpiresAt).getTime() <= Date.now()) return false
-  return Boolean(event.promotionTags?.some((tag) => ['featured', 'home-featured', 'home-banner'].includes(tag)))
+  return isActiveEventPromotion(event.promotionTags, event.promotionExpiresAt, event.status)
 }
 
 function finspoAuthor(post: GalleryPost) {
@@ -157,8 +155,7 @@ export function CommunityPage() {
     const snapshot = getNavigationSnapshot<CommunityFinspoNavigationSnapshot>(`community-finspo:${initialState.finspoScope}`)?.data
     return snapshot?.version === 1 && snapshot.scope === initialState.finspoScope ? snapshot : null
   })
-  const [promotingEventId, setPromotingEventId] = useState('')
-  const [eventPromotionPackage, setEventPromotionPackage] = useState<PromotionPackageName>('basic')
+  const [promotionEvent, setPromotionEvent] = useState<Event | null>(null)
   const [pendingEventDelete, setPendingEventDelete] = useState<Event | null>(null)
   const [eventDeleteBusy, setEventDeleteBusy] = useState(false)
   const [eventDeleteError, setEventDeleteError] = useState('')
@@ -292,21 +289,6 @@ export function CommunityPage() {
     }
   }
 
-  async function promoteEvent(event: Event) {
-    setActionError('')
-    setPromotingEventId(event._id)
-    try {
-      const result = await startPromotionCheckout('event', event._id, eventPromotionPackage)
-      if (result.status === 'cancelled') {
-        showToast({ message: 'You were not charged. You can promote this event whenever you are ready.', title: 'Payment cancelled', tone: 'info' })
-      }
-    } catch (err) {
-      setActionError(getErrorMessage(err, 'Could not start event promotion'))
-    } finally {
-      setPromotingEventId('')
-    }
-  }
-
   function requestFinspoAction(action: FinspoPostAction, post: GalleryPost) {
     setFinspoMenuPost(null)
     setFinspoActionError('')
@@ -363,28 +345,11 @@ export function CommunityPage() {
               <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath(`/community/events/${event._id}/manage`)}>
                 Manage
               </a>
-              {isPromotedEvent(event) ? (
-                <span className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent event-promotion-pill pointer-events-none bg-accent-light text-accent">Promoted</span>
-              ) : (
-                <div className="grid w-full gap-2">
-                  <label className="relative block">
-                    <SelectControl
-                      aria-label="Event promotion package"
-                      className="h-11 w-full appearance-none rounded-xl border border-accent/20 bg-accent-light/70 px-3 pr-10 text-xs font-black text-accent outline-none transition hover:border-accent focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/15"
-                      onChange={(input) => setEventPromotionPackage(input.target.value as PromotionPackageName)}
-                      value={eventPromotionPackage}
-                    >
-                      {eventPromotionPackages.map((item) => (
-                        <option key={item.value} value={item.value}>
-                          {item.label}
-                        </option>
-                      ))}
-                    </SelectControl>
-                  </label>
-                  <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" disabled={promotingEventId === event._id} onClick={() => void promoteEvent(event)} type="button">
-                    <IoMegaphone /> {promotingEventId === event._id ? 'Opening secure payment...' : 'Promote'}
-                  </button>
-                </div>
+              {isPromotedEvent(event) && <Badge tone="success">Promoted</Badge>}
+              {!isArchivedEvent(event) && (
+                <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => setPromotionEvent(event)} type="button">
+                  <IoMegaphone /> {isPromotedEvent(event) ? 'Extend promotion' : 'Promote'}
+                </button>
               )}
               <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => requestEventDelete(event)} type="button">
                 Remove
@@ -613,6 +578,7 @@ export function CommunityPage() {
       {mainTab === 'finspo' && renderFinspoPanel()}
       {mainTab === 'events' && renderEventPanel()}
       {renderFloatingCreateButton()}
+      <EventPromotionDialog event={promotionEvent} onClose={() => setPromotionEvent(null)} />
 
       {pendingFinspoAction && (
         <ConfirmDialog

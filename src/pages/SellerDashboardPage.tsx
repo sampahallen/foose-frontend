@@ -1,21 +1,27 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import { IoMegaphone, IoReceiptOutline } from 'react-icons/io5'
-import { AppShell, Badge, ButtonLink, FloatingCreateButton, Icon, ImagePreviewInput, InlineNotice, ManagementListingCard, ManagementListingMasonry, ManagementListingMasonrySkeleton, RefreshIndicator, SafeImage, SectionHeader, SelectControl, ShopManagementMobileNav, ShopManagementSidebar, StatePanel, StatCard, useToast } from '../components'
+import { AppShell, AvatarCropDialog, Badge, ButtonLink, FloatingCreateButton, Icon, InlineNotice, ManagementListingCard, ManagementListingMasonry, ManagementListingMasonrySkeleton, RefreshIndicator, SafeImage, SectionHeader, SelectControl, ShopManagementMobileNav, ShopManagementSidebar, StatePanel, StatCard, useToast } from '../components'
 import { ConfirmDialog } from '../components/forms/Dialog'
 import { SubmitButton } from '../components/forms/FormControls'
 import { FormActions } from '../components/forms/FormLayout'
 import { SellerOverviewSkeleton, ShopSettingsSkeleton } from '../components/operational/OperationalStates'
+import { GHANA_BANKS } from '../data/ghanaBanks'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiDelete, apiPut } from '../lib/api'
 import type { Listing, Order, Shop, User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
-import { formatDateTime, formatMoney } from '../utils/format'
+import { formatDateTime, formatMoney, initials } from '../utils/format'
 import { canonicalGhanaRegion, GHANA_REGIONS } from '../utils/ghanaRegions'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
 import { canSellerMarkPickupReady, isHistoricalOrder, orderAddress, orderProgressLabel, participantContact, participantName } from '../utils/orderStatus'
 
-const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
+const MOBILE_MONEY_PROVIDERS = ['MTN', 'Telecel', 'AirtelTigo'] as const
+const GENERAL_FIELDS = ['shopName', 'category', 'bio'] as const
+const LOCATION_FIELDS = ['city', 'region'] as const
+const SOCIAL_FIELDS = ['instagram', 'whatsapp'] as const
+const PAYOUT_FIELDS = ['payoutMethodType', 'payoutAccountName', 'payoutProvider', 'payoutAccountNumber', 'payoutBankName', 'payoutBranch'] as const
+const SHOP_SETTING_FIELDS = [...GENERAL_FIELDS, ...LOCATION_FIELDS, ...SOCIAL_FIELDS, ...PAYOUT_FIELDS] as const
 const shopSettingsControl = 'min-h-11 w-full min-w-0 rounded-xl border border-foose-border bg-white px-3 py-2.5 text-base text-foose-text outline-none transition placeholder:text-foose-faint focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-accent-light/50 disabled:text-foose-muted sm:min-h-12 sm:py-3 sm:text-sm'
 const shopSettingsTextarea = `${shopSettingsControl} min-h-24 resize-y sm:min-h-28`
 
@@ -23,10 +29,27 @@ function appendIfPresent(source: FormData, target: FormData, name: string) {
   if (source.has(name)) target.append(name, String(source.get(name) || ''))
 }
 
-function appendSelectedFile(formData: FormData, form: HTMLFormElement, name: string) {
-  const input = form.elements.namedItem(name) as HTMLInputElement | null
-  const file = input?.files?.[0]
-  if (file && file.name && file.size > 0) formData.append(name, file)
+function settingsFormData(form: HTMLFormElement, fields: readonly string[]) {
+  const sourceData = new FormData(form)
+  const formData = new FormData()
+
+  SHOP_SETTING_FIELDS.forEach((field) => {
+    if (fields.includes(field)) appendIfPresent(sourceData, formData, field)
+  })
+  return formData
+}
+
+function sectionIsValid(form: HTMLFormElement, fields: readonly string[]) {
+  for (const field of fields) {
+    const control = form.elements.namedItem(field)
+    if (control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement) {
+      if (!control.checkValidity()) {
+        control.reportValidity()
+        return false
+      }
+    }
+  }
+  return true
 }
 
 function listingIdValue(value: Listing | string | undefined) {
@@ -45,47 +68,111 @@ function ShopSettingsPanel({
 }: {
   defaultLocation?: User['location']
   onSaved: () => Promise<unknown>
-  shop?: Shop
+  shop: Shop
 }) {
   const [editable, setEditable] = useState<Set<string>>(() => new Set())
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [payoutMethodType, setPayoutMethodType] = useState<'mobile_money' | 'bank_transfer'>(shop.payoutMethod?.type || 'mobile_money')
+  const [selectedBankName, setSelectedBankName] = useState(shop.payoutMethod?.bankName || '')
+  const [selectedBranch, setSelectedBranch] = useState(shop.payoutMethod?.branch || '')
+  const [assetEditor, setAssetEditor] = useState<'banner' | 'logo' | null>(null)
   const [saving, setSaving] = useState(false)
+  const [savingSection, setSavingSection] = useState('')
 
   function isEditable(name: string) {
     return editable.has(name)
-  }
-
-  function toggleEditable(name: string) {
-    setEditable((current) => {
-      const next = new Set(current)
-      if (next.has(name)) next.delete(name)
-      else next.add(name)
-      return next
-    })
   }
 
   function unlockFields(names: string[]) {
     setEditable((current) => new Set([...current, ...names]))
   }
 
+  function lockFields(names: readonly string[]) {
+    setEditable((current) => {
+      const next = new Set(current)
+      names.forEach((name) => next.delete(name))
+      return next
+    })
+  }
+
+  async function saveCroppedAsset(file: File) {
+    const asset = assetEditor
+    if (!asset) return
+    const formData = new FormData()
+    formData.append(asset, file, file.name)
+    setError('')
+    setMessage('')
+
+    try {
+      await apiPut<{ shop: Shop }>('/digishops/me', formData)
+      await onSaved()
+      setMessage(`${asset === 'banner' ? 'Shop banner' : 'Shop logo'} saved.`)
+      setAssetEditor(null)
+    } catch (requestError) {
+      const saveError = getErrorMessage(requestError, `Unable to update the shop ${asset}`)
+      setError(saveError)
+      throw requestError
+    }
+  }
+
+  async function saveSection(form: HTMLFormElement | null, fields: readonly string[], label: string) {
+    if (!form || !sectionIsValid(form, fields)) return
+    setError('')
+    setMessage('')
+    setSavingSection(label)
+
+    try {
+      await apiPut<{ shop: Shop }>('/digishops/me', settingsFormData(form, fields))
+      await onSaved()
+      lockFields(fields)
+      setMessage(`${label} saved.`)
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, `Unable to update ${label.toLowerCase()}`))
+    } finally {
+      setSavingSection('')
+    }
+  }
+
+  function sectionAction(label: string, fields: readonly string[]) {
+    const editing = fields.some((field) => isEditable(field))
+    const savingThisSection = savingSection === label
+
+    return (
+      <button
+        aria-label={editing ? `Save ${label} changes` : `Edit ${label}`}
+        className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition disabled:cursor-wait disabled:opacity-60 ${editing ? 'bg-accent text-white hover:bg-accent-hover' : 'text-accent hover:bg-white'}`}
+        disabled={saving || Boolean(savingSection)}
+        onClick={(event) => {
+          if (editing) void saveSection(event.currentTarget.form, fields, label)
+          else unlockFields([...fields])
+        }}
+        type="button"
+      >
+        <Icon name={editing ? 'check' : 'pencil'} size={16} /> {savingThisSection ? 'Saving…' : editing ? 'Save changes' : 'Edit'}
+      </button>
+    )
+  }
+
+  function navigateToSettingsSection(event: ReactMouseEvent<HTMLAnchorElement>, sectionId: string) {
+    event.preventDefault()
+    const section = document.getElementById(sectionId)
+    if (!section) return
+
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#${sectionId}`)
+    section.scrollIntoView({
+      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start',
+    })
+  }
+
   function fieldFrame(name: string, label: string, control: ReactNode) {
     const open = isEditable(name)
     return (
       <div className={`min-w-0 rounded-xl border p-3 transition ${open ? 'border-accent bg-accent-light/40' : 'border-foose-border bg-white'}`}>
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <label className="min-w-0 break-words text-sm font-bold text-foose-text" htmlFor={name}>
-            {label}
-          </label>
-          <button
-            aria-label={open ? `Lock ${label}` : `Edit ${label}`}
-            className={`inline-flex size-11 shrink-0 items-center justify-center gap-2 rounded-lg border px-0 text-xs font-bold transition sm:w-auto sm:px-3 ${open ? 'border-accent bg-accent text-white' : 'border-foose-border bg-white text-accent hover:bg-accent hover:text-white'}`}
-            onClick={() => toggleEditable(name)}
-            type="button"
-          >
-            <Icon name="pencil" size={16} /> <span className="hidden sm:inline">{open ? 'Lock' : 'Edit'}</span>
-          </button>
-        </div>
+        <label className="mb-2 block min-w-0 break-words text-sm font-bold text-foose-text" htmlFor={name}>
+          {label}
+        </label>
         {control}
       </div>
     )
@@ -98,29 +185,9 @@ function ShopSettingsPanel({
     setSaving(true)
 
     const form = event.currentTarget
-    const sourceData = new FormData(form)
-    const formData = new FormData()
-
-    ;[
-      'shopName',
-      'bio',
-      'category',
-      'city',
-      'region',
-      'instagram',
-      'whatsapp',
-      'payoutMethodType',
-      'payoutAccountName',
-      'payoutProvider',
-      'payoutAccountNumber',
-      'payoutBankName',
-      'payoutBranch',
-    ].forEach((field) => appendIfPresent(sourceData, formData, field))
-    appendSelectedFile(formData, form, 'logo')
-    appendSelectedFile(formData, form, 'banner')
 
     try {
-      await apiPut<{ shop: Shop }>('/digishops/me', formData)
+      await apiPut<{ shop: Shop }>('/digishops/me', settingsFormData(form, SHOP_SETTING_FIELDS))
       await onSaved()
       setEditable(new Set())
       setMessage('Shop settings saved.')
@@ -131,13 +198,12 @@ function ShopSettingsPanel({
     }
   }
 
-  if (!shop) {
-    return <ShopSettingsSkeleton label="Loading shop settings" />
-  }
-
   const city = shop.location?.city?.trim() || defaultLocation?.city?.trim() || ''
   const region = canonicalGhanaRegion(shop.location?.region) || canonicalGhanaRegion(defaultLocation?.region)
   const hasLegacyRegion = Boolean(region && !GHANA_REGIONS.some((option) => option === region))
+  const selectedBank = GHANA_BANKS.find((bank) => bank.name === selectedBankName)
+  const hasLegacyBank = Boolean(selectedBankName && !selectedBank)
+  const hasLegacyBranch = Boolean(selectedBranch && !selectedBank?.branches.includes(selectedBranch))
 
   return (
     <section>
@@ -149,9 +215,7 @@ function ShopSettingsPanel({
                 <h2 className="text-xl font-black text-foose-text">General info</h2>
                 <p className="text-sm text-foose-muted">Core details shoppers see first.</p>
               </div>
-              <button className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black text-accent hover:bg-white" onClick={() => unlockFields(['shopName', 'category', 'bio'])} type="button">
-                <Icon name="pencil" size={16} /> Edit
-              </button>
+              {sectionAction('General info', GENERAL_FIELDS)}
             </header>
             <div className="grid gap-4 p-3 sm:p-4 md:grid-cols-2 md:p-6">
               {fieldFrame('shopName', 'Shop name', <input className={shopSettingsControl} defaultValue={shop.shopName} disabled={!isEditable('shopName')} id="shopName" name="shopName" required />)}
@@ -176,9 +240,7 @@ function ShopSettingsPanel({
                 <h2 className="text-xl font-black text-foose-text">Shop location</h2>
                 <p className="text-sm text-foose-muted">Used to tag every item and power marketplace location filters.</p>
               </div>
-              <button className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black text-accent hover:bg-white" onClick={() => unlockFields(['city', 'region'])} type="button">
-                <Icon name="pencil" size={16} /> Edit
-              </button>
+              {sectionAction('Shop location', LOCATION_FIELDS)}
             </header>
             <div className="grid gap-4 p-3 sm:p-4 md:grid-cols-2 md:p-6">
               {fieldFrame('city', 'City or town', <input className={shopSettingsControl} defaultValue={city} disabled={!isEditable('city')} id="city" name="city" placeholder="e.g. Accra" required />)}
@@ -200,9 +262,7 @@ function ShopSettingsPanel({
                 <h2 className="text-xl font-black text-foose-text">Social connections</h2>
                 <p className="text-sm text-foose-muted">Keep your customer contact links tidy.</p>
               </div>
-              <button className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black text-accent hover:bg-white" onClick={() => unlockFields(['instagram', 'whatsapp'])} type="button">
-                <Icon name="pencil" size={16} /> Edit
-              </button>
+              {sectionAction('Social connections', SOCIAL_FIELDS)}
             </header>
             <div className="grid gap-4 p-3 sm:p-4 md:grid-cols-2 md:p-6">
               {fieldFrame('instagram', 'Instagram', <input className={shopSettingsControl} defaultValue={shop.socialLinks?.instagram || ''} disabled={!isEditable('instagram')} id="instagram" name="instagram" placeholder="@yourshop" />)}
@@ -216,24 +276,64 @@ function ShopSettingsPanel({
                 <h2 className="text-xl font-black text-foose-text">Funds collection method</h2>
                 <p className="text-sm text-foose-muted">Where Foose should send shop funds.</p>
               </div>
-              <button className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black text-accent hover:bg-white" onClick={() => unlockFields(['payoutMethodType', 'payoutAccountName', 'payoutProvider', 'payoutAccountNumber', 'payoutBankName', 'payoutBranch'])} type="button">
-                <Icon name="pencil" size={16} /> Edit
-              </button>
+              {sectionAction('Funds collection method', PAYOUT_FIELDS)}
             </header>
             <div className="grid gap-4 p-3 sm:p-4 md:grid-cols-2 md:p-6">
               {fieldFrame(
                 'payoutMethodType',
                 'Method',
-                <SelectControl defaultValue={shop.payoutMethod?.type || 'mobile_money'} disabled={!isEditable('payoutMethodType')} id="payoutMethodType" name="payoutMethodType">
+                <SelectControl disabled={!isEditable('payoutMethodType')} id="payoutMethodType" name="payoutMethodType" onChange={(event) => setPayoutMethodType(event.target.value as 'mobile_money' | 'bank_transfer')} required value={payoutMethodType}>
                   <option value="mobile_money">Mobile money</option>
                   <option value="bank_transfer">Bank transfer</option>
                 </SelectControl>,
               )}
-              {fieldFrame('payoutProvider', 'Provider', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.provider || ''} disabled={!isEditable('payoutProvider')} id="payoutProvider" name="payoutProvider" placeholder="MTN, Vodafone, bank..." />)}
-              {fieldFrame('payoutAccountName', 'Account name', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.accountName || ''} disabled={!isEditable('payoutAccountName')} id="payoutAccountName" name="payoutAccountName" />)}
-              {fieldFrame('payoutAccountNumber', 'Account / phone number', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.accountNumber || ''} disabled={!isEditable('payoutAccountNumber')} id="payoutAccountNumber" name="payoutAccountNumber" />)}
-              {fieldFrame('payoutBankName', 'Bank name', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.bankName || ''} disabled={!isEditable('payoutBankName')} id="payoutBankName" name="payoutBankName" />)}
-              {fieldFrame('payoutBranch', 'Branch', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.branch || ''} disabled={!isEditable('payoutBranch')} id="payoutBranch" name="payoutBranch" />)}
+              {payoutMethodType === 'mobile_money' ? (
+                <div className="contents" key="mobile-money-fields">
+                  {fieldFrame(
+                    'payoutProvider',
+                    'Provider',
+                    <SelectControl defaultValue={shop.payoutMethod?.provider || ''} disabled={!isEditable('payoutProvider')} id="payoutProvider" name="payoutProvider" required>
+                      <option value="">Select provider</option>
+                      {MOBILE_MONEY_PROVIDERS.map((provider) => <option key={provider} value={provider}>{provider === 'Telecel' ? 'Telecel (formerly Vodafone)' : provider}</option>)}
+                    </SelectControl>,
+                  )}
+                  {fieldFrame('payoutAccountName', 'Account name', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.accountName || ''} disabled={!isEditable('payoutAccountName')} id="payoutAccountName" name="payoutAccountName" required />)}
+                  {fieldFrame('payoutAccountNumber', 'Phone number', <input className={shopSettingsControl} defaultValue={shop.payoutMethod?.accountNumber || ''} disabled={!isEditable('payoutAccountNumber')} id="payoutAccountNumber" inputMode="tel" name="payoutAccountNumber" placeholder="e.g. 024 000 0000" required type="tel" />)}
+                </div>
+              ) : (
+                <div className="contents" key="bank-transfer-fields">
+                  {fieldFrame(
+                    'payoutBankName',
+                    'Bank',
+                    <SelectControl
+                      disabled={!isEditable('payoutBankName')}
+                      id="payoutBankName"
+                      name="payoutBankName"
+                      onChange={(event) => {
+                        setSelectedBankName(event.target.value)
+                        setSelectedBranch('')
+                      }}
+                      required
+                      value={selectedBankName}
+                    >
+                      <option value="">Select bank</option>
+                      {hasLegacyBank && <option value={selectedBankName}>{selectedBankName}</option>}
+                      {GHANA_BANKS.map((bank) => <option key={bank.name} value={bank.name}>{bank.name}</option>)}
+                    </SelectControl>,
+                  )}
+                  {fieldFrame(
+                    'payoutBranch',
+                    'Branch',
+                    <SelectControl disabled={!isEditable('payoutBranch') || !selectedBank} id="payoutBranch" name="payoutBranch" onChange={(event) => setSelectedBranch(event.target.value)} required value={selectedBranch}>
+                      <option value="">{selectedBank ? 'Select branch' : 'Select a bank first'}</option>
+                      {hasLegacyBranch && <option value={selectedBranch}>{selectedBranch}</option>}
+                      {selectedBank?.branches.map((branch) => <option key={branch} value={branch}>{branch}</option>)}
+                    </SelectControl>,
+                  )}
+                  {fieldFrame('payoutAccountName', 'Account name', <input autoComplete="off" className={shopSettingsControl} defaultValue={shop.payoutMethod?.type === 'bank_transfer' ? shop.payoutMethod.accountName || '' : ''} disabled={!isEditable('payoutAccountName')} id="payoutAccountName" name="payoutAccountName" required />)}
+                  {fieldFrame('payoutAccountNumber', 'Account number', <input autoComplete="off" className={shopSettingsControl} defaultValue={shop.payoutMethod?.type === 'bank_transfer' ? shop.payoutMethod.accountNumber || '' : ''} disabled={!isEditable('payoutAccountNumber')} id="payoutAccountNumber" inputMode="numeric" name="payoutAccountNumber" required />)}
+                </div>
+              )}
             </div>
           </section>
         </div>
@@ -247,33 +347,64 @@ function ShopSettingsPanel({
               ['shop-social', 'Social connections'],
               ['shop-payout', 'Payout'],
               ['shop-brand', 'Brand assets'],
-            ].map(([id, label]) => <a className="flex min-h-11 items-center rounded-xl px-3 text-sm font-bold text-foose-muted transition hover:bg-accent-light hover:text-accent" href={`#${id}`} key={id}>{label}</a>)}
+            ].map(([id, label]) => (
+              <a
+                className="flex min-h-11 items-center rounded-xl px-3 text-sm font-bold text-foose-muted transition hover:bg-accent-light hover:text-accent"
+                href={`#${id}`}
+                key={id}
+                onClick={(event) => navigateToSettingsSection(event, id)}
+              >
+                {label}
+              </a>
+            ))}
           </nav>
           <section className="scroll-mt-28 overflow-hidden rounded-2xl border border-foose-border bg-foose-surface shadow-sm" id="shop-brand">
             <header className="border-b border-foose-border bg-accent-light/50 px-4 py-4">
               <h2 className="text-xl font-black text-foose-text">Brand assets</h2>
             </header>
-            <div className="grid gap-4 p-3 sm:p-4 md:grid-cols-2 xl:grid-cols-1">
-              {fieldFrame(
-                'logo',
-                'Shop logo',
-                <div className="space-y-3">
-                  {shop.logoUrl && <SafeImage alt="" className="size-24 rounded-2xl border border-foose-border object-cover" fallback="Logo unavailable" fallbackClassName="text-[10px]" src={shop.logoUrl} />}
-                  {isEditable('logo') ? <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="logo" /> : <button className="flex min-h-28 w-full flex-col items-center justify-center rounded-2xl border border-dashed border-foose-border bg-accent-light/50 text-sm font-bold text-foose-muted" onClick={() => toggleEditable('logo')} type="button"><Icon name="upload" /> Upload logo</button>}
-                </div>,
-              )}
-              {fieldFrame(
-                'banner',
-                'Shop banner',
-                <div className="space-y-3">
-                  {shop.bannerUrl && <SafeImage alt="" className="h-28 w-full rounded-2xl border border-foose-border object-cover" fallback="Banner unavailable" src={shop.bannerUrl} />}
-                  {isEditable('banner') ? <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="banner" /> : <button className="flex min-h-32 w-full flex-col items-center justify-center rounded-2xl border border-dashed border-foose-border bg-accent-light/50 text-sm font-bold text-foose-muted" onClick={() => toggleEditable('banner')} type="button"><Icon name="upload" /> Upload banner</button>}
-                </div>,
-              )}
-              <div className="rounded-2xl bg-accent-light p-4 text-sm leading-6 text-foose-muted md:col-span-2 xl:col-span-1">
-                <strong className="mb-1 block text-accent">Identity verification</strong>
-                Ensure your shop brand assets align with marketplace guidelines to maintain professional visibility.
-              </div>
+            <div className="space-y-4 p-3 sm:p-4">
+              <article className="overflow-hidden rounded-2xl border border-foose-border bg-white shadow-sm" data-testid="shop-brand-preview">
+                <div className="relative aspect-[5/2] overflow-hidden bg-foose-surface-mid">
+                  <SafeImage
+                    alt={`${shop.shopName} banner preview`}
+                    className="h-full w-full object-cover"
+                    fallback="DigiShop banner"
+                    fallbackClassName="h-full w-full bg-accent-light text-sm font-bold text-accent"
+                    src={shop.bannerUrl}
+                  />
+                  <button
+                    aria-label="Edit shop banner"
+                    className="absolute right-3 top-3 inline-flex size-11 items-center justify-center rounded-full border-2 border-white bg-accent text-white shadow-lg transition hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    onClick={() => setAssetEditor('banner')}
+                    title="Edit shop banner"
+                    type="button"
+                  >
+                    <Icon name="pencil" size={17} />
+                  </button>
+                </div>
+                <div className="px-4 pb-5">
+                  <div className="relative -mt-10 mb-3 w-fit">
+                    <SafeImage
+                      alt={`${shop.shopName} logo preview`}
+                      className="size-20 rounded-full border-4 border-white object-cover shadow-md"
+                      fallback={initials(shop.shopName)}
+                      fallbackClassName="bg-accent-light text-lg font-black text-accent"
+                      src={shop.logoUrl}
+                    />
+                    <button
+                      aria-label="Edit shop logo"
+                      className="absolute -bottom-1 -right-1 inline-flex size-10 items-center justify-center rounded-full border-4 border-white bg-accent text-white shadow-md transition hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      onClick={() => setAssetEditor('logo')}
+                      title="Edit shop logo"
+                      type="button"
+                    >
+                      <Icon name="pencil" size={15} />
+                    </button>
+                  </div>
+                  <h3 className="truncate text-lg font-black text-foose-text">{shop.shopName}</h3>
+                  <p className="mt-1 line-clamp-2 text-sm leading-5 text-foose-muted">{shop.bio || 'This is how your brand assets will appear on your public shop.'}</p>
+                </div>
+              </article>
             </div>
           </section>
 
@@ -289,6 +420,18 @@ function ShopSettingsPanel({
           <SubmitButton className="w-full sm:w-auto" loading={saving} loadingLabel="Saving shop settings…">Save changes</SubmitButton>
         </FormActions>
       </form>
+      <AvatarCropDialog
+        actionVerb="Save"
+        assetLabel={assetEditor === 'banner' ? 'shop banner' : 'shop logo'}
+        cropShape={assetEditor === 'banner' ? 'rectangle' : 'circle'}
+        key={assetEditor || 'closed-brand-editor'}
+        onApply={saveCroppedAsset}
+        onCancel={() => setAssetEditor(null)}
+        open={Boolean(assetEditor)}
+        outputHeight={assetEditor === 'banner' ? 600 : 512}
+        outputNameSuffix={assetEditor === 'banner' ? 'shop-banner' : 'shop-logo'}
+        outputWidth={assetEditor === 'banner' ? 1500 : 512}
+      />
     </section>
   )
 }
@@ -445,7 +588,9 @@ export function SellerDashboardPage() {
               title="Shop settings unavailable"
               tone="error"
             />
-          ) : <ShopSettingsPanel defaultLocation={user?.location} onSaved={shop.refetch} shop={shop.data?.shop} />
+          ) : shop.data?.shop ? (
+            <ShopSettingsPanel defaultLocation={user?.location} onSaved={shop.refetch} shop={shop.data.shop} />
+          ) : <ShopSettingsSkeleton label="Loading shop settings" />
         ) : activePanel === 'sold' ? (
           <section className="rounded-none bg-transparent p-0 shadow-none sm:rounded-2xl sm:bg-foose-surface sm:p-4 sm:shadow-sm md:p-5">
             {((listings.initialLoading && !listings.data) || (listings.data && soldListings.length > 0 && orders.initialLoading && !orders.data)) && <ManagementListingMasonrySkeleton label="Loading sold listings and order details" showToolbar={false} />}

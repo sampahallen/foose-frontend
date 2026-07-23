@@ -10,6 +10,7 @@ import type { Event, Listing } from '../types/api'
 import { concreteEventListings, eventHostHref, eventHostName, eventTimeLabel, eventTimeTerm, eventTypeLabel, eventWindowHasClosed, eventWindowHasOpened, isOnlinePopUp } from '../utils/events'
 import { formatMoney, getListingImage, getShop, listingMeta } from '../utils/format'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
+import { isActiveEventPromotion } from '../utils/promotions'
 
 function eventIdFromPath() {
   const match = getCurrentAppPathname().match(/^\/community\/events\/([^/]+)/)
@@ -84,7 +85,7 @@ export function EventDetailPage() {
           </div>
           <div className="event-detail-panel flex flex-col gap-5 rounded-xl border border-foose-border bg-foose-surface p-5 shadow-sm md:p-6 [&>h2]:text-2xl [&>h2]:font-bold [&>p]:text-sm [&>p]:leading-6 [&>p]:text-foose-muted">
             <div className="badge-row flex flex-wrap items-center gap-2">
-              <Badge tone={event.promotionTags?.length ? 'accent' : 'neutral'}>{event.promotionTags?.length ? 'Promoted' : event.status || event.type}</Badge>
+              <Badge tone={isActiveEventPromotion(event.promotionTags, event.promotionExpiresAt, event.status) ? 'accent' : 'neutral'}>{isActiveEventPromotion(event.promotionTags, event.promotionExpiresAt, event.status) ? 'Promoted' : event.status || event.type}</Badge>
               <Badge>{eventTypeLabel(event)}</Badge>
             </div>
             <h2>{event.title}</h2>

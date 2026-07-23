@@ -1,9 +1,10 @@
 import type { Listing } from '../../types/api'
 import { formatMoney, getListingImage, getShopName } from '../../utils/format'
 import { captureNavigationTrigger, navigateTo, withBasePath } from '../../utils/navigation'
+import { isActiveTopPick, recordPromotionMetric } from '../../utils/promotions'
 import { FavoriteButton } from '../ui/FavoriteButton'
 import { MdVerified } from 'react-icons/md'
-import { useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 
 export function ProductCard({
   className = '',
@@ -19,13 +20,32 @@ export function ProductCard({
   const image = getListingImage(listing)
   const [failedImageUrl, setFailedImageUrl] = useState('')
   const [loadedImageUrl, setLoadedImageUrl] = useState('')
+  const cardRef = useRef<HTMLElement | null>(null)
+  const promoted = isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt)
   const brand = listing.brand || 'Other'
   const size = listing.size || (listing.type === 'wholesale' ? `${listing.bulkMinQty || 1}+` : 'One size')
   const shopName = getShopName(listing)
   const imageAvailable = Boolean(image && !imageFailed && failedImageUrl !== image)
   const imagePending = imageAvailable && loadedImageUrl !== image
 
+  useEffect(() => {
+    if (!promoted || !cardRef.current || typeof IntersectionObserver === 'undefined') return undefined
+    let timer = 0
+    const observer = new IntersectionObserver(([entry]) => {
+      window.clearTimeout(timer)
+      if (entry?.isIntersecting && entry.intersectionRatio >= 0.5) {
+        timer = window.setTimeout(() => recordPromotionMetric(listing._id, 'impression'), 1000)
+      }
+    }, { threshold: [0.5] })
+    observer.observe(cardRef.current)
+    return () => {
+      window.clearTimeout(timer)
+      observer.disconnect()
+    }
+  }, [listing._id, promoted])
+
   function openListing(event: MouseEvent<HTMLAnchorElement>) {
+    if (promoted) recordPromotionMetric(listing._id, 'click')
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
     event.preventDefault()
 
@@ -58,6 +78,9 @@ export function ProductCard({
             Sold
           </span>
         )}
+        {promoted && listing.status !== 'sold' && (
+          <span className="absolute left-2 top-2 rounded-full bg-accent px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-sm">Promoted</span>
+        )}
       </div>
       <div className="product-body flex flex-1 flex-col gap-px px-0 py-1">
         <strong className="truncate text-[11px] font-semibold leading-tight text-accent">{brand}</strong>
@@ -72,7 +95,7 @@ export function ProductCard({
   )
 
   return (
-    <article aria-busy={imagePending} className={`product-card relative flex min-h-full flex-col overflow-hidden bg-transparent transition hover:-translate-y-0.5 ${className}`}>
+    <article aria-busy={imagePending} className={`product-card relative flex min-h-full flex-col overflow-hidden bg-transparent transition hover:-translate-y-0.5 ${className}`} ref={cardRef}>
       <a className="product-card-link flex flex-1 flex-col" href={withBasePath(`/listing/${listing._id}`)} id={`listing-card-${listing._id}`} onClick={openListing}>
         {content}
       </a>

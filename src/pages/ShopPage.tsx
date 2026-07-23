@@ -71,7 +71,7 @@ export function ShopPage() {
       {shop.error && <StatePanel action={<button className="button button-secondary" onClick={shop.refetch} type="button">Try again</button>} body={shop.error} layout="page" title={shop.errorMeta?.status === 404 ? 'This DigiShop is unavailable' : 'DigiShop could not load'} tone={shop.errorMeta?.status === 403 ? 'permission' : shop.errorMeta?.status === 404 ? 'unavailable' : 'error'} />}
       {shopData && (
         <div className="grid gap-6 lg:h-[calc(100dvh-9rem)] lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_320px] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="min-w-0 lg:min-h-0 lg:overflow-y-auto lg:pr-2 lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+          <section className="order-2 min-w-0 lg:order-1 lg:min-h-0 lg:overflow-y-auto lg:pr-2 lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="relative z-50 mb-4 space-y-2">
               <p className="px-1 text-sm font-black text-foose-text">
                 {filteredListings.length} {filteredListings.length === 1 ? 'item' : 'items'}
@@ -107,7 +107,7 @@ export function ShopPage() {
             )}
           </section>
 
-          <aside className="lg:min-h-0 lg:overflow-y-auto lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+          <aside className="order-1 lg:order-2 lg:min-h-0 lg:overflow-y-auto lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <section className="overflow-hidden rounded-xl border border-foose-border bg-foose-surface shadow-sm">
               <div className="h-32 bg-foose-surface-mid [&_img]:h-full [&_img]:w-full [&_img]:object-cover">
                 <DiscoveryImage alt={`${shopData.shopName} banner`} fallback="DigiShop" fallbackClassName="h-full w-full" src={shopData.bannerUrl} />

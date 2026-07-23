@@ -2,13 +2,13 @@ import { IoMegaphone } from 'react-icons/io5'
 import { AppShell, ButtonLink, StatePanel, SuccessState } from '../components'
 import { OrderDetailSkeleton } from '../components/operational/OperationalStates'
 import { useApiResource } from '../hooks/useApiResource'
-import type { Event, Listing } from '../types/api'
+import type { Event, Listing, PromotionOrder } from '../types/api'
 import { formatDate, formatMoney } from '../utils/format'
 
 type PromotionVerifyResponse = {
   event?: Event
   listing?: Listing
-  promotion?: {
+  promotion?: PromotionOrder | {
     amountGhs?: number
     endsAt?: string
     reference?: string
@@ -29,8 +29,14 @@ export function PromotionReturnPage() {
   )
   const listing = promotion.data?.listing
   const event = promotion.data?.event
-  const title = listing?.title || event?.title || 'Promotion confirmed'
   const targetType = promotion.data?.targetType
+  const order = promotion.data?.promotion && '_id' in promotion.data.promotion ? promotion.data.promotion : null
+  const legacyPromotion = promotion.data?.promotion && 'amountGhs' in promotion.data.promotion ? promotion.data.promotion : null
+  const firstItem = order?.items[0]
+  const targetCount = order?.items.length || 1
+  const title = listing?.title || event?.title || (targetType === 'listing' && targetCount > 1 ? `${targetCount} listings` : 'Promotion confirmed')
+  const totalAmount = order?.totalAmount || (legacyPromotion?.amountGhs || 0) * 100
+  const endsAt = firstItem?.endsAt || legacyPromotion?.endsAt
 
   return (
     <AppShell active={targetType === 'event' ? 'community' : 'profile'}>
@@ -57,8 +63,8 @@ export function PromotionReturnPage() {
             <span className="text-xs font-bold uppercase tracking-widest text-foose-faint">{targetType === 'event' ? 'Event' : 'Listing'}</span>
             <strong className="mt-1 block text-xl text-foose-text">{title}</strong>
             <p className="mt-2 text-sm text-foose-muted">
-              Charged {formatMoney((promotion.data.promotion?.amountGhs || 0) * 100)}.
-              {promotion.data.promotion?.endsAt ? ` Promotion ends ${formatDate(promotion.data.promotion.endsAt)}.` : ''}
+              Charged {formatMoney(totalAmount)}.
+              {endsAt ? ` Promotion ends ${formatDate(endsAt)}.` : ''}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3">
@@ -70,10 +76,10 @@ export function PromotionReturnPage() {
                 </ButtonLink>
               </>
             )}
-            {targetType === 'event' && event && (
+            {targetType === 'event' && (event || firstItem) && (
               <>
-                <ButtonLink to={`/community/events/${event._id}`}>View event</ButtonLink>
-                <ButtonLink to={`/community/events/${event._id}/manage`} variant="secondary">
+                <ButtonLink to={`/community/events/${event?._id || firstItem?.targetId}`}>View event</ButtonLink>
+                <ButtonLink to={`/community/events/${event?._id || firstItem?.targetId}/manage`} variant="secondary">
                   Manage event
                 </ButtonLink>
               </>

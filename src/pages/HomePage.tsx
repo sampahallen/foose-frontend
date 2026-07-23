@@ -94,16 +94,12 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="home-section mx-auto w-full max-w-[1280px] my-8 rounded-xl bg-foose-surface p-4 md:p-6 [&.no-pad]:p-0 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:md:text-4xl [&_a]:font-bold [&_a]:text-accent max-lg:rounded-lg max-lg:p-3 max-md:[&>h2]:text-2xl promoted-events-section">
+      {(promotedEvents.loading || Boolean(promotedEvents.data?.events.length)) && <section className="home-section mx-auto w-full max-w-[1280px] my-8 rounded-xl bg-foose-surface p-4 md:p-6 [&.no-pad]:p-0 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:md:text-4xl [&_a]:font-bold [&_a]:text-accent max-lg:rounded-lg max-lg:p-3 max-md:[&>h2]:text-2xl promoted-events-section">
         <SectionHeader title="Featured events" />
         <RefreshIndicator active={promotedEvents.refreshing} className="mb-4" label="Refreshing featured events" />
         {promotedEvents.initialLoading && <EventCarouselSkeleton />}
-        {promotedEvents.error && <InlineNotice action={<button className="font-black text-accent" onClick={promotedEvents.refetch} type="button">Retry</button>} title="Featured events did not load" tone="error">The rest of Home is still available.</InlineNotice>}
-        {!promotedEvents.loading && !promotedEvents.error && !promotedEvents.data?.events.length && (
-          <StatePanel body="Promoted events will appear here when campaigns are active." layout="compact" title="No featured events right now" tone="empty" />
-        )}
         {!!promotedEvents.data?.events.length && <PromotedEventCarousel events={promotedEvents.data.events} />}
-      </section>
+      </section>}
 
       {(topPicks.loading || topPicks.error || topPickItems.length > 0) && (
         <section className="home-section mx-auto w-full max-w-[1280px] my-8 rounded-xl bg-foose-surface p-4 md:p-6 [&.no-pad]:p-0 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:md:text-4xl [&_a]:font-bold [&_a]:text-accent max-lg:rounded-lg max-lg:p-3 max-md:[&>h2]:text-2xl top-picks-section">
@@ -132,7 +128,11 @@ export function HomePage() {
         {freshDrops.error && <InlineNotice action={<button className="font-black text-accent" onClick={freshDrops.refetch} type="button">Retry</button>} title="Fresh drops did not load" tone="error">The other Home collections are still available.</InlineNotice>}
         {!freshDrops.loading && !freshDrops.error && !freshDropItems.length && (
           <StatePanel
-            action={<ButtonLink to="/open-shop">Open your DigiShop</ButtonLink>}
+            action={(
+              <ButtonLink to={user?.hasShop ? '/listings/new' : '/open-shop'}>
+                {user?.hasShop ? 'Add listings' : 'Open your DigiShop'}
+              </ButtonLink>
+            )}
             body="Listings will appear here as sellers publish them."
             layout="compact"
             title="No listings yet"
@@ -184,26 +184,25 @@ export function HomePage() {
         )}
       </section>
 
-      <section className="home-section mx-auto w-full max-w-[1280px] my-8 rounded-xl bg-foose-surface p-4 md:p-6 [&.no-pad]:p-0 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:md:text-4xl [&_a]:font-bold [&_a]:text-accent max-lg:rounded-lg max-lg:p-3 max-md:[&>h2]:text-2xl">
-        <SectionHeader
-          title="Fresh bales"
-          eyebrow="Newest wholesale listings for bulk buyers and shop owners."
-          action={<a href={withBasePath('/bales')}>View more</a>}
-        />
-        <RefreshIndicator active={freshBales.refreshing} className="mb-4" label="Refreshing fresh bales" />
-        {freshBales.initialLoading && <ProductGridSkeleton count={6} label="Loading fresh wholesale bales" />}
-        {freshBales.error && <InlineNotice action={<button className="font-black text-accent" onClick={freshBales.refetch} type="button">Retry</button>} title="Fresh bales did not load" tone="error">Retail and community sections remain available.</InlineNotice>}
-        {!freshBales.loading && !freshBales.error && !freshBaleItems.length && (
-          <StatePanel action={<ButtonLink to="/bales">Browse all bales</ButtonLink>} body="Fresh bale listings will appear here when wholesale sellers post them." layout="compact" title="No fresh bales yet" tone="empty" />
-        )}
-        {!!freshBaleItems.length && (
-          <div className={homeListingGrid}>
-            {freshBaleItems.slice(0, 21).map((listing) => (
-              <ProductCard key={listing._id} listing={listing} />
-            ))}
-          </div>
-        )}
-      </section>
+      {(freshBales.loading || freshBales.error || freshBaleItems.length > 0) && (
+        <section className="home-section mx-auto w-full max-w-[1280px] my-8 rounded-xl bg-foose-surface p-4 md:p-6 [&.no-pad]:p-0 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:md:text-4xl [&_a]:font-bold [&_a]:text-accent max-lg:rounded-lg max-lg:p-3 max-md:[&>h2]:text-2xl">
+          <SectionHeader
+            title="Fresh bales"
+            eyebrow="Newest wholesale listings for bulk buyers and shop owners."
+            action={<a href={withBasePath('/bales')}>View more</a>}
+          />
+          <RefreshIndicator active={freshBales.refreshing} className="mb-4" label="Refreshing fresh bales" />
+          {freshBales.initialLoading && <ProductGridSkeleton count={6} label="Loading fresh wholesale bales" />}
+          {freshBales.error && <InlineNotice action={<button className="font-black text-accent" onClick={freshBales.refetch} type="button">Retry</button>} title="Fresh bales did not load" tone="error">Retail and community sections remain available.</InlineNotice>}
+          {!!freshBaleItems.length && (
+            <div className={homeListingGrid}>
+              {freshBaleItems.slice(0, 21).map((listing) => (
+                <ProductCard key={listing._id} listing={listing} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {!user?.hasShop && (
         <section className="seller-cta digishop-cta relative isolate mx-auto my-10 grid min-h-[260px] w-full max-w-[1280px] overflow-hidden rounded-xl bg-accent p-6 text-white shadow-lg shadow-accent/15 md:min-h-[340px] md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:p-10 [&::before]:absolute [&::before]:inset-0 [&::before]:-z-20 [&::before]:bg-[url('https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=1800&q=80')] [&::before]:bg-cover [&::before]:bg-center [&::before]:content-[''] [&::after]:absolute [&::after]:inset-0 [&::after]:-z-10 [&::after]:bg-accent/78 [&::after]:content-[''] [&_h2]:max-w-3xl [&_h2]:text-3xl [&_h2]:font-bold md:[&_h2]:text-5xl [&_p]:max-w-2xl [&_p]:text-sm [&_p]:text-white/85 md:[&_p]:text-base">

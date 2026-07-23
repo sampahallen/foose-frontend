@@ -11,6 +11,7 @@ import { useNavigationStore } from '../stores/navigationMemoryStore'
 import type { Listing, PaginatedListings } from '../types/api'
 import { formatMoney, getListingImage, getShop, getShopName, initials, listingMeta } from '../utils/format'
 import { getCurrentAppPathname, navigateBack, navigateTo, withBasePath } from '../utils/navigation'
+import { isActiveTopPick } from '../utils/promotions'
 
 function currentListingId() {
   return decodeURIComponent(getCurrentAppPathname().replace(/^\/listing\/?/, '')).trim()
@@ -210,7 +211,7 @@ export function RetailDetailPage() {
             <aside className="flex flex-col gap-4">
               <section className="rounded-xl border border-foose-border bg-foose-surface p-4 shadow-sm sm:p-5">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
-                  {listing.promotionTags?.includes('top-pick') && <Badge tone="accent">Top pick</Badge>}
+                  {isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt) && <Badge tone="accent">Promoted</Badge>}
                   <Badge tone={listing.type === 'wholesale' ? 'warning' : 'accent'}>{listing.type}</Badge>
                   {listing.condition && <Badge>{listing.condition}</Badge>}
                 </div>

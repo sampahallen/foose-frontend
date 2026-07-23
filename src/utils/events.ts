@@ -1,5 +1,6 @@
 import type { Event, Listing } from '../types/api'
 import { formatDate } from './format'
+import { parseStoredTime } from './eventDateTimeInput'
 
 export function normalizedEventType(event: Pick<Event, 'type'>) {
   if (event.type === 'online') return 'online-pop-up'
@@ -28,8 +29,10 @@ export function eventHostHref(event: Pick<Event, 'organizerId' | 'shopId'>) {
 }
 
 export function eventTimeLabel(event: Pick<Event, 'date' | 'endTime' | 'startTime'>) {
-  const start = event.startTime || ''
-  const end = event.endTime || ''
+  const storedStart = parseStoredTime(event.startTime)
+  const storedEnd = parseStoredTime(event.endTime)
+  const start = storedStart.time ? `${storedStart.time} ${storedStart.period}` : ''
+  const end = storedEnd.time ? `${storedEnd.time} ${storedEnd.period}` : ''
   const time = start && end ? `${start} - ${end}` : start || 'Time pending'
   return `${formatDate(event.date)} · ${time}`
 }

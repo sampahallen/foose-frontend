@@ -73,4 +73,34 @@ describe('AvatarCropDialog', () => {
     expect(output.name).toBe('portrait-avatar.jpg')
     expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.92)
   })
+
+  it('creates a wide crop using the requested banner dimensions', async () => {
+    const user = userEvent.setup()
+    const onApply = vi.fn()
+    render(
+      <AvatarCropDialog
+        actionVerb="Save"
+        assetLabel="shop banner"
+        cropShape="rectangle"
+        onApply={onApply}
+        onCancel={vi.fn()}
+        open
+        outputHeight={600}
+        outputNameSuffix="shop-banner"
+        outputWidth={1500}
+      />,
+    )
+
+    await user.upload(screen.getByLabelText('Choose shop banner'), new File(['source'], 'cover.png', { type: 'image/png' }))
+    const applyButton = await screen.findByRole('button', { name: 'Save shop banner' })
+    await waitFor(() => expect(applyButton).toBeEnabled())
+    const canvas = screen.getByRole('img', { name: 'Shop banner crop area' }) as HTMLCanvasElement
+    expect(canvas.width).toBe(1500)
+    expect(canvas.height).toBe(600)
+
+    fireEvent.click(applyButton)
+
+    await waitFor(() => expect(onApply).toHaveBeenCalledOnce())
+    expect(onApply.mock.calls[0]?.[0].name).toBe('cover-shop-banner.jpg')
+  })
 })

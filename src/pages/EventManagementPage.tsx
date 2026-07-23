@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { IoMegaphone } from 'react-icons/io5'
-import { AppShell, Badge, ButtonLink, ConfirmDialog, FloatingCreateButton, Icon, InlineNotice, LightboxImage, SafeImage, SectionHeader, SelectControl, StatePanel, useToast } from '../components'
+import { AppShell, Badge, ButtonLink, ConfirmDialog, EventPromotionDialog, FloatingCreateButton, Icon, InlineNotice, LightboxImage, SafeImage, SectionHeader, SelectControl, StatePanel, useToast } from '../components'
 import { ManagementSkeleton } from '../components/operational/OperationalStates'
 import { NavigationBackButton } from '../components/navigation'
 import { useApiResource } from '../hooks/useApiResource'
@@ -8,10 +8,10 @@ import { apiDelete, apiPost } from '../lib/api'
 import type { Event, Listing } from '../types/api'
 import { concreteEventListings, eventHostName, eventTimeLabel, eventTimeTerm, eventTypeLabel, eventWindowHasClosed, eventWindowHasOpened, isOnlinePopUp } from '../utils/events'
 import { getErrorMessage } from '../utils/errorMessage'
-import { formatMoney, getListingImage, listingMeta } from '../utils/format'
+import { formatDate, formatMoney, getListingImage, listingMeta } from '../utils/format'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
 import { navigateWithFlash } from '../utils/navigationFlash'
-import { eventPromotionPackages, startPromotionCheckout, type PromotionPackageName } from '../utils/promotions'
+import { isActiveEventPromotion } from '../utils/promotions'
 
 function eventIdFromPath() {
   const match = getCurrentAppPathname().match(/^\/community\/events\/([^/]+)\/manage/)
@@ -23,9 +23,7 @@ function attachedListingIds(listings: Listing[]) {
 }
 
 function isPromoted(event: Event) {
-  if (event.status === 'past') return false
-  if (event.promotionExpiresAt && new Date(event.promotionExpiresAt).getTime() <= Date.now()) return false
-  return Boolean(event.promotionTags?.some((tag) => ['featured', 'home-featured', 'home-banner'].includes(tag)))
+  return isActiveEventPromotion(event.promotionTags, event.promotionExpiresAt, event.status)
 }
 
 export function EventManagementPage() {
@@ -44,8 +42,7 @@ export function EventManagementPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
-  const [eventPromotionPackage, setEventPromotionPackage] = useState<PromotionPackageName>('basic')
-  const [promotionBusy, setPromotionBusy] = useState(false)
+  const [promotionDialogOpen, setPromotionDialogOpen] = useState(false)
   const catalogOpen = event ? eventWindowHasOpened(event) && !eventWindowHasClosed(event) : false
 
   async function refreshEvent() {
@@ -77,21 +74,6 @@ export function EventManagementPage() {
       showToast({ message: 'The listing was removed from this pop-up only.', title: 'Listing detached', tone: 'success' })
     } catch (err) {
       setActionError(getErrorMessage(err, 'Could not remove listing from this event'))
-    }
-  }
-
-  async function promoteEvent() {
-    if (!event) return
-    setActionError('')
-    setActionStatus('')
-    setPromotionBusy(true)
-    try {
-      const result = await startPromotionCheckout('event', event._id, eventPromotionPackage)
-      if (result.status === 'cancelled') setActionStatus('Payment cancelled. You were not charged.')
-    } catch (err) {
-      setActionError(getErrorMessage(err, 'Could not start event promotion'))
-    } finally {
-      setPromotionBusy(false)
     }
   }
 
@@ -178,28 +160,11 @@ export function EventManagementPage() {
                 <ButtonLink to={`/community/events/${event._id}/edit`} variant="secondary">
                   Edit details
                 </ButtonLink>
-                {isPromoted(event) ? (
-                  <span className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent event-promotion-pill pointer-events-none bg-accent-light text-accent">Promoted</span>
-                ) : (
-                  <span className="grid gap-2 sm:min-w-56">
-                    <label className="relative block">
-                      <SelectControl
-                        aria-label="Event promotion package"
-                        className="h-11 w-full appearance-none rounded-xl border border-accent/20 bg-accent-light/70 px-3 pr-10 text-sm font-black text-accent outline-none transition hover:border-accent focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/15"
-                        onChange={(input) => setEventPromotionPackage(input.target.value as PromotionPackageName)}
-                        value={eventPromotionPackage}
-                      >
-                        {eventPromotionPackages.map((item) => (
-                          <option key={item.value} value={item.value}>
-                            {item.label}
-                          </option>
-                        ))}
-                      </SelectControl>
-                    </label>
-                    <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" disabled={promotionBusy} onClick={() => void promoteEvent()} type="button">
-                      <IoMegaphone /> {promotionBusy ? 'Opening secure payment...' : 'Promote'}
-                    </button>
-                  </span>
+                {isPromoted(event) && <Badge tone="success">Promoted until {event.promotionExpiresAt ? formatDate(event.promotionExpiresAt) : 'event end'}</Badge>}
+                {event.status !== 'past' && (
+                  <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => setPromotionDialogOpen(true)} type="button">
+                    <IoMegaphone /> {isPromoted(event) ? 'Extend promotion' : 'Promote event'}
+                  </button>
                 )}
                 <button
                   className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent"
@@ -276,6 +241,7 @@ export function EventManagementPage() {
           tone="destructive"
         />
       )}
+      <EventPromotionDialog event={promotionDialogOpen ? event || null : null} onClose={() => setPromotionDialogOpen(false)} />
       {event && onlineEvent && <FloatingCreateButton href={`/listings/new?eventId=${encodeURIComponent(event._id)}`} label="Add listing" />}
     </AppShell>
   )

@@ -4,10 +4,12 @@ import { AppShell, Badge, FloatingCreateButton, Icon, InlineNotice, SafeImage, S
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { NavigationBackButton } from '../components/navigation'
-import type { Listing } from '../types/api'
+import type { Listing, PromotionOrder, PromotionTier } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
-import { formatMoney, getListingImage } from '../utils/format'
-import { isActiveTopPick, listingPromotionPackages, startListingBundlePromotionCheckout, type PromotionPackageName } from '../utils/promotions'
+import { formatDate, formatMoney, getListingImage } from '../utils/format'
+import { isActiveTopPick, listingPromotionPackages, startListingPromotionCheckout } from '../utils/promotions'
+
+type ListingPromotionTier = Exclude<PromotionTier, 'homepage_feature'>
 
 function PromotionListingSelectionSkeleton() {
   return (
@@ -29,10 +31,12 @@ function PromotionListingSelectionSkeleton() {
 export function ListingPromotionPage() {
   const { user } = useAuth()
   const listings = useApiResource<{ listings: Listing[] }>('/listings/me', Boolean(user?.hasShop))
-  const [packageName, setPackageName] = useState<PromotionPackageName>('basic')
+  const promotions = useApiResource<{ promotions: PromotionOrder[] }>('/promotions/me?targetType=listing', Boolean(user?.hasShop))
+  const [packageName, setPackageName] = useState<ListingPromotionTier>('quick_boost')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [error, setError] = useState('')
   const [paymentStatus, setPaymentStatus] = useState('')
+  const [promotionPreviewNow] = useState(() => Date.now())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const selectedPackage = listingPromotionPackages.find((item) => item.value === packageName) || listingPromotionPackages[0]
@@ -41,13 +45,23 @@ export function ListingPromotionPage() {
     [listings.data?.listings],
   )
   const limitReached = selectedIds.length >= selectedPackage.itemLimit
+  const checkoutTotal = selectedIds.length * selectedPackage.priceGhs * 100
+  const selectedExpiryTimes = eligibleListings
+    .filter((listing) => selectedIds.includes(listing._id))
+    .map((listing) => {
+      const currentExpiry = listing.promotionExpiresAt ? new Date(listing.promotionExpiresAt).getTime() : 0
+      const startsAt = currentExpiry > promotionPreviewNow ? currentExpiry : promotionPreviewNow
+      return startsAt + selectedPackage.days * 24 * 60 * 60 * 1000
+    })
+  const earliestExpiry = selectedExpiryTimes.length ? Math.min(...selectedExpiryTimes) : 0
+  const latestExpiry = selectedExpiryTimes.length ? Math.max(...selectedExpiryTimes) : 0
   const promotionCtaLabel = submitting
     ? 'Opening secure payment...'
     : selectedIds.length
-      ? `Promote ${selectedIds.length} listing${selectedIds.length === 1 ? '' : 's'}`
+      ? `Pay ${formatMoney(checkoutTotal)} for ${selectedIds.length} listing${selectedIds.length === 1 ? '' : 's'}`
       : 'Select listings to promote'
 
-  function choosePackage(value: PromotionPackageName) {
+  function choosePackage(value: ListingPromotionTier) {
     const nextPackage = listingPromotionPackages.find((item) => item.value === value) || listingPromotionPackages[0]
     setPackageName(value)
     setSelectedIds((current) => current.slice(0, nextPackage.itemLimit))
@@ -71,7 +85,7 @@ export function ListingPromotionPage() {
     setPaymentStatus('')
     setSubmitting(true)
     try {
-      const result = await startListingBundlePromotionCheckout(selectedIds, packageName)
+      const result = await startListingPromotionCheckout(selectedIds, packageName)
       if (result.status === 'cancelled') setPaymentStatus('Payment cancelled. You were not charged and can try again when ready.')
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to start promotion checkout'))
@@ -90,11 +104,11 @@ export function ListingPromotionPage() {
         <div className="rounded-2xl bg-accent-light/60 p-4 shadow-sm md:p-6">
           <NavigationBackButton className="mb-3" fallback={{ href: '/manage-shop/listings', label: 'Active listings' }} />
           <SectionHeader
-            eyebrow="Bundle promotion"
-            title="Promote listings to Top Picks"
+            eyebrow="Paid placement"
+            title="Promote your listings"
           />
           <p className="max-w-3xl text-sm leading-6 text-foose-muted">
-            Pick a bundle, select listings, then complete payment with Paystack. Each selected item appears in Top Picks for the package window.
+            Choose one tier, select up to 30 listings, and pay per listing. Mobile Money, cards, and other available methods are handled securely by Paystack.
           </p>
         </div>
 
@@ -114,11 +128,11 @@ export function ListingPromotionPage() {
                 <span className={`mb-3 inline-flex size-10 items-center justify-center rounded-full ${active ? 'bg-white text-accent' : 'bg-accent-light text-accent'}`}>
                   <IoMegaphone />
                 </span>
-                <h2 className="text-xl font-black capitalize">{item.value}</h2>
+                <h2 className="text-xl font-black">{item.label}</h2>
                 <p className={`mt-1 text-sm ${active ? 'text-white/85' : 'text-foose-muted'}`}>
-                  {formatMoney(item.priceGhs * 100)} for {item.days} days
+                  {formatMoney(item.priceGhs * 100)} per listing · {item.durationLabel}
                 </p>
-                <strong className="mt-4 block text-sm">{item.itemLimit} listings included</strong>
+                <strong className="mt-4 block text-sm">Same reserved placement</strong>
               </button>
             )
           })}
@@ -136,16 +150,24 @@ export function ListingPromotionPage() {
                 <IoMegaphone /> {promotionCtaLabel}
               </button>
             ) : undefined}
-            eyebrow={`${selectedIds.length}/${selectedPackage.itemLimit} selected`}
+            eyebrow={`${selectedIds.length}/${selectedPackage.itemLimit} selected · ${formatMoney(checkoutTotal)}`}
             title="Choose listings"
           />
+
+          {!!selectedIds.length && (
+            <InlineNotice className="mb-4" title={`${selectedPackage.label} · ${formatMoney(checkoutTotal)}`} tone="info">
+              {earliestExpiry === latestExpiry
+                ? `All selected promotions will run until ${formatDate(new Date(earliestExpiry).toISOString())}.`
+                : `Existing promotion time is preserved. Selected listings will end between ${formatDate(new Date(earliestExpiry).toISOString())} and ${formatDate(new Date(latestExpiry).toISOString())}.`}
+            </InlineNotice>
+          )}
 
           {listings.initialLoading && !listings.data ? (
             <PromotionListingSelectionSkeleton />
           ) : listings.error && !listings.data ? (
             <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void listings.refetch()} type="button">Retry</button>} body={listings.error} layout="section" title="Listings unavailable" tone="error" />
           ) : listings.data && !eligibleListings.length ? (
-            <StatePanel body="Add an active listing before starting a promotion bundle." layout="section" title="No listings can be promoted yet" tone="empty" />
+            <StatePanel body="Add an active listing before starting a promotion." layout="section" title="No listings can be promoted yet" tone="empty" />
           ) : eligibleListings.length ? (
             <>
               {listings.error && listings.data && <InlineNotice className="mb-4" tone="warning">Eligible listings could not refresh. Your current selection is still available.</InlineNotice>}
@@ -196,6 +218,33 @@ export function ListingPromotionPage() {
                 </button>
               </div>
             </>
+          )}
+        </section>
+
+        <section className="rounded-2xl bg-foose-surface p-4 shadow-sm md:p-5">
+          <SectionHeader eyebrow="Impressions and opens" title="Promotion analytics" />
+          {promotions.initialLoading && <SkeletonBlock className="h-28 w-full rounded-xl" />}
+          {promotions.error && !promotions.data && <InlineNotice tone="error">{promotions.error}</InlineNotice>}
+          {promotions.data && !promotions.data.promotions.length && <StatePanel body="Campaign performance will appear here after your first promotion." layout="section" title="No promotion history yet" tone="empty" />}
+          {!!promotions.data?.promotions.length && (
+            <div className="grid gap-3">
+              {promotions.data.promotions.flatMap((promotion) => promotion.items.map((item) => (
+                <article className="grid gap-3 rounded-xl border border-foose-border p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" key={`${promotion._id}-${item.targetId}`}>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <strong>{item.target?.title || 'Listing'}</strong>
+                      <Badge tone={item.status === 'active' ? 'success' : item.status === 'scheduled' ? 'warning' : 'neutral'}>{item.status}</Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-foose-muted">{listingPromotionPackages.find((tier) => tier.value === promotion.tier)?.label || promotion.tier} · {item.endsAt ? `ends ${formatDate(item.endsAt)}` : 'awaiting payment'}</p>
+                  </div>
+                  <dl className="grid grid-cols-3 gap-5 text-center text-sm">
+                    <div><dt className="text-foose-muted">Views</dt><dd className="font-black">{item.impressions}</dd></div>
+                    <div><dt className="text-foose-muted">Clicks</dt><dd className="font-black">{item.clicks}</dd></div>
+                    <div><dt className="text-foose-muted">CTR</dt><dd className="font-black">{item.clickThroughRate}%</dd></div>
+                  </dl>
+                </article>
+              )))}
+            </div>
           )}
         </section>
       </section>

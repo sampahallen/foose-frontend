@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, Icon, ImagePreviewInput, InlineNotice, StatePanel } from '../components'
+import { AppShell, ButtonLink, Icon, ImagePreviewInput, InlineNotice, SelectControl, StatePanel } from '../components'
 import { ChoiceCardGroup, ErrorSummary, SubmitButton } from '../components/forms/FormControls'
 import { FormField, TextAreaField, TextField } from '../components/forms/FormField'
 import { FormActions, FormPage, FormSection } from '../components/forms/FormLayout'
@@ -12,6 +12,7 @@ import { apiPost, apiPut } from '../lib/api'
 import { useApiResource } from '../hooks/useApiResource'
 import type { Event } from '../types/api'
 import { eventTypeLabel, normalizedEventType } from '../utils/events'
+import { formatDateInput, formatDateTyping, formatTimeTyping, parseDateInput, parseStoredTime, to24HourTime, type Meridiem } from '../utils/eventDateTimeInput'
 import { getErrorMessage } from '../utils/errorMessage'
 import { getCurrentAppPathname } from '../utils/navigation'
 import { navigateWithFlash } from '../utils/navigationFlash'
@@ -34,6 +35,50 @@ function appendSelectedFile(formData: FormData, form: HTMLFormElement, name: str
   if (file && file.name && file.size > 0) formData.append(name, file)
 }
 
+function TypedTimeField({ error, id, label, name, onPeriodChange, onTimeChange, period, time }: {
+  error?: string
+  id: string
+  label: string
+  name: string
+  onPeriodChange: (value: Meridiem) => void
+  onTimeChange: (value: string) => void
+  period: Meridiem
+  time: string
+}) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] items-end gap-2">
+      <TextField
+        autoComplete="off"
+        error={error}
+        id={id}
+        inputMode="numeric"
+        label={label}
+        name={`${name}Display`}
+        onChange={(input) => onTimeChange(formatTimeTyping(input.target.value))}
+        placeholder="08:30"
+        prefix={<Icon name="clock" size={17} />}
+        required
+        type="text"
+        value={time}
+      />
+      <label className="grid gap-2 pb-px" htmlFor={`${id}-period`}>
+        <span className="text-xs font-bold text-foose-muted">AM / PM</span>
+        <SelectControl
+          aria-label={`${label} AM or PM`}
+          className="h-12 rounded-xl border border-foose-border bg-white px-3 text-sm font-black text-foose-text"
+          id={`${id}-period`}
+          name={`${name}Period`}
+          onChange={(input) => onPeriodChange(input.target.value as Meridiem)}
+          value={period}
+        >
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </SelectControl>
+      </label>
+    </div>
+  )
+}
+
 export function CommunityEventFormPage() {
   const eventId = editEventId()
   const { user } = useAuth()
@@ -48,14 +93,18 @@ export function CommunityEventFormPage() {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [startTime, setStartTime] = useState('')
+  const [startPeriod, setStartPeriod] = useState<Meridiem>('AM')
   const [endTime, setEndTime] = useState('')
+  const [endPeriod, setEndPeriod] = useState<Meridiem>('PM')
   const [location, setLocation] = useState('')
   const [description, setDescription] = useState('')
   const [coverFiles, setCoverFiles] = useState<File[]>([])
   const restoredRef = useRef(false)
   const activeType = selectedType || (event ? (normalizedEventType(event) as 'online-pop-up' | 'in-person-pop-up') : 'in-person-pop-up')
   const onlineRequiresShop = activeType === 'online-pop-up' && user?.hasShop === false
-  const draftValue = useMemo(() => ({ date, description, endTime, location, startTime, title, type: activeType }), [activeType, date, description, endTime, location, startTime, title])
+  const storedStartTime = parseStoredTime(event?.startTime)
+  const storedEndTime = parseStoredTime(event?.endTime)
+  const draftValue = useMemo(() => ({ date, description, endPeriod, endTime, location, startPeriod, startTime, title, type: activeType }), [activeType, date, description, endPeriod, endTime, location, startPeriod, startTime, title])
   const draft = useLocalDraft({
     enabled: !eventResource.initialLoading,
     formId: 'community-event',
@@ -63,9 +112,27 @@ export function CommunityEventFormPage() {
       restoredRef.current = true
       if (saved.type === 'online-pop-up' || saved.type === 'in-person-pop-up') setSelectedType(saved.type)
       if (typeof saved.title === 'string') setTitle(saved.title)
-      if (typeof saved.date === 'string') setDate(saved.date)
-      if (typeof saved.startTime === 'string') setStartTime(saved.startTime)
-      if (typeof saved.endTime === 'string') setEndTime(saved.endTime)
+      if (typeof saved.date === 'string') setDate(saved.date.includes('-') ? formatDateInput(saved.date) : saved.date)
+      if (typeof saved.startTime === 'string') {
+        if (saved.startPeriod === 'AM' || saved.startPeriod === 'PM') {
+          setStartTime(saved.startTime)
+          setStartPeriod(saved.startPeriod)
+        } else {
+          const parsed = parseStoredTime(saved.startTime)
+          setStartTime(parsed.time)
+          setStartPeriod(parsed.period)
+        }
+      }
+      if (typeof saved.endTime === 'string') {
+        if (saved.endPeriod === 'AM' || saved.endPeriod === 'PM') {
+          setEndTime(saved.endTime)
+          setEndPeriod(saved.endPeriod)
+        } else {
+          const parsed = parseStoredTime(saved.endTime)
+          setEndTime(parsed.time)
+          setEndPeriod(parsed.period)
+        }
+      }
       if (typeof saved.location === 'string') setLocation(saved.location)
       if (typeof saved.description === 'string') setDescription(saved.description)
     },
@@ -76,9 +143,10 @@ export function CommunityEventFormPage() {
   const dirty = eventId
     ? coverFiles.length > 0
       || title !== (event?.title || '')
-      || date !== (event?.date ? event.date.slice(0, 10) : '')
-      || startTime !== (event?.startTime || '')
-      || endTime !== (event?.endTime || '')
+      || date !== formatDateInput(event?.date)
+      || startTime !== storedStartTime.time
+      || startPeriod !== storedStartTime.period
+      || (activeType === 'online-pop-up' && (endTime !== storedEndTime.time || endPeriod !== storedEndTime.period))
       || location !== (event?.location || '')
       || description !== (event?.description || '')
       || activeType !== (event ? normalizedEventType(event) : activeType)
@@ -87,9 +155,13 @@ export function CommunityEventFormPage() {
   useEffect(() => {
     if (!event || restoredRef.current) return
     setTitle(event.title || '')
-    setDate(event.date ? event.date.slice(0, 10) : '')
-    setStartTime(event.startTime || '')
-    setEndTime(event.endTime || '')
+    setDate(formatDateInput(event.date))
+    const parsedStart = parseStoredTime(event.startTime)
+    const parsedEnd = parseStoredTime(event.endTime)
+    setStartTime(parsedStart.time)
+    setStartPeriod(parsedStart.period)
+    setEndTime(parsedEnd.time)
+    setEndPeriod(parsedEnd.period)
     setLocation(event.location || '')
     setDescription(event.description || '')
     setDescriptionLength(event.description?.length || 0)
@@ -100,10 +172,13 @@ export function CommunityEventFormPage() {
     const form = event.currentTarget
     const sourceData = new FormData(form)
     const requiredErrors: Record<string, string> = {}
+    const parsedDate = parseDateInput(date)
+    const parsedStartTime = to24HourTime(startTime, startPeriod)
+    const parsedEndTime = activeType === 'online-pop-up' ? to24HourTime(endTime, endPeriod) : null
     if (!String(sourceData.get('title') || '').trim()) requiredErrors['event-title'] = 'Enter an event title.'
-    if (!String(sourceData.get('date') || '').trim()) requiredErrors['event-date'] = 'Choose an event date.'
-    if (!String(sourceData.get('startTime') || '').trim()) requiredErrors['event-start-time'] = 'Choose a start time.'
-    if (activeType === 'online-pop-up' && !String(sourceData.get('endTime') || '').trim()) requiredErrors['event-end-time'] = 'Choose an end time.'
+    if (!parsedDate) requiredErrors['event-date'] = 'Enter a valid date as DD/MM/YYYY.'
+    if (!parsedStartTime) requiredErrors['event-start-time'] = 'Enter a valid time from 01:00 to 12:59.'
+    if (activeType === 'online-pop-up' && !parsedEndTime) requiredErrors['event-end-time'] = 'Enter a valid time from 01:00 to 12:59.'
     if (activeType === 'in-person-pop-up' && !String(sourceData.get('location') || '').trim()) requiredErrors['event-location'] = 'Enter the event location.'
     if (Object.keys(requiredErrors).length) {
       setFieldErrors(requiredErrors)
@@ -112,9 +187,11 @@ export function CommunityEventFormPage() {
     }
     setFieldErrors({})
     const payload = new FormData()
-    ;['type', 'title', 'date', 'startTime', 'description'].forEach((field) => appendText(payload, field, sourceData.get(field)))
+    ;['type', 'title', 'description'].forEach((field) => appendText(payload, field, sourceData.get(field)))
+    payload.append('date', parsedDate as string)
+    payload.append('startTime', parsedStartTime as string)
     if (activeType === 'online-pop-up') {
-      appendText(payload, 'endTime', sourceData.get('endTime'))
+      payload.append('endTime', parsedEndTime as string)
     } else {
       appendText(payload, 'location', sourceData.get('location'))
     }
@@ -182,10 +259,10 @@ export function CommunityEventFormPage() {
             </FormSection>
 
             <FormSection columns={2} description="Use the local event time. Attendees will see these details before they join." title="Schedule and place">
-              <TextField error={fieldErrors['event-date']} id="event-date" label="Date" name="date" onChange={(input) => setDate(input.target.value)} prefix={<Icon name="calendar" size={17} />} required type="date" value={date} />
-              <TextField error={fieldErrors['event-start-time']} id="event-start-time" label={activeType === 'online-pop-up' ? 'Start time' : 'Time'} name="startTime" onChange={(input) => setStartTime(input.target.value)} prefix={<Icon name="clock" size={17} />} required type="time" value={startTime} />
+              <TextField autoComplete="off" error={fieldErrors['event-date']} hint="DD/MM/YYYY" id="event-date" inputMode="numeric" label="Date" name="dateDisplay" onChange={(input) => setDate(formatDateTyping(input.target.value))} placeholder="23/07/2026" prefix={<Icon name="calendar" size={17} />} required type="text" value={date} />
+              <TypedTimeField error={fieldErrors['event-start-time']} id="event-start-time" label={activeType === 'online-pop-up' ? 'Start time' : 'Time'} name="startTime" onPeriodChange={setStartPeriod} onTimeChange={setStartTime} period={startPeriod} time={startTime} />
               {activeType === 'online-pop-up' ? (
-                <TextField error={fieldErrors['event-end-time']} id="event-end-time" label="End time" name="endTime" onChange={(input) => setEndTime(input.target.value)} prefix={<Icon name="clock" size={17} />} required type="time" value={endTime} />
+                <TypedTimeField error={fieldErrors['event-end-time']} id="event-end-time" label="End time" name="endTime" onPeriodChange={setEndPeriod} onTimeChange={setEndTime} period={endPeriod} time={endTime} />
               ) : (
                 <TextField error={fieldErrors['event-location']} id="event-location" label="Location" name="location" onChange={(input) => setLocation(input.target.value)} placeholder="Black Star Square, Accra" required value={location} />
               )}

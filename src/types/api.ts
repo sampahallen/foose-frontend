@@ -27,6 +27,35 @@ export type PaystackPaymentSession = {
   status: 'pending'
 }
 
+export type PromotionTier = 'quick_boost' | 'weekend_push' | 'top_pick' | 'homepage_feature'
+
+export type PromotionItem = {
+  targetId: string
+  startsAt?: string
+  endsAt?: string
+  impressions: number
+  clicks: number
+  clickThroughRate: number
+  status: 'pending' | 'processing' | 'active' | 'scheduled' | 'expired' | 'failed'
+  target?: Pick<Listing, '_id' | 'title' | 'images'> | Pick<Event, '_id' | 'title' | 'coverImage' | 'date'> | null
+}
+
+export type PromotionOrder = {
+  _id: string
+  targetType: 'listing' | 'event'
+  tier: PromotionTier
+  unitAmount: number
+  totalAmount: number
+  currency: 'GHS'
+  durationHours: number
+  paymentReference: string
+  paymentStatus: 'pending' | 'processing' | 'paid' | 'failed'
+  paidAt?: string
+  fulfilledAt?: string
+  items: PromotionItem[]
+  createdAt: string
+}
+
 export type User = {
   _id: string
   name: string
