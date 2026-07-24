@@ -1,6 +1,6 @@
 import type { Order } from '../../types/api'
 import { formatDate, formatMoney } from '../../utils/format'
-import { Badge } from '../ui/Badge'
+import { OrderStatusBadge } from './OrderWorkflow'
 
 export function RecentOrders({ orders }: { orders: Order[] }) {
   if (!orders.length) {
@@ -34,9 +34,7 @@ export function RecentOrders({ orders }: { orders: Order[] }) {
                 <strong>{formatMoney(order.totalAmount, order.currency)}</strong>
               </td>
               <td>
-                <Badge tone={order.status === 'cancelled' || order.status === 'disputed' ? 'danger' : 'success'}>
-                  {order.status}
-                </Badge>
+                <OrderStatusBadge order={order} />
               </td>
               <td>{formatDate(order.createdAt)}</td>
             </tr>

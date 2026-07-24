@@ -93,6 +93,7 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
   const userId = user?._id || ''
   const emailVerified = Boolean(user?.isEmailVerified)
   const socketRef = useRef<Socket | null>(null)
+  const notificationEventIdRef = useRef('')
   const [connected, setConnected] = useState(false)
   const [conversations, setConversations] = useState<ChatConversation[]>([])
   const [messageEvent, setMessageEvent] = useState<RealtimeMessageEvent | null>(null)
@@ -102,6 +103,7 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
   const [messagesReadEvent, setMessagesReadEvent] = useState<MessagesReadEvent | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [notificationError, setNotificationError] = useState('')
+  const [notificationEvent, setNotificationEvent] = useState<Notification | null>(null)
   const [notificationLoading, setNotificationLoading] = useState(false)
   const [refreshSignal, setRefreshSignal] = useState(0)
 
@@ -248,6 +250,9 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
 
     function handleNotification(notification: Notification) {
       if (notification.type === 'chat') return
+      if (notification._id && notificationEventIdRef.current === notification._id) return
+      notificationEventIdRef.current = notification._id || ''
+      setNotificationEvent({ ...notification })
       setNotifications((current) => upsertNotification(current, notification))
     }
 
@@ -388,6 +393,7 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
       messageReactionEvents,
       messagesReadEvent,
       notificationError,
+      notificationEvent,
       notificationLoading,
       notifications,
       refreshSignal,
@@ -411,6 +417,7 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
       messageReactionEvents,
       messagesReadEvent,
       notificationError,
+      notificationEvent,
       notificationLoading,
       notifications,
       refreshSignal,

@@ -50,7 +50,9 @@ vi.mock('../hooks/useApiResource', () => ({
       error: '', errorMeta: null, initialLoading: false, loading: false, refetch: vi.fn(), refreshing: false,
     }
     if (path === '/digishops/me') return { ...base, data: { shop: { _id: 'shop-1', payoutMethod: { accountName: 'Mobile Owner', accountNumber: '0240000000', provider: 'MTN', type: 'mobile_money' }, shopName: 'Seller Shop', slug: 'seller-shop' } } }
-    if (path === '/orders/me/selling') return { ...base, data: { orders: [] } }
+    if (path === '/orders/me/selling?bucket=active&limit=3&sort=urgency') return { ...base, data: { orders: [] } }
+    if (path === '/orders/me/selling?limit=100&sort=newest') return { ...base, data: { orders: [] } }
+    if (path === '/orders/me/selling/summary') return { ...base, data: { activeOrderCount: 7, releasedRevenue: 45678 } }
     if (path === '/listings/me?status=active') return { ...base, data: { listings: [mocks.activeListing] } }
     return { ...base, data: { listings: [] } }
   }),
@@ -77,6 +79,27 @@ describe('SellerDashboardPage listing separation', () => {
     screen.getAllByRole('link', { name: 'Drafts' }).forEach((link) => {
       expect(link).toHaveAttribute('href', '/manage-shop/drafts')
     })
+  })
+
+  it('loads an urgency-sorted active preview and exact seller summary on overview', () => {
+    window.history.replaceState({}, '', '/manage-shop')
+    render(<ToastProvider><SellerDashboardPage /></ToastProvider>)
+
+    expect(useApiResource).toHaveBeenCalledWith(
+      '/orders/me/selling?bucket=active&limit=3&sort=urgency',
+      true,
+    )
+    expect(useApiResource).toHaveBeenCalledWith('/orders/me/selling/summary', true)
+    expect(screen.getByText('GHS 456.78')).toBeVisible()
+    expect(screen.getByText('7')).toBeVisible()
+  })
+
+  it('keeps a broader order query for matching sold listings to their orders', () => {
+    window.history.replaceState({}, '', '/manage-shop/sold')
+    render(<ToastProvider><SellerDashboardPage /></ToastProvider>)
+
+    expect(useApiResource).toHaveBeenCalledWith('/orders/me/selling?limit=100&sort=newest', true)
+    expect(useApiResource).toHaveBeenCalledWith('/orders/me/selling/summary', false)
   })
 
   it('switches the payout fields and saves the section from its header action', async () => {

@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useMessaging } from '../hooks/useMessaging'
+import { useOrderRealtimeRefresh } from '../hooks/useOrderRealtimeRefresh'
 import { MessagingProvider } from './MessagingContext'
 
 const socketMocks = vi.hoisted(() => {
@@ -24,6 +25,7 @@ const authMocks = vi.hoisted(() => ({
 const apiMocks = vi.hoisted(() => ({
   apiGet: vi.fn(),
 }))
+const orderMocks = vi.hoisted(() => ({ refetch: vi.fn(async () => undefined) }))
 
 vi.mock('socket.io-client', () => ({ io: socketMocks.io }))
 vi.mock('../hooks/useAuth', () => ({
@@ -47,6 +49,11 @@ function ReactionState() {
   )
 }
 
+function OrderRefreshProbe() {
+  useOrderRealtimeRefresh(orderMocks.refetch, true, 'order-1')
+  return null
+}
+
 describe('MessagingProvider reactions', () => {
   beforeEach(() => {
     authMocks.user.isEmailVerified = true
@@ -62,10 +69,35 @@ describe('MessagingProvider reactions', () => {
         }
       : { notifications: [] })
     socketMocks.handlers.clear()
+    orderMocks.refetch.mockClear()
     socketMocks.io.mockClear()
     Object.values(socketMocks.socket).forEach((value) => {
       if (typeof value === 'function' && 'mockClear' in value) value.mockClear()
     })
+  })
+
+  it('deduplicates the paired notification socket events before refreshing an order', async () => {
+    render(
+      <MessagingProvider>
+        <ReactionState />
+        <OrderRefreshProbe />
+      </MessagingProvider>,
+    )
+
+    await waitFor(() => expect(socketMocks.handlers.has('notification')).toBe(true))
+    const notification = {
+      _id: 'order-notification-1',
+      isRead: false,
+      link: '/orders/order-1',
+      title: 'Order updated',
+      type: 'order',
+    }
+    act(() => {
+      socketMocks.handlers.get('notification')?.(notification)
+      socketMocks.handlers.get('new-notification')?.(notification)
+    })
+
+    await waitFor(() => expect(orderMocks.refetch).toHaveBeenCalledTimes(1))
   })
 
   it('loads and receives system notifications without exposing realtime chat for an unverified member', async () => {

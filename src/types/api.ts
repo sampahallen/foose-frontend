@@ -159,11 +159,126 @@ export type HashtagSuggestionsResponse = {
   suggestions: HashtagSuggestion[]
 }
 
+export type OrderFulfillmentStatus =
+  | 'awaiting_seller'
+  | 'ready_for_pickup'
+  | 'in_transit'
+  | 'completed'
+  | 'cancelled'
+
+export type OrderSettlementStatus =
+  | 'payment_pending'
+  | 'cash_due'
+  | 'cash_collected'
+  | 'held'
+  | 'released'
+  | 'refund_pending'
+  | 'refund_attention'
+  | 'refunded'
+  | 'refund_failed'
+  | 'void'
+
+export type OrderAllowedAction =
+  | 'cancel_cash_pickup'
+  | 'mark_pickup_ready'
+  | 'complete_cash_pickup'
+  | 'release_unclaimed_pickup'
+  | 'confirm_collection'
+  | 'dispatch'
+  | 'confirm_receipt'
+  | 'close_no_action'
+  | 'report'
+
+export type OrderWorkflow = {
+  nextActor: 'buyer' | 'seller' | 'system' | 'support' | 'none' | string
+  allowedActions: Array<OrderAllowedAction | 'report_order'>
+  deadline: {
+    at: string
+    consequence?: string
+    type: string
+  } | null
+  serverNow: string
+  report: {
+    active: boolean
+    id?: string
+    status?: string
+  } | null
+  settlementExplanation: string
+}
+
+export type PrivateOrderAsset = string | {
+  mimetype?: string
+  name?: string
+  originalName?: string
+  size?: number
+  signedUrl?: string
+  url?: string
+}
+
+export type OrderTransit = {
+  serviceName?: string
+  transitServiceName?: string
+  busNumber?: string
+  lastStopLocation?: string
+  driverPhone?: string
+  parcelNumber?: string
+  billImage?: PrivateOrderAsset
+}
+
+export type OrderDestination = {
+  recipientName?: string
+  recipientPhone?: string
+  region?: string
+  town?: string
+  preferredTerminal?: string
+}
+
+export type OrderEvent = {
+  _id?: string
+  actor?: 'buyer' | 'seller' | 'system' | 'support' | string
+  actorType?: 'buyer' | 'seller' | 'system' | 'support' | string
+  createdAt: string
+  description?: string
+  label?: string
+  message?: string
+  metadata?: Record<string, unknown>
+  type?: string
+  eventType?: string
+}
+
+export type OrderReportCategory =
+  | 'not_received'
+  | 'invalid_transit_details'
+  | 'seller_or_driver_unreachable'
+  | 'wrong_or_missing_items'
+  | 'damaged_or_not_as_described'
+  | 'fraud_or_safety_concern'
+  | 'other'
+
+export type OrderReport = {
+  _id: string
+  orderId?: Order | string
+  category: OrderReportCategory
+  affectedItemIds: string[]
+  requestedOutcome: string
+  detailedAccount: string
+  evidence?: PrivateOrderAsset[]
+  declarationAccepted: boolean
+  status: 'submitted' | 'under_review' | 'resolved' | string
+  frozenAt?: string
+  createdAt?: string
+  submittedAt?: string
+  /** Read aliases from the first report API revision. */
+  details?: string
+  reviewStatus?: string
+}
+
 export type Order = {
   _id: string
   buyerId?: User | string
   shopId?: Shop | string
   items: Array<{
+    _id?: string
     listingId?: Listing | string
     title: string
     price: number
@@ -173,7 +288,23 @@ export type Order = {
   deliveryFee?: number
   totalAmount: number
   currency?: string
-  status: 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'disputed' | 'cancelled' | 'refunded'
+  fulfillmentStatus?: OrderFulfillmentStatus
+  settlementStatus?: OrderSettlementStatus
+  workflow?: OrderWorkflow
+  events?: OrderEvent[]
+  activeReportId?: OrderReport | string | null
+  report?: OrderReport | null
+  paidAt?: string
+  readyAt?: string
+  pickupExpiresAt?: string
+  sentAt?: string
+  deliveryReleaseAt?: string
+  completedAt?: string
+  cancelledAt?: string
+  inventoryRestoredAt?: string
+  settledAt?: string
+  /** Temporary legacy fields retained while existing orders are migrated. */
+  status?: 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'disputed' | 'cancelled' | 'refunded'
   paymentMethod?: 'paystack_mock' | 'paystack' | 'cash_on_pickup'
   paymentStatus?: 'unpaid' | 'paid' | 'cash_on_pickup' | 'refunded'
   paymentRef?: string
@@ -188,6 +319,12 @@ export type Order = {
   delivery?: {
     method?: 'pickup' | 'delivery'
     fee?: number
+    destination?: OrderDestination
+    recipient?: {
+      name?: string
+      phone?: string
+    }
+    transit?: OrderTransit
     address?: {
       region?: string
       city?: string
@@ -197,6 +334,47 @@ export type Order = {
   }
   createdAt?: string
   updatedAt?: string
+}
+
+export type WalletLedgerEntryType =
+  | 'escrow_hold'
+  | 'escrow_release'
+  | 'escrow_refund'
+  | 'withdrawal'
+  | 'adjustment'
+
+export type WalletLedgerOrder = {
+  id: string
+  shortReference: string
+  itemSummary: string
+  itemCount: number
+  totalAmount: number
+  currency: string
+  fulfillmentStatus?: OrderFulfillmentStatus
+  settlementStatus?: OrderSettlementStatus
+  deliveryMethod?: 'pickup' | 'delivery'
+  workflow?: OrderWorkflow | null
+}
+
+export type WalletLedgerEntry = {
+  id: string
+  entryType: WalletLedgerEntryType
+  amount: number
+  balanceDelta: number
+  escrowDelta: number
+  balanceAfter?: number
+  escrowAfter?: number
+  currency: string
+  description?: string
+  createdAt: string
+  order?: WalletLedgerOrder | null
+}
+
+export type WalletLedgerResponse = {
+  entries: WalletLedgerEntry[]
+  hasMore: boolean
+  nextCursor?: string | null
+  serverNow: string
 }
 
 export type Review = {

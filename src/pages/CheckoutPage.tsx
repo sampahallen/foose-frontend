@@ -1,14 +1,14 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { AppShell, ButtonLink, ChoiceCardGroup, ErrorSummary, FormPage, FormSection, Icon, InlineNotice, OrderSummary, StatePanel, StepIndicator, TextField } from '../components'
 import { NavigationBackButton } from '../components/navigation'
+import { useAuth } from '../hooks/useAuth'
 import { useCart, type CartItem } from '../hooks/useCart'
-import { apiDelete, apiGet, apiPost } from '../lib/api'
+import { useDeliveryEstimate } from '../hooks/useDeliveryEstimate'
+import { apiDelete, apiPost } from '../lib/api'
 import type { Order, PaystackPaymentSession } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { navigateTo } from '../utils/navigation'
 import { openPaystackInline } from '../utils/paystackInline'
-
-const FIXED_DELIVERY_FEE = 1500
 
 type PlaceOrderResponse = {
   order: Order
@@ -37,7 +37,15 @@ function unavailablePopUpItems(items: CartItem[]) {
   })
 }
 
+function createCheckoutIdempotencyKey() {
+  const random = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `checkout:${random}`
+}
+
 export function CheckoutPage() {
+  const { user } = useAuth()
   const cart = useCart()
   const [error, setError] = useState('')
   const [paymentMessage, setPaymentMessage] = useState('')
@@ -46,18 +54,45 @@ export function CheckoutPage() {
   const [cancellationReference, setCancellationReference] = useState('')
   const [confirmedOrderIds, setConfirmedOrderIds] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
-  const [region, setRegion] = useState('Greater Accra')
-  const [city, setCity] = useState('')
-  const [street, setStreet] = useState('')
+  const [recipientName, setRecipientName] = useState(user?.name || '')
+  const [recipientPhone, setRecipientPhone] = useState(user?.phone || '')
+  const [region, setRegion] = useState(user?.location?.region || 'Greater Accra')
+  const [town, setTown] = useState(user?.location?.city || '')
+  const [preferredTerminal, setPreferredTerminal] = useState('')
   const [method, setMethod] = useState<'pickup' | 'delivery'>('delivery')
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_pickup' | 'paystack'>('paystack')
   const [step, setStep] = useState(0)
   const [validationAttempted, setValidationAttempted] = useState(false)
   const stepHeadingRef = useRef<HTMLHeadingElement | null>(null)
-  const deliveryFeeDisplay = method === 'pickup' ? 0 : FIXED_DELIVERY_FEE
+  const checkoutIdempotencyKeyRef = useRef(createCheckoutIdempotencyKey())
+  const cartFingerprint = cart.items.map((item) => `${item.listingId}:${item.quantity}`).sort().join('|')
+  const cartFingerprintRef = useRef(cartFingerprint)
+  const parcelCount = new Set(cart.items.map((item) => item.shopId || item.shopName || item.listingId)).size
+  const deliveryEstimate = useDeliveryEstimate(region, method)
+  const deliveryFeeDisplay = method === 'pickup'
+    ? 0
+    : deliveryEstimate.fee === null
+      ? null
+      : deliveryEstimate.fee * Math.max(parcelCount, 1)
   const usesPaystack = method === 'delivery' || paymentMethod === 'paystack'
+  const recipientNameError = validationAttempted && method === 'delivery' && !recipientName.trim() ? 'Enter the recipient’s full name.' : ''
+  const recipientPhoneError = validationAttempted && method === 'delivery' && recipientPhone.replace(/\D/g, '').length < 9 ? 'Enter a valid recipient phone number.' : ''
   const regionError = validationAttempted && method === 'delivery' && !region.trim() ? 'Enter a delivery region.' : ''
-  const streetError = validationAttempted && method === 'delivery' && !street.trim() ? 'Enter a street address.' : ''
+  const townError = validationAttempted && method === 'delivery' && !town.trim() ? 'Enter the destination town.' : ''
+
+  useEffect(() => {
+    if (cartFingerprintRef.current === cartFingerprint) return
+    if (paymentSession || completedReference || cancellationReference) return
+    cartFingerprintRef.current = cartFingerprint
+    checkoutIdempotencyKeyRef.current = createCheckoutIdempotencyKey()
+    const resetTimer = window.setTimeout(() => {
+      setPaymentSession(null)
+      setCompletedReference('')
+      setCancellationReference('')
+      setConfirmedOrderIds([])
+    }, 0)
+    return () => window.clearTimeout(resetTimer)
+  }, [cancellationReference, cartFingerprint, completedReference, paymentSession])
 
   function goToStep(nextStep: number) {
     setStep(nextStep)
@@ -69,7 +104,12 @@ export function CheckoutPage() {
 
   function continueFromDelivery() {
     setValidationAttempted(true)
-    if (method === 'delivery' && (!region.trim() || !street.trim())) {
+    if (method === 'delivery' && (
+      !recipientName.trim()
+      || recipientPhone.replace(/\D/g, '').length < 9
+      || !region.trim()
+      || !town.trim()
+    )) {
       return
     }
     setValidationAttempted(false)
@@ -79,7 +119,11 @@ export function CheckoutPage() {
   async function verifyCompletedPayment(reference: string) {
     setPaymentMessage('Payment completed. Confirming it securely with Paystack...')
     try {
-      const verified = await apiGet<VerifyPaymentResponse>(`/payments/verify/${encodeURIComponent(reference)}`)
+      const verified = await apiPost<VerifyPaymentResponse>(
+        `/payments/${encodeURIComponent(reference)}/actions/verify`,
+        {},
+        { headers: { 'Idempotency-Key': `${checkoutIdempotencyKeyRef.current}:verify` } },
+      )
       const verifiedOrders = verified.orders?.length ? verified.orders : verified.order ? [verified.order] : []
       if (!verifiedOrders.length) throw new Error('Payment was received, but the confirmed order could not be loaded')
       setConfirmedOrderIds(verifiedOrders.map((order) => order._id))
@@ -105,11 +149,13 @@ export function CheckoutPage() {
     setCompletedReference('')
     setConfirmedOrderIds([])
     setPaymentSession(null)
+    checkoutIdempotencyKeyRef.current = createCheckoutIdempotencyKey()
     setPaymentMessage(`Payment cancelled. ${cancellation.releasedItemCount === 1 ? 'The item is' : 'The items are'} available in inventory again.`)
   }
 
   function finishOnlineCheckout() {
     if (!confirmedOrderIds.length) return
+    checkoutIdempotencyKeyRef.current = createCheckoutIdempotencyKey()
     cart.clearCart()
     navigateTo(`/order-confirmed?orderIds=${encodeURIComponent(confirmedOrderIds.join(','))}`)
   }
@@ -142,21 +188,29 @@ export function CheckoutPage() {
       }
 
       if (!onlinePayment || resolvedPaymentMethod === 'cash_on_pickup') {
-        data = await apiPost<PlaceOrderResponse>('/orders', {
-          delivery: {
-            address: {
-              city: city.trim(),
-              region: region.trim(),
-              street: street.trim(),
-            },
-            method,
+        data = await apiPost<PlaceOrderResponse>(
+          '/orders',
+          {
+            delivery: method === 'delivery'
+              ? {
+                  destination: {
+                    preferredTerminal: preferredTerminal.trim() || undefined,
+                    recipientName: recipientName.trim(),
+                    recipientPhone: recipientPhone.trim(),
+                    region: region.trim(),
+                    town: town.trim(),
+                  },
+                  method,
+                }
+              : { method },
+            items: cart.items.map((item) => ({
+              listingId: item.listingId,
+              quantity: item.type === 'wholesale' ? item.quantity : 1,
+            })),
+            paymentMethod: resolvedPaymentMethod,
           },
-          items: cart.items.map((item) => ({
-            listingId: item.listingId,
-            quantity: item.type === 'wholesale' ? item.quantity : 1,
-          })),
-          paymentMethod: resolvedPaymentMethod,
-        })
+          { headers: { 'Idempotency-Key': checkoutIdempotencyKeyRef.current } },
+        )
       }
 
       if (resolvedPaymentMethod === 'paystack') {
@@ -191,6 +245,7 @@ export function CheckoutPage() {
       }
 
       cart.clearCart()
+      checkoutIdempotencyKeyRef.current = createCheckoutIdempotencyKey()
       if (!data) throw new Error('The pickup order could not be created')
       const orderIds = (data.orders?.length ? data.orders : [data.order]).map((order) => order._id).join(',')
       navigateTo(`/order-confirmed?orderIds=${encodeURIComponent(orderIds)}`)
@@ -215,7 +270,7 @@ export function CheckoutPage() {
               <h2 className="sr-only" ref={stepHeadingRef} tabIndex={-1}>{step === 0 ? 'Delivery details' : step === 1 ? 'Payment method' : 'Review order'}</h2>
 
               {step === 0 && (
-                <FormSection description="Choose delivery, shop pickup, or a future meet-up option." title="Delivery details">
+                <FormSection description="Choose standard station delivery, shop pickup, or a future meet-up option." title="Delivery details">
                   <ChoiceCardGroup<'pickup' | 'delivery' | 'meetup'>
                     label="Fulfilment method"
                     name="method"
@@ -226,21 +281,42 @@ export function CheckoutPage() {
                       if (nextMethod === 'delivery') setPaymentMethod('paystack')
                     }}
                     options={[
-                      { description: 'Delivered to the address you provide.', label: 'Standard delivery', value: 'delivery', visual: <Icon name="truck" /> },
+                      { description: 'The seller sends one parcel per shop through a transit service to your destination town.', label: 'Standard delivery', value: 'delivery', visual: <Icon name="truck" /> },
                       { description: "Collect from the seller's physical shop, when available.", label: 'Pickup', value: 'pickup', visual: <Icon name="store" /> },
                       { description: 'Choose a meet point with the seller. Coming soon.', disabled: true, label: 'Meet up', value: 'meetup', visual: <Icon name="location" /> },
                     ]}
                     value={method}
                   />
-                  {(regionError || streetError) && <ErrorSummary errors={[{ fieldId: 'checkout-region', message: regionError }, { fieldId: 'checkout-street', message: streetError }].filter((item) => item.message)} focus />}
+                  {(recipientNameError || recipientPhoneError || regionError || townError) && (
+                    <ErrorSummary
+                      errors={[
+                        { fieldId: 'checkout-recipient-name', message: recipientNameError },
+                        { fieldId: 'checkout-recipient-phone', message: recipientPhoneError },
+                        { fieldId: 'checkout-region', message: regionError },
+                        { fieldId: 'checkout-town', message: townError },
+                      ].filter((item) => item.message)}
+                      focus
+                    />
+                  )}
                   {method === 'delivery' && (
                     <div className="grid gap-5 sm:grid-cols-2">
+                      <TextField error={recipientNameError} id="checkout-recipient-name" label="Recipient full name" name="recipientName" onChange={(event) => setRecipientName(event.target.value)} placeholder="Name on the parcel" required value={recipientName} />
+                      <TextField error={recipientPhoneError} id="checkout-recipient-phone" inputMode="tel" label="Recipient phone" name="recipientPhone" onChange={(event) => setRecipientPhone(event.target.value)} placeholder="024 000 0000" required type="tel" value={recipientPhone} />
                       <TextField error={regionError} id="checkout-region" label="Region" name="region" onChange={(event) => setRegion(event.target.value)} placeholder="Greater Accra" required value={region} />
-                      <TextField id="checkout-city" label="City or area" name="city" onChange={(event) => setCity(event.target.value)} optional placeholder="e.g. East Legon" value={city} />
-                      <TextField error={streetError} id="checkout-street" label="Street address" name="street" onChange={(event) => setStreet(event.target.value)} placeholder="Digital Avenue, House No. 42" required value={street} wrapperClassName="sm:col-span-2" />
+                      <TextField error={townError} id="checkout-town" label="Destination town" name="town" onChange={(event) => setTown(event.target.value)} placeholder="e.g. Kumasi" required value={town} />
+                      <TextField hint="Add this only if you already know the terminal you prefer. The seller still records the actual last stop when sending." id="checkout-terminal" label="Preferred terminal" name="preferredTerminal" onChange={(event) => setPreferredTerminal(event.target.value)} optional placeholder="e.g. Asafo station" value={preferredTerminal} wrapperClassName="sm:col-span-2" />
                     </div>
                   )}
-                  <InlineNotice tone="info">{method === 'pickup' ? "Pickup means collecting from the seller's physical shop. The seller will confirm collection details, and there is no delivery fee." : 'Delivery is currently a fixed GHS 15.00.'}</InlineNotice>
+                  <InlineNotice tone="info">
+                    {method === 'pickup'
+                      ? "Pickup means collecting from the seller's physical shop. The seller will mark the order ready, and there is no delivery fee."
+                      : `${parcelCount} seller ${parcelCount === 1 ? 'parcel' : 'parcels'} will be created. Delivery is charged once for each seller parcel.`}
+                  </InlineNotice>
+                  {method === 'delivery' && deliveryEstimate.error && (
+                    <InlineNotice title="Delivery estimate unavailable" tone="warning">
+                      The exact configured delivery fee will still be calculated securely when the order is created.
+                    </InlineNotice>
+                  )}
                 </FormSection>
               )}
 
@@ -266,8 +342,10 @@ export function CheckoutPage() {
                   <dl className="grid gap-4 rounded-xl bg-foose-surface-low p-4 text-sm sm:grid-cols-2">
                     <div><dt className="font-semibold text-foose-muted">Fulfilment</dt><dd className="mt-1 font-bold capitalize text-foose-text">{method}</dd></div>
                     <div><dt className="font-semibold text-foose-muted">Payment</dt><dd className="mt-1 font-bold text-foose-text">{paymentMethod === 'paystack' ? 'Paystack' : 'Cash on pickup'}</dd></div>
-                    <div><dt className="font-semibold text-foose-muted">{method === 'delivery' ? 'Delivery address' : 'Collection'}</dt><dd className="mt-1 font-bold text-foose-text">{method === 'delivery' ? [street, city, region].filter(Boolean).join(', ') : "Seller's physical shop"}</dd></div>
+                    <div><dt className="font-semibold text-foose-muted">{method === 'delivery' ? 'Recipient' : 'Collection'}</dt><dd className="mt-1 font-bold text-foose-text">{method === 'delivery' ? `${recipientName} · ${recipientPhone}` : "Seller's physical shop"}</dd></div>
+                    {method === 'delivery' && <div><dt className="font-semibold text-foose-muted">Destination</dt><dd className="mt-1 font-bold text-foose-text">{[preferredTerminal, town, region].filter(Boolean).join(', ')}</dd></div>}
                     <div><dt className="font-semibold text-foose-muted">Items</dt><dd className="mt-1 font-bold text-foose-text">{cart.items.length} distinct {cart.items.length === 1 ? 'item' : 'items'}</dd></div>
+                    <div><dt className="font-semibold text-foose-muted">Seller parcels</dt><dd className="mt-1 font-bold text-foose-text">{parcelCount}</dd></div>
                   </dl>
                   {usesPaystack && <InlineNotice title="Payment confirmed" tone="success">Paystack has confirmed your payment. Your funds are now protected by Foose escrow.</InlineNotice>}
                   {!usesPaystack && error && <InlineNotice title="Checkout could not continue" tone="error">{error}</InlineNotice>}
@@ -289,6 +367,7 @@ export function CheckoutPage() {
                       ? 'View order confirmation'
                       : submitting ? 'Placing pickup order...' : 'Place pickup order'}
                 deliveryFee={deliveryFeeDisplay}
+                deliveryParcelCount={method === 'delivery' ? parcelCount : undefined}
                 disabled={submitting}
                 items={cart.items}
                 onAction={step === 0 ? continueFromDelivery : step === 1 && !usesPaystack ? () => goToStep(2) : step === 2 && usesPaystack ? finishOnlineCheckout : undefined}

@@ -1,4 +1,4 @@
-import { useId, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { FormField } from './FormField'
 import { fieldDescriptionIds } from './formUtils'
 
@@ -16,6 +16,7 @@ export function ChoiceCardGroup<Value extends string = string>({
   disabled = false,
   error,
   hint,
+  id: providedId,
   label,
   name,
   onChange,
@@ -28,6 +29,7 @@ export function ChoiceCardGroup<Value extends string = string>({
   disabled?: boolean
   error?: ReactNode
   hint?: ReactNode
+  id?: string
   label: ReactNode
   name: string
   onChange?: (value: Value) => void
@@ -35,15 +37,15 @@ export function ChoiceCardGroup<Value extends string = string>({
   required?: boolean
   value?: Value
 }) {
-  const id = useId()
-  const groupId = `choice-${id}`
+  const generatedId = useId()
+  const groupId = providedId || `choice-${generatedId}`
   const [uncontrolledValue, setUncontrolledValue] = useState<Value | ''>(defaultValue || '')
   const selected = value === undefined ? uncontrolledValue : value
   const describedBy = fieldDescriptionIds(groupId, hint, error)
 
   return (
     <FormField className={className} error={error} hint={hint} htmlFor={groupId} label={label} labelId={`${groupId}-label`} required={required}>
-      <div aria-describedby={describedBy} aria-invalid={error ? true : undefined} aria-labelledby={`${groupId}-label`} className="grid min-w-0 gap-2.5 sm:grid-cols-2 sm:gap-3" id={groupId} role="radiogroup">
+      <div aria-describedby={describedBy} aria-invalid={error ? true : undefined} aria-labelledby={`${groupId}-label`} className="grid min-w-0 gap-2.5 sm:grid-cols-2 sm:gap-3" id={groupId} role="radiogroup" tabIndex={-1}>
         {options.map((option, index) => {
           const optionId = `${groupId}-${index}`
           const active = selected === option.value
@@ -122,9 +124,14 @@ export function ErrorSummary({
 }) {
   const generatedId = useId()
   const titleId = `form-error-summary-${generatedId}`
+  const summaryRef = useRef<HTMLDivElement | null>(null)
   const normalized = Array.isArray(errors)
     ? errors
     : Object.entries(errors).flatMap(([fieldId, message]) => message ? [{ fieldId, message }] : [])
+
+  useEffect(() => {
+    if (focus) summaryRef.current?.focus()
+  }, [focus])
 
   if (!normalized.length) return null
 
@@ -133,9 +140,7 @@ export function ErrorSummary({
       aria-labelledby={titleId}
       className={`rounded-xl border border-foose-danger/30 bg-foose-danger-bg/35 p-4 text-sm text-foose-text outline-none ${className}`}
       data-form-error-summary
-      ref={(node) => {
-        if (focus && node && document.activeElement !== node) node.focus()
-      }}
+      ref={summaryRef}
       role="alert"
       tabIndex={-1}
     >

@@ -6,6 +6,7 @@ import { ButtonLink } from '../ui/ButtonLink'
 export function OrderSummary({
   action,
   deliveryFee,
+  deliveryParcelCount,
   disabled = false,
   href,
   items,
@@ -16,6 +17,8 @@ export function OrderSummary({
   action: string
   /** Estimated delivery from API; null while loading or unknown */
   deliveryFee?: number | null
+  /** Standard delivery is charged once for each seller parcel. */
+  deliveryParcelCount?: number
   disabled?: boolean
   href?: string
   items: CartItem[]
@@ -52,7 +55,10 @@ export function OrderSummary({
         <strong>{formatMoney(subtotal)}</strong>
       </div>
       <div className="summary-row flex flex-wrap items-center gap-3 justify-between border-b border-foose-border py-3">
-        <span>Delivery Fee</span>
+        <span>
+          Delivery
+          {deliveryParcelCount && deliveryParcelCount > 1 ? ` (${deliveryParcelCount} seller parcels)` : ''}
+        </span>
         <strong>{deliveryLabel}</strong>
       </div>
       <div className="summary-row flex flex-wrap items-center gap-3 justify-between border-b border-foose-border py-3">

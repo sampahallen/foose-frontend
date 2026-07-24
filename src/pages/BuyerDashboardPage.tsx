@@ -1,15 +1,18 @@
-import { AppShell, Badge, ButtonLink, EmptyState, ErrorState, LoadingState, RecentOrders, SectionHeader } from '../components'
+import { AppShell, ButtonLink, EmptyState, ErrorState, LoadingState, OrderWorkflowCard, RecentOrders, SectionHeader } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
+import { useOrderRealtimeRefresh } from '../hooks/useOrderRealtimeRefresh'
 import type { Order } from '../types/api'
-import { formatMoney } from '../utils/format'
-import { isHistoricalOrder } from '../utils/orderStatus'
 
 export function BuyerDashboardPage() {
   const { user } = useAuth()
-  const orders = useApiResource<{ orders: Order[] }>('/orders/me/buying')
-  const activeOrders = (orders.data?.orders || []).filter((order) => !isHistoricalOrder(order))
-  const historyOrders = (orders.data?.orders || []).filter(isHistoricalOrder)
+  const activeOrders = useApiResource<{ orders: Order[] }>('/orders/me/buying?bucket=active&limit=3&sort=urgency')
+  const historyOrders = useApiResource<{ orders: Order[] }>('/orders/me/buying?bucket=history&limit=3&sort=newest')
+  useOrderRealtimeRefresh(async () => {
+    await Promise.all([activeOrders.refetch(), historyOrders.refetch()])
+  }, Boolean(activeOrders.data || historyOrders.data))
+  const activeOrderPreview = activeOrders.data?.orders || []
+  const historyOrderPreview = historyOrders.data?.orders || []
 
   return (
     <AppShell>
@@ -36,26 +39,19 @@ export function BuyerDashboardPage() {
       )}
       <section className="home-section mx-auto w-full max-w-[1280px] my-8 rounded-xl border border-foose-border bg-foose-surface p-4 md:p-6 [&.no-pad]:p-0 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:md:text-4xl [&_a]:font-bold [&_a]:text-accent max-lg:rounded-lg max-lg:p-3 max-md:[&>h2]:text-2xl">
         <SectionHeader title="Active Orders" action={<a href="/orders">View All &gt;</a>} />
-        {orders.loading && <LoadingState label="Loading orders..." />}
-        {orders.error && <ErrorState message={orders.error} retry={orders.refetch} />}
-        {!orders.loading && !orders.error && !activeOrders.length && (
+        {activeOrders.loading && <LoadingState label="Loading orders..." />}
+        {activeOrders.error && <ErrorState message={activeOrders.error} retry={activeOrders.refetch} />}
+        {!activeOrders.loading && !activeOrders.error && !activeOrderPreview.length && (
           <EmptyState
             action={<ButtonLink to="/browse">Browse listings</ButtonLink>}
             body="Orders you place will appear here."
             title="No active orders"
           />
         )}
-        {!!activeOrders.length && (
+        {!!activeOrderPreview.length && (
           <div className="order-card-grid grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {activeOrders.slice(0, 3).map((order) => (
-              <article className="order-card [&_img]:h-full [&_img]:w-full [&_img]:object-cover overflow-hidden rounded-xl border border-foose-border bg-foose-surface [&_img]:aspect-[16/9] [&_div]:p-4" key={order._id}>
-                <div>
-                  <Badge>{order.status}</Badge>
-                  <strong>{formatMoney(order.totalAmount, order.currency)}</strong>
-                </div>
-                <h3>{order.items.map((item) => item.title).join(', ')}</h3>
-                <p>{order.delivery?.trackingInfo || order.delivery?.method || 'Order created'}</p>
-              </article>
+            {activeOrderPreview.map((order) => (
+              <OrderWorkflowCard key={order._id} order={order} viewer="buyer" />
             ))}
           </div>
         )}
@@ -66,7 +62,7 @@ export function BuyerDashboardPage() {
           {[
             ['Browse listings', '/browse'],
             ['Inbox', '/inbox'],
-            [`Order history (${historyOrders.length})`, '/orders/history'],
+            ['Order history', '/orders/history'],
             ['KYC status', '/kyc'],
             ['Wallet', '/wallet'],
           ].map(([label, href]) => (
@@ -76,7 +72,17 @@ export function BuyerDashboardPage() {
           ))}
         </div>
       </section>
-      <RecentOrders orders={historyOrders} />
+      {historyOrders.loading && (
+        <section className="home-section mx-auto my-8 w-full max-w-[1280px] rounded-xl border border-foose-border bg-foose-surface p-4 md:p-6">
+          <LoadingState label="Loading recent orders..." />
+        </section>
+      )}
+      {historyOrders.error && (
+        <section className="home-section mx-auto my-8 w-full max-w-[1280px] rounded-xl border border-foose-border bg-foose-surface p-4 md:p-6">
+          <ErrorState message={historyOrders.error} retry={historyOrders.refetch} />
+        </section>
+      )}
+      {!historyOrders.loading && !historyOrders.error && <RecentOrders orders={historyOrderPreview} />}
     </AppShell>
   )
 }

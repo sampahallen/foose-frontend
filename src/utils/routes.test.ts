@@ -7,7 +7,7 @@ const allRoutes: AppRoute[] = [
   'suggestedForYou', 'freshDrops', 'digishops', 'bales', 'topPicks', 'shop', 'retailDetail',
   'community', 'eventDetail', 'eventManage', 'communityEventForm', 'communityFinspoArchived',
   'communityFinspoDetail', 'communityFinspoForm', 'saved', 'accountSettings', 'profileSettings',
-  'profile', 'inbox', 'cart', 'checkout', 'orderConfirmed', 'orderDetail', 'orderHistory',
+  'profile', 'inbox', 'cart', 'checkout', 'orderConfirmed', 'orderReport', 'orderDetail', 'orderHistory',
   'orderManagement', 'promotionReturn', 'listingPromotions', 'kyc', 'openShop', 'wallet',
   'manageShop', 'shopDrafts', 'home', 'notFound',
 ]
@@ -33,5 +33,9 @@ describe('route feedback registry', () => {
 
   it('resolves listing drafts to their dedicated management page', () => {
     expect(resolveRoute('/manage-shop/drafts', '')).toBe('shopDrafts')
+  })
+
+  it('resolves the guided order report before the generic order detail route', () => {
+    expect(resolveRoute('/orders/order-123/report', '')).toBe('orderReport')
   })
 })

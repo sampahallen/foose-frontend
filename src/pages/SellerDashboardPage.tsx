@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import { IoMegaphone, IoReceiptOutline } from 'react-icons/io5'
-import { AppShell, AvatarCropDialog, Badge, ButtonLink, FloatingCreateButton, Icon, InlineNotice, ManagementListingCard, ManagementListingMasonry, ManagementListingMasonrySkeleton, RefreshIndicator, SafeImage, SectionHeader, SelectControl, ShopManagementMobileNav, ShopManagementSidebar, StatePanel, StatCard, useToast } from '../components'
+import { AppShell, AvatarCropDialog, ButtonLink, FloatingCreateButton, Icon, InlineNotice, ManagementListingCard, ManagementListingMasonry, ManagementListingMasonrySkeleton, OrderWorkflowCard, RefreshIndicator, SafeImage, SectionHeader, SelectControl, ShopManagementMobileNav, ShopManagementSidebar, StatePanel, StatCard, useToast } from '../components'
 import { ConfirmDialog } from '../components/forms/Dialog'
 import { SubmitButton } from '../components/forms/FormControls'
 import { FormActions } from '../components/forms/FormLayout'
@@ -8,13 +8,14 @@ import { SellerOverviewSkeleton, ShopSettingsSkeleton } from '../components/oper
 import { GHANA_BANKS } from '../data/ghanaBanks'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
+import { useOrderRealtimeRefresh } from '../hooks/useOrderRealtimeRefresh'
 import { apiDelete, apiPut } from '../lib/api'
 import type { Listing, Order, Shop, User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDateTime, formatMoney, initials } from '../utils/format'
 import { canonicalGhanaRegion, GHANA_REGIONS } from '../utils/ghanaRegions'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
-import { canSellerMarkPickupReady, isHistoricalOrder, orderAddress, orderProgressLabel, participantContact, participantName } from '../utils/orderStatus'
+import { isHistoricalOrder, orderProgressLabel, participantName } from '../utils/orderStatus'
 
 const MOBILE_MONEY_PROVIDERS = ['MTN', 'Telecel', 'AirtelTigo'] as const
 const GENERAL_FIELDS = ['shopName', 'category', 'bio'] as const
@@ -24,6 +25,11 @@ const PAYOUT_FIELDS = ['payoutMethodType', 'payoutAccountName', 'payoutProvider'
 const SHOP_SETTING_FIELDS = [...GENERAL_FIELDS, ...LOCATION_FIELDS, ...SOCIAL_FIELDS, ...PAYOUT_FIELDS] as const
 const shopSettingsControl = 'min-h-11 w-full min-w-0 rounded-xl border border-foose-border bg-white px-3 py-2.5 text-base text-foose-text outline-none transition placeholder:text-foose-faint focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-accent-light/50 disabled:text-foose-muted sm:min-h-12 sm:py-3 sm:text-sm'
 const shopSettingsTextarea = `${shopSettingsControl} min-h-24 resize-y sm:min-h-28`
+
+type SellerOrderSummary = {
+  activeOrderCount: number
+  releasedRevenue: number
+}
 
 function appendIfPresent(source: FormData, target: FormData, name: string) {
   if (source.has(name)) target.append(name, String(source.get(name) || ''))
@@ -442,7 +448,6 @@ export function SellerDashboardPage() {
   const [deleteError, setDeleteError] = useState('')
   const [deletingId, setDeletingId] = useState('')
   const [pendingDeleteId, setPendingDeleteId] = useState('')
-  const [orderActionId, setOrderActionId] = useState('')
   const [listingQuery, setListingQuery] = useState('')
   const [listingDateFrom, setListingDateFrom] = useState('')
   const [listingDateTo, setListingDateTo] = useState('')
@@ -460,15 +465,31 @@ export function SellerDashboardPage() {
   const needsOrders = activePanel === 'overview' || activePanel === 'sold'
   const needsListings = activePanel === 'listings' || activePanel === 'sold'
   const listingEndpoint = activePanel === 'sold' ? '/listings/me?status=sold' : '/listings/me?status=active'
+  const orderEndpoint = activePanel === 'overview'
+    ? '/orders/me/selling?bucket=active&limit=3&sort=urgency'
+    : '/orders/me/selling?limit=100&sort=newest'
   const shop = useApiResource<{ shop: Shop }>('/digishops/me', Boolean(user?.hasShop))
-  const orders = useApiResource<{ orders: Order[] }>('/orders/me/selling', Boolean(user?.hasShop && needsOrders))
+  const orders = useApiResource<{ orders: Order[] }>(orderEndpoint, Boolean(user?.hasShop && needsOrders))
+  const orderSummary = useApiResource<SellerOrderSummary>(
+    '/orders/me/selling/summary',
+    Boolean(user?.hasShop && activePanel === 'overview'),
+  )
+  useOrderRealtimeRefresh(async () => {
+    await Promise.all([
+      orders.refetch(),
+      ...(activePanel === 'overview' ? [orderSummary.refetch()] : []),
+    ])
+  }, Boolean(user?.hasShop && needsOrders && (orders.data || orderSummary.data)))
   const listings = useApiResource<{ listings: Listing[] }>(listingEndpoint, Boolean(user?.hasShop && needsListings))
 
   const sellerOrders = orders.data?.orders || []
   const activeSellerOrders = sellerOrders.filter((order) => !isHistoricalOrder(order))
   const previewSellerOrders = activeSellerOrders.slice(0, 3)
-  const remainingSellerOrders = Math.max(activeSellerOrders.length - previewSellerOrders.length, 0)
-  const totalRevenue = sellerOrders.reduce((sum, order) => (order.status === 'delivered' ? sum + order.totalAmount : sum), 0) || 0
+  const remainingSellerOrders = Math.max(
+    (orderSummary.data?.activeOrderCount || 0) - previewSellerOrders.length,
+    0,
+  )
+  const totalRevenue = orderSummary.data?.releasedRevenue || 0
   const allListings = listings.data?.listings || []
   const activeListings = allListings.filter((listing) => !listing.status || listing.status === 'active')
   const soldListings = allListings.filter((listing) => listing.status === 'sold')
@@ -489,13 +510,22 @@ export function SellerDashboardPage() {
   const currentListingPage = Math.min(listingPage, listingPageCount)
   const visibleListings = filteredListings.slice((currentListingPage - 1) * listingsPerPage, currentListingPage * listingsPerPage)
   const overviewInitialLoading = activePanel === 'overview'
-    && ((shop.initialLoading && !shop.data) || (orders.initialLoading && !orders.data))
+    && (
+      (shop.initialLoading && !shop.data)
+      || (orders.initialLoading && !orders.data)
+      || (orderSummary.initialLoading && !orderSummary.data)
+    )
   const overviewUnavailable = activePanel === 'overview'
-    && Boolean(shop.error || orders.error)
-    && !shop.data
-    && !orders.data
-  const panelRefreshing = shop.refreshing || (needsOrders && orders.refreshing) || (needsListings && listings.refreshing)
-  const panelError = shop.error || (needsOrders ? orders.error : '') || (needsListings ? listings.error : '')
+    && Boolean(shop.error || orders.error || orderSummary.error)
+    && (!shop.data || !orders.data || !orderSummary.data)
+  const panelRefreshing = shop.refreshing
+    || (needsOrders && orders.refreshing)
+    || (activePanel === 'overview' && orderSummary.refreshing)
+    || (needsListings && listings.refreshing)
+  const panelError = shop.error
+    || (needsOrders ? orders.error : '')
+    || (activePanel === 'overview' ? orderSummary.error : '')
+    || (needsListings ? listings.error : '')
 
   if (!user?.isKycVerified) {
     return (
@@ -540,19 +570,6 @@ export function SellerDashboardPage() {
     }
   }
 
-  async function updateOrder(id: string, action: 'process' | 'shipped' | 'pickup-ready') {
-    setOrderActionId(`${id}-${action}`)
-    try {
-      await apiPut(`/orders/${id}/${action}`, {})
-      await orders.refetch()
-      showToast({ message: action === 'process' ? 'The order was accepted.' : action === 'shipped' ? 'The order is marked as sent.' : 'The buyer was notified that pickup is ready.', title: 'Order updated', tone: 'success' })
-    } catch (requestError) {
-      setDeleteError(getErrorMessage(requestError, 'Unable to update order'))
-    } finally {
-      setOrderActionId('')
-    }
-  }
-
   return (
     <AppShell active="shop" searchPlaceholder="Search marketplace..." showFooter={false}>
       <ShopManagementSidebar activePanel={activePanel} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((value) => !value)} />
@@ -575,9 +592,9 @@ export function SellerDashboardPage() {
         {overviewInitialLoading && <SellerOverviewSkeleton label="Loading seller workspace" />}
         <RefreshIndicator active={panelRefreshing} label="Refreshing seller workspace" />
         {overviewUnavailable && (
-          <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void Promise.all([shop.refetch(), orders.refetch()])} type="button">Retry</button>} body={shop.error || orders.error} layout="page" title="Seller workspace unavailable" tone="error" />
+          <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void Promise.all([shop.refetch(), orders.refetch(), orderSummary.refetch()])} type="button">Retry</button>} body={shop.error || orders.error || orderSummary.error} layout="page" title="Seller workspace unavailable" tone="error" />
         )}
-        {panelError && (shop.data || (needsOrders && orders.data) || (needsListings && listings.data)) && <InlineNotice title="Some seller data could not refresh" tone="warning">{panelError}</InlineNotice>}
+        {panelError && (shop.data || (needsOrders && orders.data) || orderSummary.data || (needsListings && listings.data)) && <InlineNotice title="Some seller data could not refresh" tone="warning">{panelError}</InlineNotice>}
         {deleteError && <InlineNotice title="Action failed" tone="error">{deleteError}</InlineNotice>}
         {activePanel === 'settings' ? (
           shop.error && !shop.data ? (
@@ -659,7 +676,7 @@ export function SellerDashboardPage() {
               <>
             <div aria-label="Shop summary" className="stats-row -mx-3 mb-6 flex snap-x snap-mandatory gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:mb-8 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0 [&>article]:min-w-[min(78vw,17rem)] [&>article]:snap-start sm:[&>article]:min-w-0">
               <StatCard icon="money" label="Delivered revenue" value={formatMoney(totalRevenue)} note="Completed orders" />
-              <StatCard icon="box" label="Active Orders" value={String(activeSellerOrders.length)} note="Seller orders" />
+              <StatCard icon="box" label="Active Orders" value={String(orderSummary.data?.activeOrderCount || 0)} note="Seller orders" />
               <StatCard icon="star" label="Shop Rating" value={`${shop.data?.shop.rating || 0} / 5.0`} note={`${shop.data?.shop.totalReviews || 0} reviews`} />
             </div>
             <section className="-mx-3 rounded-none bg-transparent px-3 shadow-none sm:mx-0 sm:rounded-2xl sm:bg-foose-surface sm:p-4 sm:shadow-sm md:p-6">
@@ -668,71 +685,7 @@ export function SellerDashboardPage() {
           {!!previewSellerOrders.length && (
             <div className="seller-orders space-y-4 [&_article.highlighted]:border-accent [&_article.highlighted]:bg-accent-light">
               {previewSellerOrders.map((order) => (
-                <article className="seller-order-card rounded-xl border border-foose-border bg-foose-surface p-3 sm:p-4" id={`order-${order._id}`} key={order._id}>
-                  <div>
-                    <div className="badge-row flex flex-wrap items-center gap-2">
-                      <Badge tone={order.status === 'disputed' ? 'danger' : order.sellerAction === 'pickup_ready' ? 'warning' : 'accent'}>{orderProgressLabel(order)}</Badge>
-                      <Badge tone={order.paymentStatus === 'paid' ? 'success' : 'warning'}>{order.paymentStatus || 'unpaid'}</Badge>
-                      <Badge>{order.delivery?.method || 'delivery'}</Badge>
-                    </div>
-                    <h3 className="mt-3 break-words font-display text-lg font-semibold text-foose-text">{order.items[0]?.title || 'Order item'}</h3>
-                    <p className="mt-1 text-sm font-black text-accent">
-                      {formatMoney(order.totalAmount, order.currency)}
-                      {order.deliveryFee ? ` incl. ${formatMoney(order.deliveryFee, order.currency)} delivery` : ''}
-                    </p>
-                    <dl className="seller-order-meta grid gap-3 min-[360px]:grid-cols-2 [&_div]:min-w-0 [&_div]:rounded-lg [&_div]:bg-foose-surface-low [&_div]:p-3 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:tracking-widest [&_dt]:text-foose-faint [&_dd]:mt-1 [&_dd]:break-words [&_dd]:text-sm [&_dd]:font-semibold [&_dd]:text-foose-text [&_dd]:[overflow-wrap:anywhere]">
-                      <div>
-                        <dt>Buyer</dt>
-                        <dd>{participantName(order.buyerId, 'Buyer')}</dd>
-                      </div>
-                      <div>
-                        <dt>Contact</dt>
-                        <dd>{participantContact(order.buyerId) || 'No contact saved'}</dd>
-                      </div>
-                      <div>
-                        <dt>Address / pickup</dt>
-                        <dd>{order.delivery?.method === 'delivery' ? orderAddress(order) || 'Address not provided' : orderAddress(order) || 'Pickup details pending'}</dd>
-                      </div>
-                      <div>
-                        <dt>Action deadline</dt>
-                        <dd>{formatDateTime(order.sellerActionDeadline)}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                  <div className="table-actions mt-4 flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                    {['pending', 'paid'].includes(order.status) && (
-                      <button
-                        className="button inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent sm:w-auto"
-                        disabled={orderActionId === `${order._id}-process`}
-                        onClick={() => void updateOrder(order._id, 'process')}
-                        type="button"
-                      >
-                        {orderActionId === `${order._id}-process` ? 'Processing...' : 'Accept'}
-                      </button>
-                    )}
-                    {order.delivery?.method === 'delivery' && ['paid', 'processing'].includes(order.status) && (
-                      <button
-                        className="button inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover sm:w-auto"
-                        disabled={orderActionId === `${order._id}-shipped`}
-                        onClick={() => void updateOrder(order._id, 'shipped')}
-                        type="button"
-                      >
-                        {orderActionId === `${order._id}-shipped` ? 'Sending...' : 'Mark sent'}
-                      </button>
-                    )}
-                    {order.delivery?.method === 'pickup' && order.sellerAction === 'pickup_ready' && <Badge tone="warning">Awaiting pickup</Badge>}
-                    {canSellerMarkPickupReady(order) && (
-                      <button
-                        className="button inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover sm:w-auto"
-                        disabled={orderActionId === `${order._id}-pickup-ready`}
-                        onClick={() => void updateOrder(order._id, 'pickup-ready')}
-                        type="button"
-                      >
-                        {orderActionId === `${order._id}-pickup-ready` ? 'Notifying buyer...' : 'Pickup ready'}
-                      </button>
-                    )}
-                  </div>
-                </article>
+                <OrderWorkflowCard key={order._id} order={order} viewer="seller" />
               ))}
             </div>
           )}

@@ -50,6 +50,7 @@ export type MessagingContextValue = {
   messageReactionEvents: RealtimeReactionEvent[]
   messagesReadEvent: MessagesReadEvent | null
   notificationError: string
+  notificationEvent: Notification | null
   notificationLoading: boolean
   notifications: Notification[]
   refreshSignal: number

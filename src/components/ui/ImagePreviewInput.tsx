@@ -163,26 +163,29 @@ export function ImagePreviewInput({
     setLocalErrors(Array.from(new Set(errors)))
     if (!selected.length) return
 
-    setFiles((currentFiles) => {
-      const nextFiles = [...currentFiles, ...selected].slice(0, Math.max(effectiveLimit - keptImages.length, 0))
-      return publishFiles(nextFiles)
-    })
+    const nextFiles = [...filesRef.current, ...selected].slice(0, Math.max(effectiveLimit - keptImages.length, 0))
+    filesRef.current = nextFiles
+    setFiles(nextFiles)
+    publishFiles(nextFiles)
   }
 
   function removeSelectedFile(idToRemove: string) {
-    setFiles((currentFiles) => {
-      const nextFiles = currentFiles.filter((file) => {
-        if (file.id !== idToRemove) return true
-        URL.revokeObjectURL(file.url)
-        return false
-      })
-      setLocalErrors([])
-      return publishFiles(nextFiles)
+    const nextFiles = filesRef.current.filter((file) => {
+      if (file.id !== idToRemove) return true
+      URL.revokeObjectURL(file.url)
+      return false
     })
+    filesRef.current = nextFiles
+    setFiles(nextFiles)
+    setLocalErrors([])
+    publishFiles(nextFiles)
   }
 
   function reorderSelected(from: number, to: number) {
-    setFiles((currentFiles) => publishFiles(moveItem(currentFiles, from, to)))
+    const nextFiles = moveItem(filesRef.current, from, to)
+    filesRef.current = nextFiles
+    setFiles(nextFiles)
+    publishFiles(nextFiles)
   }
 
   function drop(event: DragEvent<HTMLDivElement>) {

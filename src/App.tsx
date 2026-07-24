@@ -30,6 +30,7 @@ import {
   OpenShopPage,
   OrderConfirmedPage,
   OrderDetailPage,
+  OrderReportPage,
   OrderManagementPage,
   PromotionReturnPage,
   ProfilePage,
@@ -226,6 +227,13 @@ function App() {
       page = (
         <AuthRequired>
           <OrderDetailPage />
+        </AuthRequired>
+      )
+      break
+    case 'orderReport':
+      page = (
+        <AuthRequired>
+          <OrderReportPage />
         </AuthRequired>
       )
       break

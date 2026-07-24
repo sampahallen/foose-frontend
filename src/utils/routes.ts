@@ -34,6 +34,7 @@ export type AppRoute =
   | 'cart'
   | 'checkout'
   | 'orderConfirmed'
+  | 'orderReport'
   | 'orderDetail'
   | 'orderHistory'
   | 'orderManagement'
@@ -117,6 +118,7 @@ export const routeStateRegistry = {
   notFound: { defaultScene: 'detail', family: 'system', supportedLayouts: IMMERSIVE },
   openShop: { defaultScene: 'form', family: 'form', supportedLayouts: PAGE },
   orderConfirmed: { defaultScene: 'spinner', family: 'status', supportedLayouts: IMMERSIVE },
+  orderReport: { defaultScene: 'form', family: 'commerce', supportedLayouts: PAGE },
   orderDetail: { defaultScene: 'detail', family: 'detail', supportedLayouts: PAGE },
   orderHistory: { defaultScene: 'orders', family: 'commerce', supportedLayouts: PAGE },
   orderManagement: { defaultScene: 'orders', family: 'management', supportedLayouts: PAGE },
@@ -172,6 +174,7 @@ export const routeNavigationRegistry = {
   notFound: { kind: 'terminal', label: 'Not found' },
   openShop: { kind: 'nested', label: 'Open a DigiShop', fallback: { href: '/profile', label: 'Profile' } },
   orderConfirmed: { kind: 'terminal', label: 'Order confirmation' },
+  orderReport: { kind: 'nested', label: 'Report order', fallback: { href: '/orders', label: 'Orders' } },
   orderDetail: { kind: 'nested', label: 'Order', fallback: { href: '/orders/history', label: 'Orders' } },
   orderHistory: { kind: 'root', label: 'Orders' },
   orderManagement: { kind: 'root', label: 'Order management' },
@@ -233,6 +236,7 @@ export function resolveRoute(pathname: string, search: string): AppRoute {
   if (pathname.startsWith('/promotions/confirm')) return 'promotionReturn'
   if (pathname.startsWith('/manage-shop/promotions')) return 'listingPromotions'
   if (pathname.startsWith('/manage-shop/drafts')) return 'shopDrafts'
+  if (/^\/orders\/[^/]+\/report/.test(pathname)) return 'orderReport'
   if (/^\/orders\/[^/]+/.test(pathname) && !pathname.startsWith('/orders/history')) return 'orderDetail'
   if (pathname.startsWith('/orders/history')) return 'orderHistory'
   if (pathname.startsWith('/manage-shop/orders/history')) return 'orderHistory'
