@@ -44,8 +44,8 @@ export function TopPicksPage() {
               <p className="mt-1 text-sm text-foose-muted">Listings marked for Top Picks placement</p>
             </div>
             <div className="flex min-w-0 items-center gap-2">
-              <span className="whitespace-nowrap rounded-full bg-accent-light px-3 py-1.5 text-xs font-black text-accent">{listings.total} picks</span>
               <MarketplaceSortControl actionPath="/top-picks" query={query} />
+              <span className="whitespace-nowrap rounded-full bg-accent-light px-3 py-1.5 text-xs font-black text-accent">{listings.total} picks</span>
             </div>
           </div>
           <RefreshIndicator active={listings.refreshing} className="mb-4" label="Refreshing Top Picks" />

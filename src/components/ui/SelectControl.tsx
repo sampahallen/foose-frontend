@@ -22,8 +22,11 @@ type SelectOption = {
 }
 
 export type SelectControlProps = ComponentPropsWithoutRef<'select'> & {
+  leadingIcon?: ReactNode
+  menuMinWidth?: number
   menuZIndex?: number
-  variant?: 'default' | 'filter'
+  triggerLabel?: ReactNode
+  variant?: 'default' | 'filter' | 'sort'
 }
 
 export function DropdownChevron({ className = '', open = false }: { className?: string; open?: boolean }) {
@@ -53,7 +56,7 @@ function selectOptions(children: ReactNode): SelectOption[] {
   })
 }
 
-function menuPosition(button: HTMLButtonElement): CSSProperties {
+function menuPosition(button: HTMLButtonElement, menuMinWidth = 160): CSSProperties {
   const rect = button.getBoundingClientRect()
   const viewportPadding = 8
   const menuGap = 6
@@ -61,7 +64,7 @@ function menuPosition(button: HTMLButtonElement): CSSProperties {
   const aboveSpace = rect.top - viewportPadding
   const opensAbove = belowSpace < 180 && aboveSpace > belowSpace
   const availableSpace = opensAbove ? aboveSpace : belowSpace
-  const width = Math.min(Math.max(rect.width, 160), window.innerWidth - viewportPadding * 2)
+  const width = Math.min(Math.max(rect.width, menuMinWidth), window.innerWidth - viewportPadding * 2)
   const left = Math.min(
     Math.max(rect.left, viewportPadding),
     Math.max(viewportPadding, window.innerWidth - width - viewportPadding),
@@ -107,11 +110,14 @@ function SelectControlState({
   defaultValue,
   disabled = false,
   id,
+  leadingIcon,
+  menuMinWidth = 160,
   menuZIndex = 1200,
   onChange,
   onInvalid,
   options,
   required,
+  triggerLabel,
   value,
   variant = 'default',
   ...nativeProps
@@ -144,7 +150,7 @@ function SelectControlState({
 
   function openMenu() {
     if (disabled || !buttonRef.current) return
-    setPosition(menuPosition(buttonRef.current))
+    setPosition(menuPosition(buttonRef.current, menuMinWidth))
     setActiveIndex(selectedIndex >= 0 ? selectedIndex : nextEnabledOption(options, -1, 1))
     setOpen(true)
   }
@@ -231,7 +237,7 @@ function SelectControlState({
     if (!open) return undefined
 
     function updatePosition() {
-      if (buttonRef.current) setPosition(menuPosition(buttonRef.current))
+      if (buttonRef.current) setPosition(menuPosition(buttonRef.current, menuMinWidth))
     }
 
     function closeOnOutsideClick(event: MouseEvent) {
@@ -254,7 +260,7 @@ function SelectControlState({
       window.removeEventListener('resize', updatePosition)
       window.removeEventListener('scroll', updatePosition, true)
     }
-  }, [open])
+  }, [menuMinWidth, open])
 
   useEffect(() => {
     if (!open || activeIndex < 0) return
@@ -295,6 +301,7 @@ function SelectControlState({
 
   const controlledProps = value === undefined ? { defaultValue: selectedValue } : { value: selectedValue }
   const filterVariant = variant === 'filter'
+  const sortVariant = variant === 'sort'
 
   return (
     <span className="relative block w-full">
@@ -308,7 +315,7 @@ function SelectControlState({
         aria-label={nativeProps['aria-label']}
         aria-labelledby={nativeProps['aria-labelledby']}
         aria-required={required || undefined}
-        className={`flex min-w-0 max-w-full items-center justify-between gap-2.5 rounded-xl border border-foose-border bg-foose-surface px-3 text-left text-base font-semibold outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-foose-surface-low disabled:text-foose-faint disabled:opacity-70 sm:gap-3 sm:text-sm ${selectedValue ? 'text-foose-text' : 'text-foose-faint'} ${filterVariant ? 'min-h-11 border-accent/30 bg-accent-light/30' : 'min-h-11 sm:min-h-12'} ${className}`}
+        className={`flex min-w-0 max-w-full items-center justify-between gap-2.5 rounded-xl border border-foose-border bg-foose-surface px-3 text-left text-base font-semibold outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-foose-surface-low disabled:text-foose-faint disabled:opacity-70 sm:gap-3 sm:text-sm ${selectedValue ? 'text-foose-text' : 'text-foose-faint'} ${filterVariant ? 'min-h-11 border-accent/30 bg-accent-light/30' : sortVariant ? 'min-h-10' : 'min-h-11 sm:min-h-12'} ${className}`}
         disabled={disabled}
         id={buttonId}
         onClick={() => (open ? closeMenu() : openMenu())}
@@ -319,6 +326,7 @@ function SelectControlState({
         type="button"
       >
         <span className="flex min-w-0 items-center gap-2.5">
+          {leadingIcon && <span aria-hidden className="inline-flex shrink-0 text-foose-text">{leadingIcon}</span>}
           {selectedOption?.swatch && (
             <span
               aria-hidden
@@ -327,7 +335,7 @@ function SelectControlState({
               style={{ background: selectedOption.swatch }}
             />
           )}
-          <span className="truncate">{selectedLabel}</span>
+          <span className="truncate">{triggerLabel || selectedLabel}</span>
         </span>
         <span className="inline-flex shrink-0 text-accent">
           <DropdownChevron className="text-[15px]" open={open} />
@@ -351,7 +359,7 @@ function SelectControlState({
 
       {open && position && createPortal(
         <div
-          className="fixed overflow-y-auto overscroll-contain rounded-xl border border-foose-border bg-white p-1 shadow-2xl [scrollbar-width:thin] sm:p-1.5"
+          className={`fixed overflow-y-auto overscroll-contain border border-foose-border bg-white shadow-2xl [scrollbar-width:thin] ${sortVariant ? 'rounded-lg p-1.5' : 'rounded-xl p-1 sm:p-1.5'}`}
           id={listboxId}
           ref={menuRef}
           role="listbox"
@@ -362,7 +370,7 @@ function SelectControlState({
             return (
               <button
                 aria-selected={active}
-                className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold leading-5 transition hover:bg-accent-light hover:text-accent focus:bg-accent-light focus:text-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-45 ${active ? 'bg-accent-light text-accent' : 'text-foose-text'} ${activeIndex === index ? 'bg-accent-light/70' : ''}`}
+                className={`flex w-full items-center justify-between gap-3 text-left text-sm leading-5 transition hover:bg-accent-light hover:text-accent focus:bg-accent-light focus:text-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-45 ${sortVariant ? 'min-h-12 rounded-md px-4 py-2.5 font-medium' : 'min-h-11 rounded-lg px-3 py-2 font-semibold'} ${active ? 'bg-accent-light text-accent' : sortVariant ? 'text-foose-muted' : 'text-foose-text'} ${activeIndex === index ? 'bg-accent-light/70' : ''}`}
                 data-active={activeIndex === index ? 'true' : undefined}
                 disabled={disabled || option.disabled}
                 id={`${listboxId}-${index}`}

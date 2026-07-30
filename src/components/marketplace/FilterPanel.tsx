@@ -187,11 +187,10 @@ export function TopFilterBar({
   const selectedLocation = query.get('location') || ''
   const availableLocationOptions = locationFilterOptions(locationOptions, selectedLocation)
   const sortOptions = [
-    ...(relevanceSort ? [{ label: 'Relevance', value: 'relevance' }] : []),
+    ...(relevanceSort ? [{ label: 'Most relevant', value: 'relevance' }] : []),
     { label: 'Newest', value: 'newest' },
-    { label: 'Price high', value: 'price_desc' },
-    { label: 'Price low', value: 'price_asc' },
-    { label: 'Popular', value: 'popular' },
+    { label: 'High price first', value: 'price_desc' },
+    { label: 'Low price first', value: 'price_asc' },
   ]
 
   const openDrawer = useCallback(() => {

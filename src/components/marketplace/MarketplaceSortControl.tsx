@@ -1,4 +1,5 @@
 import type { ChangeEvent } from 'react'
+import { MdOutlineSort } from 'react-icons/md'
 import { navigateTo } from '../../utils/navigation'
 import { SelectControl } from '../ui/SelectControl'
 
@@ -19,15 +20,18 @@ export function MarketplaceSortControl({
   return (
     <SelectControl
       aria-label="Sort listings"
-      className="h-10 w-[10.5rem] rounded-xl border border-foose-border bg-foose-surface px-3 text-sm font-bold text-foose-text shadow-sm"
+      className="h-10 w-[6.5rem] rounded-lg border border-foose-border bg-foose-surface px-2.5 text-sm font-bold text-foose-text shadow-sm"
+      leadingIcon={<MdOutlineSort className="text-xl" />}
+      menuMinWidth={192}
       onChange={changeSort}
+      triggerLabel="Sort"
       value={query.get('sort') || 'relevance'}
+      variant="sort"
     >
-      <option value="relevance">Relevance</option>
+      <option value="relevance">Most relevant</option>
       <option value="newest">Newest</option>
-      <option value="price_desc">Price high</option>
-      <option value="price_asc">Price low</option>
-      <option value="popular">Popular</option>
+      <option value="price_asc">Low price first</option>
+      <option value="price_desc">High price first</option>
     </SelectControl>
   )
 }

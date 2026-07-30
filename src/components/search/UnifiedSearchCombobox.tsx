@@ -39,6 +39,10 @@ function suggestionHref(suggestion: UnifiedSearchSuggestion) {
   if (suggestion.type === 'hashtag' || suggestion.kind === 'hashtag' || suggestion.hashtag) {
     return `/search?tag=${encodeURIComponent(normalizedTag(suggestion.hashtag || suggestion.label))}&tab=all`
   }
+  if (suggestion.type === 'keyword' || suggestion.kind === 'keyword' || suggestion.keyword) {
+    const keyword = (suggestion.keyword || suggestion.label).trim()
+    return keyword ? `/search?q=${encodeURIComponent(keyword)}&tab=all` : '/search'
+  }
   if (suggestion.href) return suggestion.href
 
   const id = entityId(suggestion)
@@ -54,7 +58,7 @@ function suggestionIcon(type: UnifiedSearchSuggestion['type']) {
   if (type === 'item') return 'bag'
   if (type === 'event') return 'calendar'
   if (type === 'user') return 'user'
-  return type === 'hashtag' ? 'search' : 'grid'
+  return type === 'hashtag' || type === 'keyword' ? 'search' : 'grid'
 }
 
 export function UnifiedSearchCombobox({
@@ -127,7 +131,11 @@ export function UnifiedSearchCombobox({
     }
     requestRef.current?.abort()
     setOpen(false)
-    const opensSearch = suggestion.type === 'hashtag' || suggestion.kind === 'hashtag' || Boolean(suggestion.hashtag)
+    const opensSearch = suggestion.type === 'hashtag'
+      || suggestion.type === 'keyword'
+      || suggestion.kind === 'hashtag'
+      || suggestion.kind === 'keyword'
+      || Boolean(suggestion.hashtag || suggestion.keyword)
     navigateTo(suggestionHref(suggestion), opensSearch ? { state: { unifiedSearchTrack: true } } : undefined)
   }
 
@@ -247,7 +255,7 @@ export function UnifiedSearchCombobox({
                   aria-selected={index === activeIndex}
                   className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${index === activeIndex ? 'bg-accent-light text-accent' : 'hover:bg-foose-surface-low'}`}
                   id={`${listId}-${index}`}
-                  key={`${suggestion.type}:${entityId(suggestion) || suggestion.hashtag || suggestion.label}:${index}`}
+                  key={`${suggestion.type}:${entityId(suggestion) || suggestion.hashtag || suggestion.keyword || suggestion.label}:${index}`}
                   onClick={() => selectSuggestion(suggestion)}
                   onMouseDown={(event) => event.preventDefault()}
                   role="option"
@@ -260,10 +268,16 @@ export function UnifiedSearchCombobox({
                     src={suggestion.imageUrl}
                   />
                   <span className="min-w-0 flex-1">
-                    <strong className="block truncate text-sm">{suggestion.type === 'hashtag' ? `#${normalizedTag(suggestion.hashtag || suggestion.label)}` : suggestion.label}</strong>
+                    <strong className="block truncate text-sm">
+                      {suggestion.type === 'hashtag'
+                        ? `#${normalizedTag(suggestion.hashtag || suggestion.label)}`
+                        : suggestion.type === 'keyword'
+                          ? `Search “${suggestion.keyword || suggestion.label}”`
+                          : suggestion.label}
+                    </strong>
                     {suggestion.subtitle && <small className="block truncate text-xs text-foose-faint">{suggestion.subtitle}</small>}
                   </span>
-                  <span className="rounded-full bg-foose-surface-low px-2 py-1 text-[10px] font-black uppercase text-foose-faint">{suggestion.type}</span>
+                  <span className="rounded-md bg-foose-surface-low px-2.5 py-1 text-[10px] font-black uppercase text-foose-faint">{suggestion.type}</span>
                 </li>
               ))}
             </ul>

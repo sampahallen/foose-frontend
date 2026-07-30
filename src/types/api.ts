@@ -730,11 +730,12 @@ export type UnifiedSearchSuggestion = {
   href?: string
   id?: string
   imageUrl?: string
-  kind?: 'entity' | 'hashtag'
+  keyword?: string
+  kind?: 'entity' | 'hashtag' | 'keyword'
   label: string
   sourceId?: string
   subtitle?: string
-  type: UnifiedSearchResultType | 'hashtag'
+  type: UnifiedSearchResultType | 'hashtag' | 'keyword'
   username?: string
 }
 

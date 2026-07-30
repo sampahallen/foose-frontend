@@ -458,11 +458,11 @@ export function SearchPage() {
 
         {(query || tag) && (
           <>
-            <nav aria-label="Search result types" className="finspo-thin-scrollbar mb-6 flex gap-2 overflow-x-auto border-b border-foose-border pb-2">
+            <nav aria-label="Search result types" className="mb-6 flex w-full overflow-x-auto border-b border-foose-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {tabs.map((tab) => (
                 <a
                   aria-current={scope === tab.scope ? 'page' : undefined}
-                  className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-accent/30 ${scope === tab.scope ? 'bg-accent text-white' : 'bg-foose-surface-low text-foose-muted hover:text-accent'}`}
+                  className={`relative -mb-px inline-flex min-h-12 min-w-[4.5rem] flex-1 items-center justify-center gap-2 border-b-2 px-2 text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent/25 sm:px-4 ${scope === tab.scope ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:border-accent/35 hover:text-accent'}`}
                   href={searchHref(params, tab.scope)}
                   key={tab.scope}
                   onClick={(event) => {
@@ -472,7 +472,7 @@ export function SearchPage() {
                   }}
                 >
                   {tab.label}
-                  {!search.loading && <span className={`${scope === tab.scope ? 'bg-white/20 text-white' : 'bg-foose-surface text-foose-faint'} rounded-full px-2 py-0.5 text-[10px]`}>{search.counts[tab.scope] || 0}</span>}
+                  {!search.loading && <span className={`${scope === tab.scope ? 'bg-accent-light text-accent' : 'bg-foose-surface-low text-foose-faint'} rounded-md px-1.5 py-0.5 text-[10px]`}>{search.counts[tab.scope] || 0}</span>}
                 </a>
               ))}
             </nav>

@@ -66,8 +66,8 @@ export function BrowsePage() {
             <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
               <h1 className="font-display text-xl font-semibold text-foose-text">Marketplace</h1>
               <div className="flex min-w-0 items-center gap-2">
-                <span className="whitespace-nowrap rounded-full bg-accent-light px-3 py-1.5 text-xs font-black text-accent">{resultCount} {activeMode === 'wholesale' ? 'bales' : 'items'}</span>
                 <MarketplaceSortControl actionPath="/browse" query={query} />
+                <span className="whitespace-nowrap rounded-full bg-accent-light px-3 py-1.5 text-xs font-black text-accent">{resultCount} {activeMode === 'wholesale' ? 'bales' : 'items'}</span>
               </div>
             </div>
           )}
