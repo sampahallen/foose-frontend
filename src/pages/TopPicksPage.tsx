@@ -1,10 +1,9 @@
 /* eslint-disable react-hooks/refs -- the infinite-resource hook exposes reactive state through a stable facade */
 import { useCallback, useMemo } from 'react'
-import { AppShell, InlineNotice, ProductCard, RefreshIndicator, SectionHeader, StatePanel, TopFilterBar } from '../components'
+import { AppShell, InlineNotice, MarketplaceFilters, MarketplaceSortControl, ProductCard, RefreshIndicator, StatePanel } from '../components'
 import { AppendFeedback, ProductGridSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { useAuth } from '../hooks/useAuth'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
-import { useScrollRevealBand } from '../hooks/useScrollRevealBand'
 import type { PaginatedListings } from '../types/api'
 import { withoutOwnListings } from '../utils/listingOwnership'
 import { withBasePath } from '../utils/navigation'
@@ -13,6 +12,7 @@ function topPicksPath(page: number, search: string) {
   const query = new URLSearchParams(search)
   if (!query.has('page')) query.set('page', '1')
   if (!query.has('limit')) query.set('limit', '20')
+  if (!query.has('sort')) query.set('sort', 'relevance')
   query.set('page', String(page))
   return `/search/top-picks?${query.toString()}`
 }
@@ -24,7 +24,6 @@ export function TopPicksPage() {
   const buildPath = useCallback((page: number) => topPicksPath(page, search), [search])
   const extractListings = useCallback((data: PaginatedListings) => data.results || [], [])
   const listings = useInfiniteApiResource(buildPath, extractListings, [search])
-  const filterBandVisible = useScrollRevealBand()
   const feedListings = useMemo(() => withoutOwnListings(listings.items, user), [listings.items, user])
 
   return (
@@ -33,12 +32,22 @@ export function TopPicksPage() {
         <h1>Top Picks</h1>
         <p>Promoted finds from Foose sellers, curated into one faster shopping lane.</p>
       </section>
-      <div className={`sticky top-16 z-40 mb-6 transition duration-200 ${filterBandVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-full opacity-0'}`}>
-        <TopFilterBar actionPath="/top-picks" query={query} resultLabel={`${listings.total} picks`} />
+      <div className="mb-6 lg:hidden">
+        <MarketplaceFilters actionPath="/top-picks" key={`mobile-${query.toString()}`} query={query} />
       </div>
-      <div className="browse-layout">
+      <div className="browse-layout grid min-w-0 items-start gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
+        <MarketplaceFilters actionPath="/top-picks" desktopOnly key={`desktop-${query.toString()}`} query={query} />
         <section className="browse-results">
-          <SectionHeader title="Promoted items" eyebrow="Listings marked for Top Picks placement." />
+          <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end">
+            <div className="min-w-0">
+              <h2 className="font-display text-xl font-semibold text-foose-text">Promoted items</h2>
+              <p className="mt-1 text-sm text-foose-muted">Listings marked for Top Picks placement</p>
+            </div>
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="whitespace-nowrap rounded-full bg-accent-light px-3 py-1.5 text-xs font-black text-accent">{listings.total} picks</span>
+              <MarketplaceSortControl actionPath="/top-picks" query={query} />
+            </div>
+          </div>
           <RefreshIndicator active={listings.refreshing} className="mb-4" label="Refreshing Top Picks" />
           {listings.loading && !feedListings.length && <ProductGridSkeleton label="Loading promoted Top Picks" />}
           {listings.error && !feedListings.length && <StatePanel action={<button className="button button-secondary" onClick={listings.refetch} type="button">Try again</button>} body={listings.error} layout="section" title="Top Picks could not load" tone="error" />}
@@ -47,7 +56,7 @@ export function TopPicksPage() {
             <StatePanel action={<a className="button button-secondary" href={withBasePath('/browse')}>Browse the marketplace</a>} body="Top Picks will appear when promoted listings are active." layout="section" title="No Top Picks right now" tone="empty" />
           )}
           {!!feedListings.length && (
-            <div className="masonry grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            <div className="masonry grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4">
               {feedListings.map((listing) => (
                 <ProductCard key={listing._id} listing={listing} />
               ))}

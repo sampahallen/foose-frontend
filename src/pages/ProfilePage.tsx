@@ -8,6 +8,7 @@ import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
+import { scrollRevealStateClass, scrollRevealTransitionClass, useScrollRevealBand } from '../hooks/useScrollRevealBand'
 import { apiDelete, apiPost } from '../lib/api'
 import type { Event, GalleryPost, Listing, PaginatedProfileConnections, PaginatedProfileContent, ProfileConnectionMember, ProfileConnectionType, ProfileContentType, ProfileSummary, Shop } from '../types/api'
 import { authHref } from '../utils/authRedirect'
@@ -428,6 +429,7 @@ function contextualOwnerAction(tab: ProfileTab, shop?: Shop | null) {
 }
 
 export function ProfilePage() {
+  const profileNavVisible = useScrollRevealBand()
   const { status, user } = useAuth()
   const { showToast } = useToast()
   const username = profileUsername()
@@ -578,7 +580,7 @@ export function ProfilePage() {
               <ShopProfilePanel isOwnProfile={isOwnProfile} shop={data.shop} />
             </aside>
             <div className="min-w-0">
-              <nav aria-label="Profile sections" className="sticky top-16 z-30 mb-6 overflow-hidden border-b border-foose-border bg-foose-bg/95 backdrop-blur">
+              <nav aria-label="Profile sections" className={`sticky top-16 z-30 mb-6 overflow-hidden border-b border-foose-border bg-foose-bg/95 backdrop-blur ${scrollRevealTransitionClass} ${scrollRevealStateClass(profileNavVisible)}`}>
                 <div className="grid w-full grid-cols-3 items-center">
               {PROFILE_TABS.map((tab) => {
                 const count = data.contentCounts[tab.value]

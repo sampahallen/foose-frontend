@@ -32,6 +32,13 @@ describe('modern form primitives', () => {
     expect(screen.getByRole('button', { name: 'Save' }).parentElement).toHaveClass('[&_button]:w-full', 'sm:[&_button]:w-auto')
   })
 
+  it('reserves enough input space for a text prefix', () => {
+    render(<TextField defaultValue="245.00" label="Price" prefix="GHS" />)
+
+    expect(screen.getByLabelText('Price')).toHaveClass('!pl-16')
+    expect(screen.getByText('GHS')).toHaveClass('left-4')
+  })
+
   it('can render an accessible field error in the label row', () => {
     render(<TextField error="Enter a valid email" errorPlacement="inline" label="Email" name="email" />)
 

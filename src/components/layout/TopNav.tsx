@@ -3,6 +3,7 @@ import { getAppName } from '../../config/env'
 import { useAuth } from '../../hooks/useAuth'
 import { useCart } from '../../hooks/useCart'
 import { useMessaging } from '../../hooks/useMessaging'
+import { scrollRevealStateClass, scrollRevealTransitionClass, useScrollRevealBand } from '../../hooks/useScrollRevealBand'
 import { authHref, currentRedirectTarget } from '../../utils/authRedirect'
 import { initials } from '../../utils/format'
 import { navigateTo, withBasePath } from '../../utils/navigation'
@@ -24,6 +25,7 @@ export function TopNav({
   const brand = getAppName()
   const { items: cartItems } = useCart()
   const { unreadMessageCount, unreadNotificationCount } = useMessaging()
+  const scrollVisible = useScrollRevealBand()
   const redirectTarget = currentRedirectTarget()
   const shopHref = user?.hasShop ? '/manage-shop' : '/open-shop'
   const shopLabel = user?.hasShop ? 'Manage shop' : 'Open shop'
@@ -67,7 +69,7 @@ export function TopNav({
 
   return (
     <>
-      <header className={`top-nav sticky top-0 z-50 h-16 border-b border-white/20 bg-accent/95 text-white backdrop-blur [&_.icon-button]:text-white [&_.icon-button]:hover:bg-white/15 [&_.icon-button]:hover:text-white ${className}`}>
+      <header className={`top-nav sticky top-0 z-50 h-16 border-b border-white/20 bg-accent/95 text-white backdrop-blur ${scrollRevealTransitionClass} ${scrollRevealStateClass(profileMenuOpen || scrollVisible)} [&_.icon-button]:text-white [&_.icon-button]:hover:bg-white/15 [&_.icon-button]:hover:text-white ${className}`}>
         <div className="nav-inner mx-auto flex h-full w-full max-w-[1280px] items-center justify-between gap-2 px-4 md:px-6 lg:gap-8 max-lg:justify-between">
           <a aria-label={`${brand} home`} className="brand-logo inline-flex min-w-16 items-center font-display text-xl font-bold sm:min-w-20 [&_img]:h-auto [&_img]:w-16 [&_img]:sm:w-20 [&_img]:md:w-[86px]" href={withBasePath('/')}>
             <img src={whiteLogo} alt="" />

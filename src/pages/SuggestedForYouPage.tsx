@@ -3,7 +3,7 @@ import { AppShell, InlineNotice, ProductCard, RefreshIndicator, StatePanel, TopF
 import { AppendFeedback, ProductGridSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { useAuth } from '../hooks/useAuth'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
-import { useScrollRevealBand } from '../hooks/useScrollRevealBand'
+import { scrollRevealStateClass, scrollRevealTransitionClass, useScrollRevealBand } from '../hooks/useScrollRevealBand'
 import type { PaginatedListings } from '../types/api'
 import { withoutOwnListings } from '../utils/listingOwnership'
 import { withBasePath } from '../utils/navigation'
@@ -52,7 +52,7 @@ export function SuggestedForYouPage() {
       <header className="mb-5 border-b border-foose-border pb-4">
         <h1 className="text-2xl font-bold text-foose-text md:text-3xl">Suggested for you</h1>
       </header>
-      <div className={`sticky top-16 z-40 mb-6 space-y-3 bg-foose-bg transition duration-200 ${filterBandVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-full opacity-0'}`}>
+      <div className={`sticky top-16 z-40 mb-6 space-y-3 bg-foose-bg ${scrollRevealTransitionClass} ${scrollRevealStateClass(filterBandVisible)}`}>
         <nav className="flex items-center justify-center border-b border-foose-border bg-foose-bg/95 py-2 backdrop-blur" aria-label="Suggested listing type">
           <div className="flex w-full max-w-md items-center justify-center gap-4 text-sm font-black md:justify-between">
             <a className={`border-b-2 px-4 py-2 transition ${activeMode === 'retail' ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:text-accent'}`} href={modeHref('retail', search)}>
@@ -63,7 +63,7 @@ export function SuggestedForYouPage() {
             </a>
           </div>
         </nav>
-        <TopFilterBar actionPath="/suggested-for-you" hideType locationOptions={listingData?.filters?.locations || []} query={query} resultLabel={`${total} suggested ${activeMode === 'wholesale' ? 'bales' : 'items'}`} />
+        <TopFilterBar actionPath="/suggested-for-you" hideType locationOptions={listingData?.filters?.locations || []} query={query} relevanceSort resultLabel={`${total} suggested ${activeMode === 'wholesale' ? 'bales' : 'items'}`} />
       </div>
       <section>
         <RefreshIndicator active={refreshing} className="mb-4" label="Refreshing personalized suggestions" />

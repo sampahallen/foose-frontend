@@ -17,6 +17,7 @@ import { FaChevronDown, FaChevronUp } from 'react-icons/fa'
 type SelectOption = {
   disabled: boolean
   label: string
+  swatch?: string
   value: string
 }
 
@@ -40,12 +41,13 @@ function nodeText(node: ReactNode): string {
 
 function selectOptions(children: ReactNode): SelectOption[] {
   return Children.toArray(children).flatMap((child) => {
-    if (!isValidElement<ComponentPropsWithoutRef<'option'>>(child) || child.type !== 'option') return []
+    if (!isValidElement<ComponentPropsWithoutRef<'option'> & { 'data-swatch'?: string }>(child) || child.type !== 'option') return []
 
     const label = nodeText(child.props.children).trim()
     return [{
       disabled: Boolean(child.props.disabled),
       label,
+      swatch: child.props['data-swatch'],
       value: child.props.value === undefined ? label : String(child.props.value),
     }]
   })
@@ -93,7 +95,7 @@ function normalizedValue(options: SelectOption[], candidate: unknown) {
 
 export function SelectControl(props: SelectControlProps) {
   const options = selectOptions(props.children)
-  const optionKey = options.map((option) => `${option.value}:${option.label}:${option.disabled}`).join('|')
+  const optionKey = options.map((option) => `${option.value}:${option.label}:${option.disabled}:${option.swatch || ''}`).join('|')
   const resetKey = props.value === undefined ? `${String(props.defaultValue ?? '')}:${optionKey}` : 'controlled'
 
   return <SelectControlState {...props} key={resetKey} options={options} />
@@ -256,7 +258,7 @@ function SelectControlState({
 
   useEffect(() => {
     if (!open || activeIndex < 0) return
-    document.getElementById(`${listboxId}-${activeIndex}`)?.scrollIntoView({ block: 'nearest' })
+    document.getElementById(`${listboxId}-${activeIndex}`)?.scrollIntoView?.({ block: 'nearest' })
   }, [activeIndex, listboxId, open])
 
   useEffect(() => {
@@ -316,7 +318,17 @@ function SelectControlState({
         title={nativeProps.title}
         type="button"
       >
-        <span className="min-w-0 truncate">{selectedLabel}</span>
+        <span className="flex min-w-0 items-center gap-2.5">
+          {selectedOption?.swatch && (
+            <span
+              aria-hidden
+              className="size-5 shrink-0 rounded-full border border-black/15 shadow-sm"
+              data-color-swatch={selectedOption.value}
+              style={{ background: selectedOption.swatch }}
+            />
+          )}
+          <span className="truncate">{selectedLabel}</span>
+        </span>
         <span className="inline-flex shrink-0 text-accent">
           <DropdownChevron className="text-[15px]" open={open} />
         </span>
@@ -362,7 +374,17 @@ function SelectControlState({
                 tabIndex={-1}
                 type="button"
               >
-                <span className="min-w-0 break-words">{option.label}</span>
+                <span className="flex min-w-0 items-center gap-3">
+                  {option.swatch && (
+                    <span
+                      aria-hidden
+                      className="size-6 shrink-0 rounded-full border border-black/15 shadow-sm"
+                      data-color-swatch={option.value}
+                      style={{ background: option.swatch }}
+                    />
+                  )}
+                  <span className="break-words">{option.label}</span>
+                </span>
                 {filterVariant && (
                   <span className={`size-4 shrink-0 rounded border ${active ? 'border-accent bg-accent' : 'border-foose-border bg-white'}`} />
                 )}

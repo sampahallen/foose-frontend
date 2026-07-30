@@ -12,6 +12,7 @@ import type { Listing, PaginatedListings } from '../types/api'
 import { formatMoney, getListingImage, getShop, getShopName, initials, listingMeta } from '../utils/format'
 import { getCurrentAppPathname, navigateBack, navigateTo, withBasePath } from '../utils/navigation'
 import { isActiveTopPick } from '../utils/promotions'
+import { optionLabel } from '../utils/listingTaxonomy'
 
 function currentListingId() {
   return decodeURIComponent(getCurrentAppPathname().replace(/^\/listing\/?/, '')).trim()
@@ -131,7 +132,7 @@ export function RetailDetailPage() {
   const isOwner = Boolean(user?._id && sellerId === user._id)
   const sellerListingsResource = useApiResource<{ listings: Listing[] }>(shopId ? `/listings/shop/${shopId}` : null, Boolean(shopId && !isOwner))
   const relatedListingsResource = useApiResource<PaginatedListings>(
-    listing?.category ? `/search/items?category=${encodeURIComponent(listing.category)}&limit=12&sort=newest` : null,
+    listing?.category ? `/search/items?category=${encodeURIComponent(listing.category)}${listing.subcategory ? `&subcategory=${encodeURIComponent(listing.subcategory)}` : ''}&limit=12&sort=newest` : null,
     Boolean(listing?.category),
   )
   const mainImage = listing ? getListingImage(listing) : undefined
@@ -233,6 +234,16 @@ export function RetailDetailPage() {
                   {listingMeta(listing)}
                   {listing.color ? ` - ${listing.color}` : ''}
                 </p>
+                {!!listing.attributes && Object.keys(listing.attributes).length > 0 && (
+                  <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                    {Object.entries(listing.attributes).filter(([, value]) => Boolean(value)).map(([name, value]) => (
+                      <div className="rounded-lg bg-foose-surface-low px-3 py-2" key={name}>
+                        <dt className="text-xs font-bold text-foose-faint">{optionLabel(name)}</dt>
+                        <dd className="mt-0.5 font-semibold text-foose-text">{optionLabel(String(value))}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
                 {!!listing.hashtags?.length && (
                   <div className="mt-3 flex flex-wrap gap-2" aria-label="Item vibe hashtags">
                     {listing.hashtags.map((tag) => (
@@ -341,7 +352,7 @@ export function RetailDetailPage() {
           </div>
 
           {!isOwner && <ListingBand action={shop?.slug ? `/shops/${shop.slug}` : undefined} error={sellerListingsResource.error} listings={moreFromSeller} loading={sellerListingsResource.initialLoading} retry={sellerListingsResource.refetch} title="More from this seller" />}
-          <ListingBand action={listing.category ? `/browse?category=${encodeURIComponent(listing.category)}` : '/browse'} error={relatedListingsResource.error} listings={youMightLike} loading={relatedListingsResource.initialLoading} retry={relatedListingsResource.refetch} title="You might also like" />
+          <ListingBand action={listing.category ? `/browse?category=${encodeURIComponent(listing.category)}${listing.subcategory ? `&subcategory=${encodeURIComponent(listing.subcategory)}` : ''}` : '/browse'} error={relatedListingsResource.error} listings={youMightLike} loading={relatedListingsResource.initialLoading} retry={relatedListingsResource.refetch} title="You might also like" />
         </>
       )}
     </>

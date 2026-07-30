@@ -122,16 +122,17 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
   const inputId = id || `field-${generatedId}`
   const describedBy = [props['aria-describedby'], fieldDescriptionIds(inputId, hint, error)].filter(Boolean).join(' ') || undefined
   const invalid = Boolean(error) || props['aria-invalid'] === true || props['aria-invalid'] === 'true'
+  const prefixPadding = prefix ? (typeof prefix === 'string' ? '!pl-16' : '!pl-10') : ''
 
   return (
     <FormField error={error} errorPlacement={errorPlacement} hint={hint} htmlFor={inputId} label={label} optional={optional} required={required} className={wrapperClassName}>
       <div className="relative">
-        {prefix && <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-foose-muted">{prefix}</span>}
+        {prefix && <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm font-semibold text-foose-muted">{prefix}</span>}
         <input
           {...props}
           aria-describedby={describedBy}
           aria-invalid={invalid || undefined}
-          className={`${controlBase} ${size === 'compact' ? 'min-h-11 px-3 py-2 text-base sm:text-sm' : 'min-h-11 px-3 py-2.5 text-base sm:min-h-12 sm:px-4 sm:py-3 sm:text-sm'} ${prefix ? 'pl-10' : ''} ${suffix ? 'pr-12' : ''} ${invalid ? 'border-foose-danger bg-foose-danger-bg/15 focus:border-foose-danger focus:ring-foose-danger/15' : 'border-foose-border'} ${className}`}
+          className={`${controlBase} ${size === 'compact' ? 'min-h-11 px-3 py-2 text-base sm:text-sm' : 'min-h-11 px-3 py-2.5 text-base sm:min-h-12 sm:px-4 sm:py-3 sm:text-sm'} ${prefixPadding} ${suffix ? 'pr-12' : ''} ${invalid ? 'border-foose-danger bg-foose-danger-bg/15 focus:border-foose-danger focus:ring-foose-danger/15' : 'border-foose-border'} ${className}`}
           id={inputId}
           ref={ref}
           required={required}

@@ -20,7 +20,7 @@ function queryMatches(listing: Listing, query: URLSearchParams) {
   const search = (query.get('q') || '').trim().toLowerCase()
 
   if (search) {
-    const haystack = [listing.title, listing.brand, listing.category, listing.description, listing.size]
+    const haystack = [listing.title, listing.brand, listing.category, listing.subcategory, listing.description, listing.size]
       .filter(Boolean)
       .join(' ')
       .toLowerCase()
@@ -29,6 +29,7 @@ function queryMatches(listing: Listing, query: URLSearchParams) {
 
   if (query.get('type') && listing.type !== query.get('type')) return false
   if (query.get('category') && listing.category !== query.get('category')) return false
+  if (query.get('subcategory') && listing.subcategory !== query.get('subcategory')) return false
   if (query.get('brand') && listing.brand !== query.get('brand')) return false
   if (query.get('color') && listing.color !== query.get('color')) return false
   if (query.get('condition') && listing.condition !== query.get('condition')) return false

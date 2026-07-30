@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom'
 import { IoFunnelOutline } from 'react-icons/io5'
 import { useFilterDropdownStore } from '../../stores/filterDropdownStore'
 import { GHANA_REGION_OPTIONS } from '../../utils/ghanaRegions'
-import { LISTING_BRANDS, LISTING_CATEGORIES, LISTING_COLORS, LISTING_CONDITIONS } from '../../utils/listingTaxonomy'
+import { LISTING_BRANDS, LISTING_COLORS, LISTING_CONDITIONS, normalizeCategorySelection } from '../../utils/listingTaxonomy'
 import { navigateTo, withBasePath } from '../../utils/navigation'
 import { DropdownChevron, SelectControl } from '../ui/SelectControl'
+import { ListingCategoryPicker } from './ListingCategoryPicker'
+import { PriceRangeFilter } from './PriceRangeFilter'
 
 const dropdownControl =
   'h-12 w-full rounded-xl border border-foose-border bg-white px-3 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
@@ -22,7 +24,7 @@ type TopFilterOption = {
 
 type FilterDrawerState = 'closed' | 'closing' | 'open' | 'opening'
 
-const FILTER_DRAWER_TRANSITION_MS = 200
+const FILTER_DRAWER_TRANSITION_MS = 300
 
 function formQuery(form: HTMLFormElement) {
   const data = new FormData(form)
@@ -39,6 +41,7 @@ function formQuery(form: HTMLFormElement) {
 function filterHref(actionPath: string, query: URLSearchParams, name: string, value: string) {
   const params = new URLSearchParams(query.toString())
   params.delete('page')
+  if (name === 'category') params.delete('subcategory')
 
   if (value) {
     params.set(name, value)
@@ -147,6 +150,7 @@ export function TopFilterBar({
   hideType = false,
   locationOptions = [],
   query = new URLSearchParams(window.location.search),
+  relevanceSort = false,
   resultLabel,
   resultLabelVariant = 'pill',
   showResultLabel = true,
@@ -157,6 +161,7 @@ export function TopFilterBar({
   hideType?: boolean
   locationOptions?: TopFilterOption[]
   query?: URLSearchParams
+  relevanceSort?: boolean
   resultLabel: string
   resultLabelVariant?: 'pill' | 'plain'
   showResultLabel?: boolean
@@ -175,13 +180,14 @@ export function TopFilterBar({
     { label: 'Retail', value: 'retail' },
     { label: 'Wholesale', value: 'wholesale' },
   ]
-  const categoryOptions = LISTING_CATEGORIES.map((category) => ({ label: category.label, value: category.label }))
+  const selectedTaxonomy = normalizeCategorySelection(query.get('category') || '', query.get('subcategory') || '')
   const brandOptions = LISTING_BRANDS.map((brand) => ({ label: brand, value: brand }))
   const colorOptions = LISTING_COLORS.map((color) => ({ label: color.label, swatch: color.hex, value: color.value }))
   const conditionOptions = LISTING_CONDITIONS.map((condition) => ({ label: condition[0].toUpperCase() + condition.slice(1), value: condition }))
   const selectedLocation = query.get('location') || ''
   const availableLocationOptions = locationFilterOptions(locationOptions, selectedLocation)
   const sortOptions = [
+    ...(relevanceSort ? [{ label: 'Relevance', value: 'relevance' }] : []),
     { label: 'Newest', value: 'newest' },
     { label: 'Price high', value: 'price_desc' },
     { label: 'Price low', value: 'price_asc' },
@@ -314,7 +320,7 @@ export function TopFilterBar({
     return (
       <>
       {query.get('q') && <input name="q" type="hidden" value={query.get('q') || ''} />}
-      {(['type', 'category', 'location', 'brand', 'color', 'condition', 'sort'] as const).map((name) => (
+      {(['type', 'category', 'subcategory', 'location', 'brand', 'color', 'condition', 'sort'] as const).map((name) => (
         query.get(name) && !(hideLocation && name === 'location') ? <input key={name} name={name} type="hidden" value={query.get(name) || ''} /> : null
       ))}
       {showResultLabel && (
@@ -327,7 +333,24 @@ export function TopFilterBar({
         </>
       )}
       <label htmlFor={`${idPrefix}-filter-category`}>Category</label>
-      <TopFilterDropdown actionPath={actionPath} className="w-[132px]" name="category" options={categoryOptions} placeholder="Category" query={query} />
+      <div className="w-[190px] shrink-0">
+        <ListingCategoryPicker
+          category={selectedTaxonomy.category}
+          id={`${idPrefix}-filter-category`}
+          onChange={(selection) => {
+            const next = new URLSearchParams(query.toString())
+            next.delete('page')
+            if (selection.category) next.set('category', selection.category)
+            else next.delete('category')
+            if (selection.subcategory) next.set('subcategory', selection.subcategory)
+            else next.delete('subcategory')
+            navigateTo(next.size ? `${actionPath}?${next.toString()}` : actionPath)
+          }}
+          placeholder="Category"
+          subcategory={selectedTaxonomy.subcategory}
+          variant="filter"
+        />
+      </div>
       {!hideLocation && (
         <>
           <label htmlFor={`${idPrefix}-filter-location`}>Location</label>
@@ -344,14 +367,11 @@ export function TopFilterBar({
         <>
           <label htmlFor={`${idPrefix}-filter-size`}>Size</label>
           <input className={`${topInputControl} w-[66px]`} defaultValue={query.get('size') || ''} id={`${idPrefix}-filter-size`} name="size" placeholder="Size" />
-          <label htmlFor={`${idPrefix}-filter-min-price`}>Min price</label>
-          <input className={`${topInputControl} w-[90px]`} defaultValue={query.get('minPrice') || ''} id={`${idPrefix}-filter-min-price`} inputMode="decimal" min="0" name="minPrice" placeholder="Min GHC" type="number" />
-          <label htmlFor={`${idPrefix}-filter-max-price`}>Max price</label>
-          <input className={`${topInputControl} w-[92px]`} defaultValue={query.get('maxPrice') || ''} id={`${idPrefix}-filter-max-price`} inputMode="decimal" min="0" name="maxPrice" placeholder="Max GHC" type="number" />
+          <PriceRangeFilter className="w-[240px] shrink-0" defaultMax={query.get('maxPrice') || ''} defaultMin={query.get('minPrice') || ''} idPrefix={`${idPrefix}-filter-price`} variant="compact" />
         </>
       )}
       <label htmlFor={`${idPrefix}-filter-sort`}>Sort</label>
-      <TopFilterDropdown actionPath={actionPath} className="w-[116px]" name="sort" options={sortOptions} placeholder="Sort" query={query} value={query.get('sort') || 'newest'} />
+      <TopFilterDropdown actionPath={actionPath} className="w-[116px]" name="sort" options={sortOptions} placeholder="Sort" query={query} value={query.get('sort') || (relevanceSort ? 'relevance' : 'newest')} />
       <a className="ml-auto inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-white px-3 text-xs font-black text-accent ring-1 ring-accent/20 transition hover:bg-accent hover:text-white" href={withBasePath(actionPath)}>
         Clear
       </a>
@@ -390,14 +410,14 @@ export function TopFilterBar({
         <div className="fixed inset-0 z-[1000] lg:hidden">
           <button
             aria-label="Close filters"
-            className={`absolute inset-0 bg-black/45 transition-opacity duration-200 motion-reduce:transition-none ${drawerVisible ? 'opacity-100' : 'opacity-0'}`}
+            className={`absolute inset-0 bg-black/45 transition-opacity duration-300 ease-out motion-reduce:transition-none ${drawerVisible ? 'opacity-100' : 'opacity-0'}`}
             onClick={closeDrawer}
             type="button"
           />
           <aside
             aria-labelledby={`${drawerId}-title`}
             aria-modal="true"
-            className={`absolute left-0 top-0 z-10 h-full w-[min(22rem,88vw)] overflow-y-auto bg-foose-surface p-4 shadow-2xl transition-transform duration-200 ease-out motion-reduce:transition-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${drawerVisible ? 'translate-x-0' : '-translate-x-full'}`}
+            className={`absolute left-0 top-0 z-10 h-full w-[min(22rem,88vw)] overflow-y-auto bg-foose-surface p-4 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${drawerVisible ? 'translate-x-0' : '-translate-x-full'}`}
             id={drawerId}
             ref={drawerPanelRef}
             role="dialog"
@@ -434,6 +454,7 @@ export function FilterPanel({
   query?: URLSearchParams
 }) {
   const selectedColor = LISTING_COLORS.find((color) => color.value === query.get('color'))
+  const selectedTaxonomy = normalizeCategorySelection(query.get('category') || '', query.get('subcategory') || '')
   const selectedLocation = query.get('location') || ''
   const availableLocationOptions = locationFilterOptions(locationOptions, selectedLocation)
 
@@ -453,15 +474,22 @@ export function FilterPanel({
       </fieldset>
       <fieldset>
         <legend>Category</legend>
-        <SelectControl className={dropdownControl} defaultValue={query.get('category') || ''} name="category" variant="filter">
-          <option value="">All categories</option>
-          {LISTING_CATEGORIES.map((category) => (
-            <option key={category.label} value={category.label}>
-              {category.label}
-            </option>
-          ))}
-        </SelectControl>
-      </fieldset>
+        <ListingCategoryPicker
+          category={selectedTaxonomy.category}
+          id="legacy-filter-category"
+          onChange={(selection) => {
+            const next = new URLSearchParams(query.toString())
+            if (selection.category) next.set('category', selection.category)
+            else next.delete('category')
+            if (selection.subcategory) next.set('subcategory', selection.subcategory)
+            else next.delete('subcategory')
+            navigateTo(next.size ? `${actionPath}?${next.toString()}` : actionPath)
+          }}
+          placeholder="All categories"
+          subcategory={selectedTaxonomy.subcategory}
+          variant="filter"
+        />
+        </fieldset>
       <fieldset>
         <legend>Location</legend>
         <SelectControl className={dropdownControl} defaultValue={selectedLocation} name="location" variant="filter">
@@ -529,11 +557,7 @@ export function FilterPanel({
           </div>
         </details>
       </fieldset>
-      <fieldset>
-        <legend>Price (GHS)</legend>
-        <input aria-label="Minimum price" defaultValue={query.get('minPrice') || ''} inputMode="decimal" min="0" name="minPrice" placeholder="Min GHC" type="number" />
-        <input aria-label="Maximum price" defaultValue={query.get('maxPrice') || ''} inputMode="decimal" min="0" name="maxPrice" placeholder="Max GHC" type="number" />
-      </fieldset>
+      <PriceRangeFilter defaultMax={query.get('maxPrice') || ''} defaultMin={query.get('minPrice') || ''} idPrefix="legacy-filter-price" />
       <fieldset>
         <legend>Size</legend>
         <input defaultValue={query.get('size') || ''} name="size" placeholder="S, M, XL..." />

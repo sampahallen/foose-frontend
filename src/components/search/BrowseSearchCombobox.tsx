@@ -13,6 +13,7 @@ import { SafeImage } from '../ui/SafeImage'
 const SUGGESTION_FILTERS = [
   'type',
   'category',
+  'subcategory',
   'brand',
   'condition',
   'color',
@@ -21,6 +22,10 @@ const SUGGESTION_FILTERS = [
   'minPrice',
   'maxPrice',
   'location',
+  'material',
+  'fit',
+  'pattern',
+  'baleGrade',
 ] as const
 
 type BrowseChoice =
@@ -231,7 +236,7 @@ export function BrowseSearchCombobox({ className = '', query }: BrowseSearchComb
   return (
     <form
       action={withBasePath('/browse')}
-      className={`relative flex items-center gap-2 rounded-2xl border border-foose-border bg-foose-surface/95 p-2 shadow-sm backdrop-blur ${className}`}
+      className={`relative ${className}`}
       method="get"
       onSubmit={submit}
       ref={rootRef}
@@ -240,51 +245,53 @@ export function BrowseSearchCombobox({ className = '', query }: BrowseSearchComb
       {Array.from(query.entries())
         .filter(([name]) => name !== 'q' && name !== 'page' && name !== 'limit')
         .map(([name, hiddenValue]) => <input key={`${name}:${hiddenValue}`} name={name} type="hidden" value={hiddenValue} />)}
-      <label className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl px-3 focus-within:ring-2 focus-within:ring-accent/20" htmlFor={inputId}>
-        <Icon name="search" size={20} />
-        <span className="sr-only">Search marketplace items</span>
-        <input
-          aria-activedescendant={showDropdown && activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined}
-          aria-autocomplete="list"
-          aria-controls={listId}
-          aria-expanded={showDropdown}
-          aria-label="Search marketplace items"
-          autoComplete="off"
-          className="h-12 min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-foose-text outline-none placeholder:text-foose-faint focus:ring-0"
-          id={inputId}
-          name="q"
-          onChange={(event) => {
-            const nextValue = event.target.value
-            if (!nextValue) {
-              clear()
-              return
-            }
-            const eligible = normalized(nextValue).length >= 2 && normalized(nextValue) !== normalized(submittedValue)
-            requestRef.current?.abort()
-            dismissedRef.current = false
-            setValue(nextValue)
-            setSuggestions([])
-            setError('')
-            setLoading(false)
-            setActiveIndex(-1)
-            setOpen(eligible)
-          }}
-          onFocus={() => {
-            if (!suggestionsEligible) return
-            dismissedRef.current = false
-            setOpen(true)
-            if (!suggestions.length && !loading) setRequestNonce((current) => current + 1)
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="Search clothes, brands and categories"
-          role="combobox"
-          type="search"
-          value={value}
-        />
-      </label>
-      <button className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent/30 max-sm:px-3" type="submit">
-        Search
-      </button>
+      <div className="flex w-full items-center gap-1.5 rounded-2xl border border-foose-border bg-foose-surface/95 p-1.5 shadow-sm backdrop-blur transition-[border-color,box-shadow] duration-200 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
+        <label className="flex min-h-12 min-w-0 flex-1 items-center gap-3 px-3" htmlFor={inputId}>
+          <Icon name="search" size={20} />
+          <span className="sr-only">Search marketplace items</span>
+          <input
+            aria-activedescendant={showDropdown && activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined}
+            aria-autocomplete="list"
+            aria-controls={listId}
+            aria-expanded={showDropdown}
+            aria-label="Search marketplace items"
+            autoComplete="off"
+            className="h-12 min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-foose-text outline-none placeholder:text-foose-faint focus:ring-0"
+            id={inputId}
+            name="q"
+            onChange={(event) => {
+              const nextValue = event.target.value
+              if (!nextValue) {
+                clear()
+                return
+              }
+              const eligible = normalized(nextValue).length >= 2 && normalized(nextValue) !== normalized(submittedValue)
+              requestRef.current?.abort()
+              dismissedRef.current = false
+              setValue(nextValue)
+              setSuggestions([])
+              setError('')
+              setLoading(false)
+              setActiveIndex(-1)
+              setOpen(eligible)
+            }}
+            onFocus={() => {
+              if (!suggestionsEligible) return
+              dismissedRef.current = false
+              setOpen(true)
+              if (!suggestions.length && !loading) setRequestNonce((current) => current + 1)
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="Search clothes, brands and categories"
+            role="combobox"
+            type="search"
+            value={value}
+          />
+        </label>
+        <button className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent/30 max-sm:px-3" type="submit">
+          Search
+        </button>
+      </div>
 
       <span aria-live="polite" className="sr-only" role="status">{liveMessage}</span>
       {showDropdown && (

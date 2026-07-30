@@ -80,7 +80,7 @@ export function UnifiedSearchCombobox({
 
   useEffect(() => {
     const query = value.trim()
-    if (!suggestionsEnabled || query.length < 2) {
+    if (!suggestionsEnabled || !open || query.length < 2) {
       requestRef.current?.abort()
       return undefined
     }
@@ -108,7 +108,7 @@ export function UnifiedSearchCombobox({
       controller.abort()
       if (requestRef.current === controller) requestRef.current = null
     }
-  }, [suggestionsEnabled, value])
+  }, [open, suggestionsEnabled, value])
 
   useEffect(() => {
     function closeOnOutsideClick(event: MouseEvent) {
@@ -131,8 +131,7 @@ export function UnifiedSearchCombobox({
     navigateTo(suggestionHref(suggestion), opensSearch ? { state: { unifiedSearchTrack: true } } : undefined)
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  function submitSearch() {
     if (activeIndex >= 0 && suggestions[activeIndex]) {
       selectSuggestion(suggestions[activeIndex])
       return
@@ -141,6 +140,11 @@ export function UnifiedSearchCombobox({
     requestRef.current?.abort()
     setOpen(false)
     navigateTo(searchHref(value), value.trim() ? { state: { unifiedSearchTrack: true } } : undefined)
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    submitSearch()
   }
 
   function clear() {
@@ -155,6 +159,11 @@ export function UnifiedSearchCombobox({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      submitSearch()
+      return
+    }
     if (event.key === 'Escape') {
       dismissedRef.current = true
       requestRef.current?.abort()
@@ -219,6 +228,13 @@ export function UnifiedSearchCombobox({
             <Icon name="close" size={16} />
           </button>
         )}
+        <button
+          aria-label="Search"
+          className={`inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl px-3 text-xs font-black transition focus:outline-none focus:ring-2 ${dark ? 'bg-white text-accent hover:bg-white/90 focus:ring-white/30' : 'bg-accent text-white hover:bg-accent-hover focus:ring-accent/30'}`}
+          type="submit"
+        >
+          Search
+        </button>
       </label>
       {suggestionsEnabled && open && (suggestions.length > 0 || error) && (
         <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-[120] overflow-hidden rounded-2xl border border-foose-border bg-foose-surface p-1.5 text-foose-text shadow-2xl">

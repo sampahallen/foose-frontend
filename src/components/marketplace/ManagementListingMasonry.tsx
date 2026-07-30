@@ -181,6 +181,7 @@ export function ManagementListingCard({
 
   const metadata = [
     ['Category', readableValue(listing.category)],
+    ['Subcategory', readableValue(listing.subcategory)],
     ['Size', readableValue(listing.size)],
     ['Gender', readableValue(listing.gender)],
     ['Color', readableValue(listing.color)],

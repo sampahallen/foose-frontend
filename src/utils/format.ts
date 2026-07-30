@@ -42,7 +42,7 @@ export function getShopName(listing: Listing) {
 }
 
 export function listingMeta(listing: Listing) {
-  return [listing.category, listing.size, listing.gender].filter(Boolean).join(' - ') || listing.type
+  return [listing.category, listing.subcategory, listing.size, listing.gender].filter(Boolean).join(' - ') || listing.type
 }
 
 export function initials(name?: string) {

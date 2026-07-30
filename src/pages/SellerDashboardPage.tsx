@@ -495,7 +495,7 @@ export function SellerDashboardPage() {
   const soldListings = allListings.filter((listing) => listing.status === 'sold')
   const filteredListings =
     activeListings.filter((listing) => {
-      const haystack = [listing.title, listing.category, listing.brand, listing.type, listing.size, listing.gender, listing.color].filter(Boolean).join(' ').toLowerCase()
+      const haystack = [listing.title, listing.category, listing.subcategory, listing.brand, listing.type, listing.size, listing.gender, listing.color].filter(Boolean).join(' ').toLowerCase()
       const matchesQuery = !listingQuery || haystack.includes(listingQuery.toLowerCase())
       const matchesType = !listingTypeFilter || listing.type === listingTypeFilter
       const createdAt = listing.createdAt ? new Date(listing.createdAt).getTime() : 0

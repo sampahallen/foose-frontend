@@ -148,7 +148,6 @@ export function useUnifiedSearch({ initialSnapshot = null, navigationKey = '', o
 
     try {
       const response = await apiGet<UnifiedSearchResponse>(path, { signal: controller.signal })
-      const imageResult = await preloadImageUrls(response.results.map(resultImage).filter(Boolean), controller.signal)
       if (controller.signal.aborted || generation !== generationRef.current) return
 
       const merged = append
@@ -166,9 +165,12 @@ export function useUnifiedSearch({ initialSnapshot = null, navigationKey = '', o
       setTotal(response.total ?? merged.length)
       setNextCursor(cursorRef.current)
       setHasMore(hasMoreRef.current)
-      setFailedImages((current) => append || preserve
-        ? Array.from(new Set([...current, ...imageResult.failed]))
-        : imageResult.failed)
+      void preloadImageUrls(response.results.map(resultImage).filter(Boolean), controller.signal).then((imageResult) => {
+        if (controller.signal.aborted || generation !== generationRef.current) return
+        setFailedImages((current) => append || preserve
+          ? Array.from(new Set([...current, ...imageResult.failed]))
+          : imageResult.failed)
+      })
     } catch (requestError) {
       if (controller.signal.aborted || generation !== generationRef.current) return
       const message = getErrorMessage(requestError, 'Unable to search Foose right now')

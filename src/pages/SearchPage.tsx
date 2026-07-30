@@ -18,6 +18,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useExploreFeed, type ExploreFeedSnapshot } from '../hooks/useExploreFeed'
 import { useImageBatchReady } from '../hooks/useImageBatchReady'
 import { usePageNavigationSnapshot } from '../hooks/usePageNavigationSnapshot'
+import { scrollRevealStateClass, scrollRevealTransitionClass, useScrollRevealBand } from '../hooks/useScrollRevealBand'
 import { useUnifiedSearch, type UnifiedSearchSnapshot } from '../hooks/useUnifiedSearch'
 import type { Event, GalleryPost, UnifiedSearchResult, UnifiedSearchResultType, UnifiedSearchScope, UnifiedSearchUser } from '../types/api'
 import { eventHostName, eventTimeLabel, eventTypeLabel, isOnlinePopUp } from '../utils/events'
@@ -348,6 +349,7 @@ function ResultsLayout({ children, scope }: { children: ReactNode; scope: Unifie
 }
 
 export function SearchPage() {
+  const searchBarVisible = useScrollRevealBand()
   const searchText = window.location.search
   const params = useMemo(() => new URLSearchParams(searchText), [searchText])
   const scope = activeScope(params.get('tab'))
@@ -438,7 +440,7 @@ export function SearchPage() {
   return (
     <AppShell active="explore" wide>
       <section className="mx-auto w-full max-w-[1500px]">
-        <header className="sticky top-16 z-40 -mx-4 mb-5 border-b border-foose-border bg-foose-bg/95 px-4 py-3 backdrop-blur sm:-mx-5 sm:px-5 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 2xl:-mx-10 2xl:px-10">
+        <header className={`sticky top-16 z-40 -mx-4 mb-5 border-b border-foose-border bg-foose-bg/95 px-4 py-3 backdrop-blur ${scrollRevealTransitionClass} ${scrollRevealStateClass(searchBarVisible)} sm:-mx-5 sm:px-5 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 2xl:-mx-10 2xl:px-10`}>
           <div className="mx-auto flex w-full max-w-4xl items-center gap-3">
             <h1 className="hidden shrink-0 font-display text-xl font-black text-foose-text sm:block md:text-2xl">Explore</h1>
             <UnifiedSearchCombobox
@@ -448,7 +450,6 @@ export function SearchPage() {
               key={`${term}:${term ? 'submitted' : 'explore'}`}
               onClear={term ? clearSearch : undefined}
               placeholder="Search Foose"
-              suggestionsEnabled={!term}
               variant="light"
             />
           </div>

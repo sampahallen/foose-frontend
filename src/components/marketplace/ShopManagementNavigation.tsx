@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { IoReceiptOutline } from 'react-icons/io5'
 import { RiDraftLine } from 'react-icons/ri'
+import { scrollRevealStateClass, scrollRevealTransitionClass, useScrollRevealBand } from '../../hooks/useScrollRevealBand'
 import { withBasePath } from '../../utils/navigation'
 import { Icon } from '../icons/Icon'
 
@@ -85,6 +86,7 @@ export function ShopManagementMobileNav({
   className?: string
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const scrollVisible = useScrollRevealBand()
 
   useLayoutEffect(() => {
     const scroller = scrollRef.current
@@ -99,7 +101,7 @@ export function ShopManagementMobileNav({
   return (
     <nav
       aria-label="Shop management"
-      className={`sticky top-16 z-40 -mx-3 mb-5 border-b border-foose-border/80 bg-foose-bg/95 px-3 py-2 backdrop-blur md:-mx-6 md:px-6 lg:hidden ${className}`}
+      className={`sticky top-16 z-40 -mx-3 mb-5 border-b border-foose-border/80 bg-foose-bg/95 px-3 py-2 backdrop-blur ${scrollRevealTransitionClass} ${scrollRevealStateClass(scrollVisible)} md:-mx-6 md:px-6 lg:hidden ${className}`}
     >
       <div
         className="flex min-w-0 snap-x snap-mandatory scroll-px-3 items-center gap-2 overflow-x-auto overscroll-x-contain pr-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

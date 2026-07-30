@@ -124,11 +124,18 @@ export type Listing = {
   description?: string
   hashtags?: string[]
   category?: string
+  subcategory?: string
   brand?: string
   size?: string
   gender?: 'men' | 'women' | 'unisex' | 'kids'
   condition?: 'excellent' | 'great' | 'good' | 'fair' | 'poor'
   color?: 'beige' | 'black' | 'blue' | 'brown' | 'burgundy' | 'cream' | 'cyan' | 'gold' | 'green' | 'gray' | 'ivory' | 'khaki' | 'multi' | 'navy' | 'olive' | 'orange' | 'pink' | 'purple' | 'red' | 'silver' | 'teal' | 'turquoise' | 'violet' | 'white' | 'yellow'
+  attributes?: {
+    material?: 'cotton' | 'denim' | 'leather' | 'faux-leather' | 'wool' | 'polyester' | 'linen' | 'silk' | 'canvas' | 'rubber' | 'metal' | 'wood' | 'mixed' | 'other'
+    fit?: 'slim' | 'regular' | 'relaxed' | 'oversized' | 'tailored'
+    pattern?: 'solid' | 'striped' | 'checked' | 'floral' | 'graphic' | 'animal' | 'geometric' | 'traditional-print' | 'other'
+    baleGrade?: 'premium' | 'grade-a' | 'grade-b' | 'mixed'
+  }
   type: 'retail' | 'wholesale'
   price: number
   currency?: string

@@ -40,7 +40,7 @@ export function ShopDraftListingsPage() {
   const draftListings = (drafts.data?.listings || []).filter((listing) => listing.status === 'draft')
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const filteredDrafts = draftListings.filter((listing) => {
-    const haystack = [listing.title, listing.category, listing.brand, listing.type, listing.size, listing.gender, listing.color]
+    const haystack = [listing.title, listing.category, listing.subcategory, listing.brand, listing.type, listing.size, listing.gender, listing.color]
       .filter(Boolean)
       .join(' ')
       .toLocaleLowerCase()

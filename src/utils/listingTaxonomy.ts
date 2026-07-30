@@ -1,108 +1,97 @@
+export type ListingCategoryField =
+  | 'brand'
+  | 'size'
+  | 'gender'
+  | 'material'
+  | 'fit'
+  | 'pattern'
+  | 'baleGrade'
+
 export type ListingCategory = {
+  fields: ListingCategoryField[]
   label: string
-  sizePlaceholder: string
+  subcategories: string[]
 }
 
+const CLOTHING_FIELDS: ListingCategoryField[] = ['brand', 'size', 'gender', 'material', 'fit']
+const FOOTWEAR_FIELDS: ListingCategoryField[] = ['brand', 'size', 'gender', 'material']
+const BAG_FIELDS: ListingCategoryField[] = ['brand', 'size', 'material']
+
 export const LISTING_CATEGORIES: ListingCategory[] = [
-  { label: 'Outerwear', sizePlaceholder: 'XS, S, M, L, XL, XXL' },
-  { label: 'T-Shirts', sizePlaceholder: 'XS, S, M, L, XL, XXL' },
-  { label: 'Shirts', sizePlaceholder: 'Collar 15, 16, M, L, XL' },
-  { label: 'Hoodies & Sweatshirts', sizePlaceholder: 'S, M, L, XL, XXL' },
-  { label: 'Sweaters & Knits', sizePlaceholder: 'S, M, L, XL' },
-  { label: 'Dresses', sizePlaceholder: 'UK 6, UK 8, UK 10, UK 12' },
-  { label: 'Skirts', sizePlaceholder: 'Waist 26, 28, 30 or S, M, L' },
-  { label: 'Jeans', sizePlaceholder: 'W28 L30, W32 L32' },
-  { label: 'Trousers', sizePlaceholder: 'W30, W32, W34 or S, M, L' },
-  { label: 'Shorts', sizePlaceholder: 'S, M, L or W30' },
-  { label: 'Sneakers', sizePlaceholder: 'UK 6, UK 7, UK 8, UK 9' },
-  { label: 'Boots', sizePlaceholder: 'UK 6, UK 7, UK 8, UK 9' },
-  { label: 'Sandals & Slides', sizePlaceholder: 'UK 5, UK 6, UK 7, UK 8' },
-  { label: 'Bags', sizePlaceholder: 'Mini, Small, Medium, Large' },
-  { label: 'Hats & Caps', sizePlaceholder: 'One size, 56cm, 58cm' },
-  { label: 'Belts', sizePlaceholder: '30, 32, 34, 36 or S, M, L' },
-  { label: 'Jewelry & Watches', sizePlaceholder: 'One size, ring 7, 18cm' },
-  { label: 'Sunglasses', sizePlaceholder: 'One size' },
-  { label: 'Sportswear', sizePlaceholder: 'S, M, L, XL or UK shoe size' },
-  { label: 'Traditional & Prints', sizePlaceholder: 'S, M, L, custom measurements' },
-  { label: 'Workwear', sizePlaceholder: 'S, M, L, XL or waist size' },
-  { label: 'Designer', sizePlaceholder: 'Brand size, EU/UK size, or measurements' },
-  { label: 'Vintage', sizePlaceholder: 'Tagged size plus measurements' },
-  { label: 'Kids', sizePlaceholder: 'Age 2-3, 4-5, 6-7, 8-9' },
-  { label: 'Accessories', sizePlaceholder: 'One size or dimensions' },
-  { label: 'Wholesale Bales', sizePlaceholder: 'Bale count, grade, or pieces per bale' },
-  { label: 'Fabric & Textiles', sizePlaceholder: 'Yards, meters, roll size' },
-  { label: 'Other', sizePlaceholder: 'Size, fit, or measurements' },
+  {
+    fields: CLOTHING_FIELDS,
+    label: 'Clothing',
+    subcategories: ['Outerwear', 'Tops & Shirts', 'Hoodies & Sweatshirts', 'Sweaters & Knits', 'Dresses', 'Skirts', 'Jeans', 'Trousers & Shorts', 'Sportswear', 'Workwear', 'Other Clothing'],
+  },
+  {
+    fields: FOOTWEAR_FIELDS,
+    label: 'Footwear',
+    subcategories: ['Sneakers', 'Boots', 'Sandals & Slides', 'Other Footwear'],
+  },
+  {
+    fields: BAG_FIELDS,
+    label: 'Bags',
+    subcategories: ['Handbags', 'Backpacks', 'Totes', 'Crossbody & Shoulder Bags', 'Travel Bags', 'Other Bags'],
+  },
+  {
+    fields: BAG_FIELDS,
+    label: 'Accessories',
+    subcategories: ['Hats & Caps', 'Belts', 'Jewelry & Watches', 'Sunglasses', 'Other Accessories'],
+  },
+  {
+    fields: ['size', 'gender', 'material', 'pattern'],
+    label: 'Traditional & Fabrics',
+    subcategories: ['Traditional Wear & Prints', 'Fabric & Textiles'],
+  },
+  {
+    fields: ['brand', 'size', 'gender', 'material'],
+    label: 'Other',
+    subcategories: [],
+  },
 ]
 
+export const LEGACY_CATEGORY_MAP: Record<string, [string, string]> = {
+  Outerwear: ['Clothing', 'Outerwear'],
+  'T-Shirts': ['Clothing', 'Tops & Shirts'],
+  Shirts: ['Clothing', 'Tops & Shirts'],
+  'Hoodies & Sweatshirts': ['Clothing', 'Hoodies & Sweatshirts'],
+  'Sweaters & Knits': ['Clothing', 'Sweaters & Knits'],
+  Dresses: ['Clothing', 'Dresses'],
+  Skirts: ['Clothing', 'Skirts'],
+  Jeans: ['Clothing', 'Jeans'],
+  Trousers: ['Clothing', 'Trousers & Shorts'],
+  Shorts: ['Clothing', 'Trousers & Shorts'],
+  Sportswear: ['Clothing', 'Sportswear'],
+  Workwear: ['Clothing', 'Workwear'],
+  Kids: ['Clothing', 'Other Clothing'],
+  Sneakers: ['Footwear', 'Sneakers'],
+  Boots: ['Footwear', 'Boots'],
+  'Sandals & Slides': ['Footwear', 'Sandals & Slides'],
+  Bags: ['Bags', 'Other Bags'],
+  'Hats & Caps': ['Accessories', 'Hats & Caps'],
+  Belts: ['Accessories', 'Belts'],
+  'Jewelry & Watches': ['Accessories', 'Jewelry & Watches'],
+  Sunglasses: ['Accessories', 'Sunglasses'],
+  Accessories: ['Accessories', 'Other Accessories'],
+  'Traditional & Prints': ['Traditional & Fabrics', 'Traditional Wear & Prints'],
+  'Fabric & Textiles': ['Traditional & Fabrics', 'Fabric & Textiles'],
+  Vintage: ['Other', ''],
+  Designer: ['Other', ''],
+  'Wholesale Bales': ['Other', ''],
+}
+
 export const LISTING_BRANDS = [
-  'Adidas',
-  'Air Jordan',
-  'ASOS',
-  'BAPE',
-  'Bershka',
-  'Birkenstock',
-  'Boohoo',
-  'Burberry',
-  'Calvin Klein',
-  'Carhartt',
-  'Chanel',
-  'Champion',
-  'Clarks',
-  'Columbia',
-  'Converse',
-  'COS',
-  'Crocs',
-  'Da Viva',
-  'Diesel',
-  'Dickies',
-  'Dior',
-  'Dr. Martens',
-  'Fendi',
-  'Fila',
-  'Forever 21',
-  'Gap',
-  'GTP',
-  'Gucci',
-  'H&M',
-  'Hermes',
-  'Hugo Boss',
-  'Jordan',
-  'Lacoste',
-  'Lee',
-  "Levi's",
-  'Louis Vuitton',
-  'Mango',
-  'Massimo Dutti',
-  'New Balance',
-  'Next',
-  'Nike',
-  'Old Navy',
-  'Palace',
-  'Patagonia',
-  'Polo Ralph Lauren',
-  'Prada',
-  'Primark',
-  'Pull&Bear',
-  'Puma',
-  'Reebok',
-  'River Island',
-  'Saint Laurent',
-  'Shein',
-  'Skechers',
-  'Stussy',
-  'Supreme',
-  'The North Face',
-  'Timberland',
-  'Tommy Hilfiger',
-  'Under Armour',
-  'Unbranded',
-  'Uniqlo',
-  'Vans',
-  'Versace',
-  'Vlisco',
-  'Woodin',
-  'Wrangler',
-  'Zara',
+  'Adidas', 'Air Jordan', 'ASOS', 'BAPE', 'Bershka', 'Birkenstock', 'Boohoo',
+  'Burberry', 'Calvin Klein', 'Carhartt', 'Chanel', 'Champion', 'Clarks',
+  'Columbia', 'Converse', 'COS', 'Crocs', 'Da Viva', 'Diesel', 'Dickies',
+  'Dior', 'Dr. Martens', 'Fendi', 'Fila', 'Forever 21', 'Gap', 'GTP', 'Gucci',
+  'H&M', 'Hermes', 'Hugo Boss', 'Jordan', 'Lacoste', 'Lee', "Levi's",
+  'Louis Vuitton', 'Mango', 'Massimo Dutti', 'New Balance', 'Next', 'Nike',
+  'Old Navy', 'Palace', 'Patagonia', 'Polo Ralph Lauren', 'Prada', 'Primark',
+  'Pull&Bear', 'Puma', 'Reebok', 'River Island', 'Saint Laurent', 'Shein',
+  'Skechers', 'Stussy', 'Supreme', 'The North Face', 'Timberland',
+  'Tommy Hilfiger', 'Under Armour', 'Unbranded', 'Uniqlo', 'Vans', 'Versace',
+  'Vlisco', 'Woodin', 'Wrangler', 'Zara',
 ]
 
 export const LISTING_CONDITIONS = ['excellent', 'great', 'good', 'fair', 'poor'] as const
@@ -137,6 +126,79 @@ export const LISTING_COLORS = [
 
 export type ListingColor = (typeof LISTING_COLORS)[number]['value']
 
-export function sizePlaceholderForCategory(category?: string) {
-  return LISTING_CATEGORIES.find((item) => item.label === category)?.sizePlaceholder || 'M, L, XL, W32, UK 8...'
+export const LISTING_MATERIALS = [
+  'cotton', 'denim', 'leather', 'faux-leather', 'wool', 'polyester', 'linen',
+  'silk', 'canvas', 'rubber', 'metal', 'wood', 'mixed', 'other',
+] as const
+export const LISTING_FITS = ['slim', 'regular', 'relaxed', 'oversized', 'tailored'] as const
+export const LISTING_PATTERNS = ['solid', 'striped', 'checked', 'floral', 'graphic', 'animal', 'geometric', 'traditional-print', 'other'] as const
+export const LISTING_BALE_GRADES = ['premium', 'grade-a', 'grade-b', 'mixed'] as const
+export const LISTING_FOOTWEAR_SIZES = Array.from({ length: 31 }, (_, index) => `EU ${index + 20}`)
+
+export type ListingAttributes = {
+  material?: (typeof LISTING_MATERIALS)[number]
+  fit?: (typeof LISTING_FITS)[number]
+  pattern?: (typeof LISTING_PATTERNS)[number]
+  baleGrade?: (typeof LISTING_BALE_GRADES)[number]
+}
+
+export function normalizeCategorySelection(category?: string, subcategory?: string) {
+  const legacy = category ? LEGACY_CATEGORY_MAP[category] : undefined
+  const normalizedCategory = legacy?.[0] || category || ''
+  const requestedSubcategory = legacy?.[1] || subcategory || ''
+  const definition = listingCategory(normalizedCategory)
+  return {
+    category: definition ? normalizedCategory : '',
+    subcategory: definition?.subcategories.includes(requestedSubcategory) ? requestedSubcategory : '',
+  }
+}
+
+export function listingCategory(category?: string) {
+  return LISTING_CATEGORIES.find((item) => item.label === category)
+}
+
+export function subcategoriesForCategory(category?: string) {
+  return listingCategory(category)?.subcategories || []
+}
+
+export function fieldsForCategory(category?: string, subcategory?: string, type?: string) {
+  let fields = listingCategory(category)?.fields || []
+  if (category === 'Accessories' && ['Jewelry & Watches', 'Sunglasses'].includes(subcategory || '')) {
+    fields = ['brand', 'material'] as ListingCategoryField[]
+  }
+  if (category === 'Traditional & Fabrics' && subcategory === 'Fabric & Textiles') {
+    fields = ['size', 'material', 'pattern'] as ListingCategoryField[]
+  }
+  if (type === 'wholesale') fields = [...new Set<ListingCategoryField>([...fields, 'baleGrade'])]
+  return fields
+}
+
+export function categoryUsesField(category: string | undefined, field: ListingCategoryField, subcategory?: string, type?: string) {
+  return fieldsForCategory(category, subcategory, type).includes(field)
+}
+
+export function optionLabel(value: string) {
+  return value.replace(/([a-z])([A-Z])/g, '$1 $2').split('-')
+    .map((part) => part[0]?.toUpperCase() + part.slice(1)).join(' ')
+}
+
+export function pruneListingAttributes(category: string | undefined, attributes: ListingAttributes = {}, subcategory?: string, type?: string) {
+  const fields = fieldsForCategory(category, subcategory, type)
+  return Object.fromEntries(
+    Object.entries(attributes).filter(([key, value]) => Boolean(value) && fields.includes(key as ListingCategoryField)),
+  ) as ListingAttributes
+}
+
+export function sizePlaceholderForCategory(category?: string, subcategory?: string) {
+  if (category === 'Footwear') return 'EU 35, EU 36, EU 37...'
+  if (subcategory === 'Fabric & Textiles') return 'Yards, meters, roll size'
+  if (category === 'Bags') return 'Mini, Small, Medium, Large'
+  if (category === 'Accessories') return 'One size or dimensions'
+  if (category === 'Clothing') return 'XS, S, M, L, XL, waist or measurements'
+  return 'Size, fit, or measurements'
+}
+
+export function sizeLabelForCategory(_category?: string, subcategory?: string) {
+  if (_category === 'Footwear') return 'Footwear size (EU)'
+  return subcategory === 'Fabric & Textiles' ? 'Length or dimensions' : 'Size'
 }

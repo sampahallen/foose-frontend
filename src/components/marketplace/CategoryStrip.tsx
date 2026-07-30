@@ -15,6 +15,7 @@ export function CategoryStrip({
     } else {
       nextQuery.delete('category')
     }
+    nextQuery.delete('subcategory')
     nextQuery.set('page', '1')
 
     const queryString = nextQuery.toString()

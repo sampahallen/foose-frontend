@@ -1,5 +1,6 @@
 import { useAuth } from '../../hooks/useAuth'
 import { useMessaging } from '../../hooks/useMessaging'
+import { scrollRevealStateClass, scrollRevealTransitionClass, useScrollRevealBand } from '../../hooks/useScrollRevealBand'
 import { authHref } from '../../utils/authRedirect'
 import { withBasePath } from '../../utils/navigation'
 import { Icon } from '../icons/Icon'
@@ -7,11 +8,12 @@ import { Icon } from '../icons/Icon'
 export function BottomTabs({ active }: { active?: 'home' | 'browse' | 'cart' | 'community' | 'explore' | 'inbox' | 'profile' | 'saved' | 'shop' }) {
   const { status, user } = useAuth()
   const { unreadMessageCount, unreadNotificationCount } = useMessaging()
+  const scrollVisible = useScrollRevealBand()
   const guardedHref = (target: string) => (user || status === 'checking' ? withBasePath(target) : authHref('/login', target))
   const hasSystemNotificationDot = unreadMessageCount === 0 && unreadNotificationCount > 0
 
   return (
-    <nav className="bottom-tabs fixed inset-x-0 bottom-0 z-50 grid min-h-[var(--foose-bottom-nav-inset)] grid-cols-5 gap-1 border-t border-foose-border bg-foose-surface/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 text-[10px] font-semibold shadow-[0_-8px_24px_rgba(15,16,32,0.08)] backdrop-blur min-[360px]:text-xs lg:hidden [&_a]:flex [&_a]:min-h-12 [&_a]:min-w-0 [&_a]:flex-col [&_a]:items-center [&_a]:gap-1 [&_a]:rounded-lg [&_a]:px-1 [&_a]:py-1.5 [&_a]:text-foose-faint [&_a.active]:bg-accent [&_a.active]:text-white" aria-label="Mobile navigation">
+    <nav className={`bottom-tabs fixed inset-x-0 bottom-0 z-50 grid min-h-[var(--foose-bottom-nav-inset)] grid-cols-5 gap-1 border-t border-foose-border bg-foose-surface/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 text-[10px] font-semibold shadow-[0_-8px_24px_rgba(15,16,32,0.08)] backdrop-blur ${scrollRevealTransitionClass} ${scrollRevealStateClass(scrollVisible, 'down')} min-[360px]:text-xs lg:hidden [&_a]:flex [&_a]:min-h-12 [&_a]:min-w-0 [&_a]:flex-col [&_a]:items-center [&_a]:gap-1 [&_a]:rounded-lg [&_a]:px-1 [&_a]:py-1.5 [&_a]:text-foose-faint [&_a.active]:bg-accent [&_a.active]:text-white`} aria-label="Mobile navigation">
       <a className={active === 'home' ? 'active' : ''} href={withBasePath('/')}>
         <Icon name="store" />
         Home
