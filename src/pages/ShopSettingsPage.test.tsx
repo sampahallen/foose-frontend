@@ -1,29 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ToastProvider } from '../components/feedback/ToastProvider'
-import { useApiResource } from '../hooks/useApiResource'
-import { SellerDashboardPage } from './SellerDashboardPage'
+import { ShopSettingsPage } from './ShopSettingsPage'
 
 const mocks = vi.hoisted(() => ({
   apiPut: vi.fn(),
-  activeListing: {
-    _id: 'active-1',
-    category: 'denim',
-    color: 'blue',
-    currency: 'GHS',
-    gender: 'women',
-    images: ['active.jpg'],
-    price: 12000,
-    size: 'M',
-    status: 'active',
-    title: 'Active denim jacket',
-    type: 'retail',
-  },
 }))
 
 vi.mock('../lib/api', () => ({
-  apiDelete: vi.fn(),
   apiPut: mocks.apiPut,
 }))
 
@@ -45,66 +29,24 @@ vi.mock('../hooks/useAuth', () => ({
 }))
 
 vi.mock('../hooks/useApiResource', () => ({
-  useApiResource: vi.fn((path: string) => {
-    const base = {
-      error: '', errorMeta: null, initialLoading: false, loading: false, refetch: vi.fn(), refreshing: false,
-    }
-    if (path === '/digishops/me') return { ...base, data: { shop: { _id: 'shop-1', payoutMethod: { accountName: 'Mobile Owner', accountNumber: '0240000000', provider: 'MTN', type: 'mobile_money' }, shopName: 'Seller Shop', slug: 'seller-shop' } } }
-    if (path === '/orders/me/selling?bucket=active&limit=3&sort=urgency') return { ...base, data: { orders: [] } }
-    if (path === '/orders/me/selling?limit=100&sort=newest') return { ...base, data: { orders: [] } }
-    if (path === '/orders/me/selling/summary') return { ...base, data: { activeOrderCount: 7, releasedRevenue: 45678 } }
-    if (path === '/listings/me?status=active') return { ...base, data: { listings: [mocks.activeListing] } }
-    return { ...base, data: { listings: [] } }
+  useApiResource: () => ({
+    data: { shop: { _id: 'shop-1', payoutMethod: { accountName: 'Mobile Owner', accountNumber: '0240000000', provider: 'MTN', type: 'mobile_money' }, shopName: 'Seller Shop', slug: 'seller-shop' } },
+    error: '',
+    errorMeta: null,
+    initialLoading: false,
+    loading: false,
+    refetch: vi.fn(),
+    refreshing: false,
   }),
 }))
 
-describe('SellerDashboardPage listing separation', () => {
+describe('ShopSettingsPage', () => {
   beforeEach(() => {
     mocks.apiPut.mockReset().mockResolvedValue({ shop: { _id: 'shop-1' } })
-    vi.mocked(useApiResource).mockClear()
-    HTMLElement.prototype.scrollIntoView = vi.fn()
-    window.history.replaceState({}, '', '/manage-shop/listings')
-  })
-
-  it('loads only active inventory, has no status filter, and shows full card details', () => {
-    render(<ToastProvider><SellerDashboardPage /></ToastProvider>)
-
-    expect(useApiResource).toHaveBeenCalledWith('/listings/me?status=active', true)
-    expect(screen.queryByRole('combobox', { name: /status/i })).not.toBeInTheDocument()
-    expect(screen.getByText('Active denim jacket')).toBeVisible()
-    for (const value of ['GHS 120.00', 'Denim', 'M', 'Women', 'Blue']) {
-      expect(screen.getByText(value)).toBeVisible()
-    }
-    expect(screen.getAllByRole('link', { name: 'Drafts' })).not.toHaveLength(0)
-    screen.getAllByRole('link', { name: 'Drafts' }).forEach((link) => {
-      expect(link).toHaveAttribute('href', '/manage-shop/drafts')
-    })
-  })
-
-  it('loads an urgency-sorted active preview and exact seller summary on overview', () => {
-    window.history.replaceState({}, '', '/manage-shop')
-    render(<ToastProvider><SellerDashboardPage /></ToastProvider>)
-
-    expect(useApiResource).toHaveBeenCalledWith(
-      '/orders/me/selling?bucket=active&limit=3&sort=urgency',
-      true,
-    )
-    expect(useApiResource).toHaveBeenCalledWith('/orders/me/selling/summary', true)
-    expect(screen.getByText('GHS 456.78')).toBeVisible()
-    expect(screen.getByText('7')).toBeVisible()
-  })
-
-  it('keeps a broader order query for matching sold listings to their orders', () => {
-    window.history.replaceState({}, '', '/manage-shop/sold')
-    render(<ToastProvider><SellerDashboardPage /></ToastProvider>)
-
-    expect(useApiResource).toHaveBeenCalledWith('/orders/me/selling?limit=100&sort=newest', true)
-    expect(useApiResource).toHaveBeenCalledWith('/orders/me/selling/summary', false)
   })
 
   it('switches the payout fields and saves the section from its header action', async () => {
-    window.history.replaceState({}, '', '/manage-shop/settings')
-    render(<ToastProvider><SellerDashboardPage /></ToastProvider>)
+    render(<ShopSettingsPage />)
 
     const payoutSection = screen.getByRole('heading', { name: 'Funds collection method' }).closest('section')
     expect(payoutSection).not.toBeNull()
@@ -150,21 +92,8 @@ describe('SellerDashboardPage listing separation', () => {
     await waitFor(() => expect(within(payoutSection!).getByRole('button', { name: 'Edit Funds collection method' })).toBeEnabled())
   })
 
-  it('routes the settings navigation to the selected page section', () => {
-    window.history.replaceState({}, '', '/manage-shop/settings')
-    render(<ToastProvider><SellerDashboardPage /></ToastProvider>)
-
-    const section = document.getElementById('shop-payout')
-    const settingsNavigation = screen.getByRole('navigation', { name: 'Shop settings sections' })
-    fireEvent.click(within(settingsNavigation).getByRole('link', { name: 'Payout' }))
-
-    expect(window.location.hash).toBe('#shop-payout')
-    expect(section?.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
-  })
-
   it('previews the public shop brand layout and opens ratio-specific asset editors', () => {
-    window.history.replaceState({}, '', '/manage-shop/settings')
-    render(<ToastProvider><SellerDashboardPage /></ToastProvider>)
+    render(<ShopSettingsPage />)
 
     const preview = screen.getByTestId('shop-brand-preview')
     expect(within(preview).getByText('Seller Shop')).toBeVisible()

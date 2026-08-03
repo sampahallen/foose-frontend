@@ -156,6 +156,13 @@ export type Listing = {
   updatedAt?: string
 }
 
+export type MyListingsResponse = {
+  listings: Listing[]
+  page: number
+  pages: number
+  total: number
+}
+
 export type HashtagSuggestion = {
   name: string
   hashtag: string

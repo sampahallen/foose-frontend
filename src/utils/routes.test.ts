@@ -9,7 +9,7 @@ const allRoutes: AppRoute[] = [
   'communityFinspoDetail', 'communityFinspoForm', 'saved', 'accountSettings', 'profileSettings',
   'profile', 'inbox', 'cart', 'checkout', 'orderConfirmed', 'orderReport', 'orderDetail', 'orderHistory',
   'orderManagement', 'promotionReturn', 'listingPromotions', 'kyc', 'openShop', 'wallet',
-  'manageShop', 'shopDrafts', 'home', 'notFound',
+  'manageShop', 'shopDrafts', 'sellerListings', 'sellerSold', 'shopSettings', 'home', 'notFound',
 ]
 
 describe('route feedback registry', () => {
@@ -33,6 +33,12 @@ describe('route feedback registry', () => {
 
   it('resolves listing drafts to their dedicated management page', () => {
     expect(resolveRoute('/manage-shop/drafts', '')).toBe('shopDrafts')
+  })
+
+  it('resolves seller listings, sold items, and settings to their dedicated management pages', () => {
+    expect(resolveRoute('/manage-shop/listings', '')).toBe('sellerListings')
+    expect(resolveRoute('/manage-shop/sold', '')).toBe('sellerSold')
+    expect(resolveRoute('/manage-shop/settings', '')).toBe('shopSettings')
   })
 
   it('resolves the guided order report before the generic order detail route', () => {

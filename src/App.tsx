@@ -41,8 +41,11 @@ import {
   RetailDetailPage,
   SavedPage,
   SearchPage,
-  SellerDashboardPage,
+  SellerOverviewPage,
+  SellerListingsPage,
+  SellerSoldListingsPage,
   ShopDraftListingsPage,
+  ShopSettingsPage,
   ShopPage,
   SuggestedForYouPage,
   TopPicksPage,
@@ -283,7 +286,21 @@ function App() {
     case 'manageShop':
       page = (
         <AuthRequired>
-          <SellerDashboardPage />
+          <SellerOverviewPage />
+        </AuthRequired>
+      )
+      break
+    case 'sellerListings':
+      page = (
+        <AuthRequired>
+          <SellerListingsPage />
+        </AuthRequired>
+      )
+      break
+    case 'sellerSold':
+      page = (
+        <AuthRequired>
+          <SellerSoldListingsPage />
         </AuthRequired>
       )
       break
@@ -291,6 +308,13 @@ function App() {
       page = (
         <AuthRequired>
           <ShopDraftListingsPage />
+        </AuthRequired>
+      )
+      break
+    case 'shopSettings':
+      page = (
+        <AuthRequired>
+          <ShopSettingsPage />
         </AuthRequired>
       )
       break

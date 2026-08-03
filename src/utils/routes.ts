@@ -41,6 +41,9 @@ export type AppRoute =
   | 'promotionReturn'
   | 'listingPromotions'
   | 'shopDrafts'
+  | 'sellerListings'
+  | 'sellerSold'
+  | 'shopSettings'
   | 'kyc'
   | 'openShop'
   | 'wallet'
@@ -131,8 +134,11 @@ export const routeStateRegistry = {
   retailDetail: { defaultScene: 'detail', family: 'detail', supportedLayouts: PAGE },
   saved: { defaultScene: 'cards', family: 'discovery', supportedLayouts: PAGE },
   search: { defaultScene: 'cards', family: 'discovery', supportedLayouts: PAGE },
+  sellerListings: { defaultScene: 'cards', family: 'management', supportedLayouts: PAGE },
+  sellerSold: { defaultScene: 'cards', family: 'management', supportedLayouts: PAGE },
   shop: { defaultScene: 'detail', family: 'detail', supportedLayouts: PAGE },
   shopDrafts: { defaultScene: 'cards', family: 'management', supportedLayouts: PAGE },
+  shopSettings: { defaultScene: 'form', family: 'management', supportedLayouts: PAGE },
   suggestedForYou: { defaultScene: 'cards', family: 'discovery', supportedLayouts: PAGE },
   topPicks: { defaultScene: 'cards', family: 'discovery', supportedLayouts: PAGE },
   wallet: { defaultScene: 'detail', family: 'status', supportedLayouts: PAGE },
@@ -187,11 +193,14 @@ export const routeNavigationRegistry = {
   retailDetail: { kind: 'nested', label: 'Listing', fallback: { href: '/browse', label: 'Browse' } },
   saved: { kind: 'root', label: 'Saved' },
   search: { kind: 'root', label: 'Explore' },
+  sellerListings: { kind: 'root', label: 'Active listings' },
+  sellerSold: { kind: 'root', label: 'Sold items' },
   shop: { kind: 'nested', label: 'DigiShop', fallback: { href: '/digishops', label: 'DigiShops' } },
   shopDrafts: { kind: 'nested', label: 'Draft listings', fallback: { href: '/manage-shop/listings', label: 'Active listings' } },
+  shopSettings: { kind: 'root', label: 'Shop settings' },
   suggestedForYou: { kind: 'root', label: 'Suggested for you' },
   topPicks: { kind: 'root', label: 'Top picks' },
-  wallet: { kind: 'nested', label: 'Wallet', fallback: { href: '/profile', label: 'Profile' } },
+  wallet: { kind: 'nested', label: 'Wallet', fallback: { href: '/manage-shop', label: 'Shop management' } },
 } as const satisfies Record<AppRoute, RouteNavigationDefinition>
 
 export function resolveRoute(pathname: string, search: string): AppRoute {
@@ -236,6 +245,9 @@ export function resolveRoute(pathname: string, search: string): AppRoute {
   if (pathname.startsWith('/promotions/confirm')) return 'promotionReturn'
   if (pathname.startsWith('/manage-shop/promotions')) return 'listingPromotions'
   if (pathname.startsWith('/manage-shop/drafts')) return 'shopDrafts'
+  if (pathname.startsWith('/manage-shop/listings')) return 'sellerListings'
+  if (pathname.startsWith('/manage-shop/sold')) return 'sellerSold'
+  if (pathname.startsWith('/manage-shop/settings')) return 'shopSettings'
   if (/^\/orders\/[^/]+\/report/.test(pathname)) return 'orderReport'
   if (/^\/orders\/[^/]+/.test(pathname) && !pathname.startsWith('/orders/history')) return 'orderDetail'
   if (pathname.startsWith('/orders/history')) return 'orderHistory'

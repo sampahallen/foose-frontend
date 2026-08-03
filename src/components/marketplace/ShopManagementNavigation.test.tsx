@@ -21,4 +21,19 @@ describe('ShopManagementNavigation', () => {
 
     expect(screen.getByRole('link', { name: 'Orders' })).toHaveAttribute('aria-current', 'page')
   })
+
+  it('includes Promotions and Wallet as real nav entries', () => {
+    render(<ShopManagementMobileNav activePanel="wallet" />)
+
+    expect(screen.getByRole('link', { name: 'Promotions' })).toHaveAttribute('href', '/manage-shop/promotions')
+    const wallet = screen.getByRole('link', { name: 'Wallet' })
+    expect(wallet).toHaveAttribute('href', '/wallet')
+    expect(wallet).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('marks Promotions active in the desktop seller sidebar too', () => {
+    render(<ShopManagementSidebar activePanel="promotions" collapsed onToggle={() => undefined} />)
+
+    expect(screen.getByRole('link', { name: 'Promotions' })).toHaveAttribute('aria-current', 'page')
+  })
 })

@@ -82,4 +82,13 @@ describe('WalletPage ledger', () => {
     expect(screen.getByRole('link', { name: /View order/ })).toHaveAttribute('href', '/orders/order-12345678')
     expect(screen.queryByText(/Transaction history is coming soon/i)).not.toBeInTheDocument()
   })
+
+  it('joins the shop management shell and highlights Wallet in the nav for sellers', () => {
+    render(<WalletPage />)
+
+    const walletLinks = screen.getAllByRole('link', { name: 'Wallet' })
+    expect(walletLinks.length).toBeGreaterThan(0)
+    walletLinks.forEach((link) => expect(link).toHaveAttribute('aria-current', 'page'))
+    expect(screen.getByRole('link', { name: 'Active listings' })).toHaveAttribute('href', '/manage-shop/listings')
+  })
 })

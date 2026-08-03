@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, DropdownChevron, HashtagInput, Icon, ImagePreviewInput, InlineNotice, ListingCategoryPicker, SelectControl, StatePanel, StepIndicator } from '../components'
+import { AppShell, ButtonLink, HashtagInput, Icon, ImagePreviewInput, InlineNotice, SelectControl, StatePanel, StepIndicator } from '../components'
 import { ErrorSummary, SubmitButton } from '../components/forms/FormControls'
 import { FormField, TextAreaField, TextField } from '../components/forms/FormField'
 import { FormActions, FormPage, FormSection } from '../components/forms/FormLayout'
@@ -15,6 +15,7 @@ import { getErrorMessage } from '../utils/errorMessage'
 import {
   LISTING_BALE_GRADES,
   LISTING_BRANDS,
+  LISTING_CATEGORIES,
   LISTING_COLORS,
   LISTING_CONDITIONS,
   LISTING_FITS,
@@ -54,96 +55,6 @@ function taxonomyOptions(options: readonly string[]) {
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 const LISTING_DESCRIPTION_MAX = 500
 const listingSelectControl = 'w-full'
-
-type ListingDropdownOption = {
-  label: string
-  swatch?: string
-  value: string
-}
-
-function ListingDropdown({
-  dividerAfter,
-  name,
-  onChange,
-  options,
-  placeholder,
-  value,
-}: {
-  dividerAfter?: string
-  name: string
-  onChange?: (value: string) => void
-  options: ListingDropdownOption[]
-  placeholder: string
-  value?: string
-}) {
-  const [open, setOpen] = useState(false)
-  const [internalValue, setInternalValue] = useState(value || '')
-  const dropdownRef = useRef<HTMLDivElement | null>(null)
-  const selectedValue = value ?? internalValue
-  const selectedOption = options.find((option) => option.value === selectedValue)
-
-  useEffect(() => {
-    if (!open) return undefined
-
-    function closeOnOutsideClick(event: MouseEvent) {
-      if (!dropdownRef.current?.contains(event.target as Node)) setOpen(false)
-    }
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setOpen(false)
-    }
-
-    document.addEventListener('mousedown', closeOnOutsideClick)
-    document.addEventListener('keydown', closeOnEscape)
-    return () => {
-      document.removeEventListener('mousedown', closeOnOutsideClick)
-      document.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [open])
-
-  function selectOption(option: ListingDropdownOption) {
-    setInternalValue(option.value)
-    onChange?.(option.value)
-    setOpen(false)
-  }
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <input name={name} type="hidden" value={selectedValue} />
-      <button
-        aria-expanded={open}
-        className={`flex min-h-11 w-full min-w-0 items-center justify-between gap-2.5 rounded-xl border border-foose-border bg-foose-surface px-3 text-left text-base font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 sm:min-h-12 sm:gap-3 sm:text-sm ${!selectedOption ? 'text-foose-faint' : ''}`}
-        onClick={() => setOpen((current) => !current)}
-        type="button"
-      >
-        <span className="min-w-0 truncate">{selectedOption?.label || placeholder}</span>
-        <span className="flex items-center gap-3">
-          {selectedOption?.swatch && <span aria-hidden className="size-5 rounded-full border border-black/15" style={{ background: selectedOption.swatch }} />}
-          <span className="inline-flex text-accent">
-            <DropdownChevron className="text-[15px]" open={open} />
-          </span>
-        </span>
-      </button>
-      {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 max-h-72 overflow-y-auto overscroll-contain rounded-xl border border-foose-border bg-white p-1 shadow-2xl sm:p-1.5">
-          {options.map((option) => (
-            <div key={option.value}>
-              <button
-                className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold leading-5 transition hover:bg-accent-light hover:text-accent ${option.value === selectedValue ? 'bg-accent-light text-accent' : 'text-foose-text'}`}
-                onClick={() => selectOption(option)}
-                type="button"
-              >
-                <span className="min-w-0 break-words">{option.label}</span>
-                {option.swatch && <span aria-hidden className="size-5 shrink-0 rounded-full border border-black/15" style={{ background: option.swatch }} />}
-              </button>
-              {dividerAfter === option.value && <hr className="my-1.5 border-0 border-t border-foose-border" />}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function currentEditId() {
   const match = getCurrentAppPathname().match(/^\/listings\/([^/]+)\/edit/)
@@ -210,11 +121,10 @@ export function NewListingPage() {
   const conditionValue = selectedCondition || listing?.condition || ''
   const brandOptions = listing?.brand && !LISTING_BRANDS.includes(listing.brand) ? [...LISTING_BRANDS, listing.brand].sort((a, b) => a.localeCompare(b)) : LISTING_BRANDS
   const brandedOptions = brandOptions.filter((brand) => brand !== 'Unbranded').sort((a, b) => a.localeCompare(b))
-  const brandDropdownOptions = ['Unbranded', ...brandedOptions].map((brand) => ({ label: brand, value: brand }))
   const footwearSizeOptions = sizeValue && !LISTING_FOOTWEAR_SIZES.includes(sizeValue)
     ? [...LISTING_FOOTWEAR_SIZES, sizeValue]
     : LISTING_FOOTWEAR_SIZES
-  const colorDropdownOptions = LISTING_COLORS.map((color) => ({ label: color.label, swatch: color.hex, value: color.value }))
+  const availableSubcategories = LISTING_CATEGORIES.find((entry) => entry.label === categoryValue)?.subcategories || []
   const needsFlawProof = conditionValue === 'fair' || conditionValue === 'poor'
   const sizePlaceholder = sizePlaceholderForCategory(categoryValue, subcategoryValue)
   const showsField = (field: Parameters<typeof categoryUsesField>[1]) =>
@@ -225,7 +135,12 @@ export function NewListingPage() {
   const wholesaleValid =
     listingType !== 'wholesale' ||
     Boolean(bulkQuantity && minimumOrderQuantity && bulkQuantity >= 1 && minimumOrderQuantity >= 1 && minimumOrderQuantity <= bulkQuantity)
-  const canSubmitListing = titleValue.trim().length >= 2 && priceNumber !== null && priceNumber >= 0 && wholesaleValid
+  const categoryMissing = !categoryValue
+  const sizeMissing = showsField('size') && !sizeValue.trim()
+  const genderMissing = showsField('gender') && !genderValue
+  const conditionMissing = !conditionValue
+  const attributesValid = !categoryMissing && !sizeMissing && !genderMissing && !conditionMissing
+  const canSubmitListing = titleValue.trim().length >= 2 && priceNumber !== null && priceNumber >= 0 && wholesaleValid && attributesValid
   const titleInvalid = touched.title && titleValue.trim().length < 2
   const priceInvalid = touched.price && (priceNumber === null || priceNumber < 0)
   const quantityInvalid = touched.quantity && listingType === 'wholesale' && (!bulkQuantity || bulkQuantity < 1)
@@ -233,9 +148,17 @@ export function NewListingPage() {
     touched.bulkMinQty &&
     listingType === 'wholesale' &&
     (!minimumOrderQuantity || minimumOrderQuantity < 1 || Boolean(bulkQuantity && minimumOrderQuantity > bulkQuantity))
+  const categoryInvalid = validationAttempt > 0 && categoryMissing
+  const sizeInvalid = validationAttempt > 0 && sizeMissing
+  const genderInvalid = validationAttempt > 0 && genderMissing
+  const conditionInvalid = validationAttempt > 0 && conditionMissing
   const validationErrors = [
     ...(titleValue.trim().length < 2 ? [{ fieldId: 'listing-title', message: 'Enter a listing title with at least 2 characters.' }] : []),
     ...(priceNumber === null || priceNumber < 0 ? [{ fieldId: 'listing-price', message: 'Enter a valid price with up to two decimal places.' }] : []),
+    ...(categoryMissing ? [{ fieldId: 'listing-category', message: 'Choose a category.' }] : []),
+    ...(sizeMissing ? [{ fieldId: 'listing-size', message: 'Enter a size.' }] : []),
+    ...(genderMissing ? [{ fieldId: 'listing-gender', message: 'Choose a gender.' }] : []),
+    ...(conditionMissing ? [{ fieldId: 'listing-condition', message: 'Choose a condition.' }] : []),
     ...(quantityInvalid ? [{ fieldId: 'listing-quantity', message: 'Enter the total available quantity.' }] : []),
     ...(bulkMinQtyInvalid ? [{ fieldId: 'listing-minimum', message: minimumOrderQuantity && bulkQuantity && minimumOrderQuantity > bulkQuantity ? 'Minimum order cannot exceed total quantity.' : 'Enter the minimum order quantity.' }] : []),
   ]
@@ -364,13 +287,6 @@ export function NewListingPage() {
     const imageInput = form.elements.namedItem('images') as HTMLInputElement | null
     const selectedFiles = Array.from(imageInput?.files || []).slice(0, 6)
     const keptImageCount = sourceData.getAll('keptImages').filter(Boolean).length
-
-    if (requestedStatus === 'active' && !categoryValue) {
-      setError('Choose a category before publishing this listing.')
-      setStep(1)
-      window.setTimeout(() => document.getElementById('listing-category')?.focus(), 0)
-      return
-    }
 
     if (price === null || price < 0) {
       setError('Enter a valid price with up to two decimal places.')
@@ -549,7 +465,7 @@ export function NewListingPage() {
         <form className="space-y-5" encType="multipart/form-data" noValidate onSubmit={(event) => void createListing(event)}>
           <UnsavedChangesGuard when={dirty && !submitting} />
           {draft.hasRecoverableDraft && (
-            <InlineNotice action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-white" onClick={() => draft.resumeDraft()} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-white" onClick={() => draft.discardDraft()} type="button">Discard</button></div>} title="Continue your listing draft?">Listing details were saved on this device. Image files were not stored and must be selected again.</InlineNotice>
+            <InlineNotice action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-white" onClick={() => draft.resumeDraft()} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-white" onClick={() => draft.discardDraft()} type="button">Discard</button></div>} title="Continue your listing draft?">{null}</InlineNotice>
           )}
           <ErrorSummary errors={validationAttempt ? validationErrors : []} focus={validationAttempt > 0} />
 
@@ -566,27 +482,50 @@ export function NewListingPage() {
           </FormSection>
 
           <FormSection className={!editId && step !== 1 ? 'hidden' : ''} columns={2} description="Set the price and attributes buyers use to compare and filter products." title="Pricing and attributes">
-            <FormField hint="Choose a category, then use its right-hand menu to optionally refine the subcategory." htmlFor="listing-category" label="Category" optional>
-              <ListingCategoryPicker category={categoryValue} id="listing-category" onChange={(selection) => changeCategorySelection(selection.category, selection.subcategory)} subcategory={subcategoryValue} />
-            </FormField>
             <TextField error={priceInvalid ? 'Enter a valid amount, like 240.00.' : undefined} hint="Use up to two decimal places." id="listing-price" inputMode="decimal" label={listingType === 'wholesale' ? 'Unit price (GHS)' : 'Price (GHS)'} name="price" onBlur={() => setTouched((current) => ({ ...current, price: true }))} onChange={(event) => setPriceValue(event.target.value)} placeholder="240.00" prefix="GHS" required value={priceValue} />
-            {showsField('brand') && <FormField htmlFor="listing-brand" label="Brand" optional><ListingDropdown dividerAfter="Unbranded" name="brand" onChange={setBrandValue} options={brandDropdownOptions} placeholder="Select brand" value={brandValue} /></FormField>}
+            <FormField error={categoryInvalid ? 'Choose a category.' : undefined} htmlFor="listing-category" label="Category" required>
+              <SelectControl className={listingSelectControl} id="listing-category" name="category" onChange={(event) => changeCategorySelection(event.target.value, '')} required value={categoryValue}>
+                <option value="">Select category</option>
+                {LISTING_CATEGORIES.map((entry) => <option key={entry.label} value={entry.label}>{entry.label}</option>)}
+              </SelectControl>
+            </FormField>
+            {availableSubcategories.length > 0 && (
+              <FormField htmlFor="listing-subcategory" label="Subcategory" optional>
+                <SelectControl className={listingSelectControl} id="listing-subcategory" name="subcategory" onChange={(event) => changeCategorySelection(categoryValue, event.target.value)} value={subcategoryValue}>
+                  <option value="">All {categoryValue}</option>
+                  {availableSubcategories.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
+                </SelectControl>
+              </FormField>
+            )}
             {showsField('size') && categoryValue === 'Footwear' && (
-              <FormField htmlFor="listing-size" label={sizeLabelForCategory(categoryValue, subcategoryValue)} optional>
-                <SelectControl className={listingSelectControl} id="listing-size" name="size" onChange={(event) => setSizeValue(event.target.value)} value={sizeValue}>
+              <FormField error={sizeInvalid ? 'Select a size.' : undefined} htmlFor="listing-size" label={sizeLabelForCategory(categoryValue, subcategoryValue)} required>
+                <SelectControl className={listingSelectControl} id="listing-size" name="size" onChange={(event) => setSizeValue(event.target.value)} required value={sizeValue}>
                   <option value="">Select EU size</option>
                   {footwearSizeOptions.map((size) => <option key={size} value={size}>{size}</option>)}
                 </SelectControl>
               </FormField>
             )}
-            {showsField('size') && categoryValue !== 'Footwear' && <TextField id="listing-size" label={sizeLabelForCategory(categoryValue, subcategoryValue)} name="size" onChange={(event) => setSizeValue(event.target.value)} optional placeholder={sizePlaceholder} value={sizeValue} />}
-            {showsField('gender') && <FormField htmlFor="listing-gender" label="Gender" optional><SelectControl className={listingSelectControl} id="listing-gender" name="gender" onChange={(event) => setGenderValue(event.target.value)} value={genderValue}><option value="">Select gender</option><option value="men">Men</option><option value="women">Women</option><option value="unisex">Unisex</option><option value="kids">Kids</option></SelectControl></FormField>}
+            {showsField('size') && categoryValue !== 'Footwear' && <TextField error={sizeInvalid ? 'Enter a size.' : undefined} id="listing-size" label={sizeLabelForCategory(categoryValue, subcategoryValue)} name="size" onChange={(event) => setSizeValue(event.target.value)} placeholder={sizePlaceholder} required value={sizeValue} />}
+            {showsField('gender') && <FormField error={genderInvalid ? 'Choose a gender.' : undefined} htmlFor="listing-gender" label="Gender" required><SelectControl className={listingSelectControl} id="listing-gender" name="gender" onChange={(event) => setGenderValue(event.target.value)} required value={genderValue}><option value="">Select gender</option><option value="men">Men</option><option value="women">Women</option><option value="unisex">Unisex</option><option value="kids">Kids</option></SelectControl></FormField>}
+            <FormField error={conditionInvalid ? 'Choose a condition.' : undefined} htmlFor="listing-condition" label="Condition" required><SelectControl className={listingSelectControl} id="listing-condition" name="condition" onChange={(event) => setSelectedCondition(event.target.value)} required value={conditionValue}><option value="">Select condition</option>{LISTING_CONDITIONS.map((condition) => <option key={condition} value={condition}>{condition[0].toUpperCase() + condition.slice(1)}</option>)}</SelectControl></FormField>
+            {showsField('brand') && (
+              <FormField htmlFor="listing-brand" label="Brand" optional>
+                <SelectControl className={listingSelectControl} id="listing-brand" name="brand" onChange={(event) => setBrandValue(event.target.value)} value={brandValue}>
+                  <option value="">Select brand</option>
+                  <option value="Unbranded">Unbranded</option>
+                  {brandedOptions.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+                </SelectControl>
+              </FormField>
+            )}
             {showsField('material') && <FormField htmlFor="listing-material" label="Material" optional><SelectControl className={listingSelectControl} id="listing-material" onChange={(event) => changeAttribute('material', event.target.value)} value={attributeValues.material || ''}><option value="">Select material</option>{taxonomyOptions(LISTING_MATERIALS)}</SelectControl></FormField>}
             {showsField('fit') && <FormField htmlFor="listing-fit" label="Fit" optional><SelectControl className={listingSelectControl} id="listing-fit" onChange={(event) => changeAttribute('fit', event.target.value)} value={attributeValues.fit || ''}><option value="">Select fit</option>{taxonomyOptions(LISTING_FITS)}</SelectControl></FormField>}
             {showsField('pattern') && <FormField htmlFor="listing-pattern" label="Pattern" optional><SelectControl className={listingSelectControl} id="listing-pattern" onChange={(event) => changeAttribute('pattern', event.target.value)} value={attributeValues.pattern || ''}><option value="">Select pattern</option>{taxonomyOptions(LISTING_PATTERNS)}</SelectControl></FormField>}
             {showsField('baleGrade') && <FormField htmlFor="listing-bale-grade" label="Bale grade" optional><SelectControl className={listingSelectControl} id="listing-bale-grade" onChange={(event) => changeAttribute('baleGrade', event.target.value)} value={attributeValues.baleGrade || ''}><option value="">Select grade</option>{taxonomyOptions(LISTING_BALE_GRADES)}</SelectControl></FormField>}
-            <FormField htmlFor="listing-condition" label="Condition" optional><SelectControl className={listingSelectControl} id="listing-condition" name="condition" onChange={(event) => setSelectedCondition(event.target.value)} value={conditionValue}><option value="">Select condition</option>{LISTING_CONDITIONS.map((condition) => <option key={condition} value={condition}>{condition[0].toUpperCase() + condition.slice(1)}</option>)}</SelectControl></FormField>
-            <FormField htmlFor="listing-color" label="Color" optional><ListingDropdown name="color" onChange={setColorValue} options={colorDropdownOptions} placeholder="Select color" value={colorValue} /></FormField>
+            <FormField htmlFor="listing-color" label="Color" optional>
+              <SelectControl className={listingSelectControl} id="listing-color" name="color" onChange={(event) => setColorValue(event.target.value)} value={colorValue}>
+                {LISTING_COLORS.map((color) => <option data-swatch={color.hex} key={color.value} value={color.value}>{color.label}</option>)}
+              </SelectControl>
+            </FormField>
             {needsFlawProof && <TextAreaField className="border-amber-300 bg-amber-50" hint="Fair or poor items need an image showing the flaw. This note is appended to the description." id="listing-flaw" label="Flaw note for escrow review" name="flawNote" onChange={(event) => setFlawNoteValue(event.target.value)} placeholder="Small stain on the left sleeve, shown in photo 2." required rows={3} value={flawNoteValue} wrapperClassName="form-field-wide rounded-xl bg-amber-50 p-4" />}
             {listingType === 'wholesale' && <TextField error={quantityInvalid ? 'Enter at least 1 item.' : undefined} id="listing-quantity" label="Total available quantity" min="1" name="quantity" onBlur={() => setTouched((current) => ({ ...current, quantity: true }))} onChange={(event) => setQuantityValue(event.target.value)} placeholder="100" required step="1" type="number" value={quantityValue} />}
             {listingType === 'wholesale' && <TextField error={bulkMinQtyInvalid ? (minimumOrderQuantity && bulkQuantity && minimumOrderQuantity > bulkQuantity ? 'Minimum order cannot exceed total quantity.' : 'Enter at least 1 item.') : undefined} id="listing-minimum" label="Minimum order quantity" min="1" name="bulkMinQty" onBlur={() => setTouched((current) => ({ ...current, bulkMinQty: true }))} onChange={(event) => setBulkMinQtyValue(event.target.value)} placeholder="10" required step="1" type="number" value={bulkMinQtyValue} />}

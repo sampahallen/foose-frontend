@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, ChoiceCardGroup, ErrorSummary, FormPage, FormSection, Icon, InlineNotice, OrderSummary, StatePanel, StepIndicator, TextField } from '../components'
+import { AppShell, ButtonLink, ChoiceCardGroup, ErrorSummary, FormPage, FormSection, Icon, InlineNotice, OrderSummary, SelectControl, StatePanel, StepIndicator, TextField } from '../components'
 import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useCart, type CartItem } from '../hooks/useCart'
@@ -438,9 +438,9 @@ export function CheckoutPage() {
                             routeOptions?.eligible ? (
                               <label className="mt-4 grid gap-1.5 sm:gap-2" htmlFor={`destination-${group.shopId}`}>
                                 <span className="text-[13px] font-extrabold leading-5 text-foose-text sm:text-sm">Destination<span aria-hidden="true" className="ml-1 text-foose-danger">*</span></span>
-                                <select
-                                  className="min-h-11 w-full rounded-xl border border-foose-border bg-foose-surface px-3 py-2.5 text-base text-foose-text outline-none transition hover:border-accent/60 focus:border-accent focus:ring-2 focus:ring-accent/15 sm:min-h-12 sm:px-4 sm:py-3 sm:text-sm"
+                                <SelectControl
                                   id={`destination-${group.shopId}`}
+                                  menuZIndex={1500}
                                   onChange={(event) => {
                                     const stop = routeOptions.destinations.find((candidate) => stopKey(candidate) === event.target.value)
                                     if (stop) updateShopDelivery(group.shopId, { preferredTerminal: stop.terminal, region: stop.region, town: stop.town })
@@ -451,7 +451,7 @@ export function CheckoutPage() {
                                   {routeOptions.destinations.map((stopOption) => (
                                     <option key={stopKey(stopOption)} value={stopKey(stopOption)}>{stopOption.label}</option>
                                   ))}
-                                </select>
+                                </SelectControl>
                               </label>
                             ) : (
                               <InlineNotice className="mt-4" title={`${state.company} isn't available here`} tone="warning">

@@ -5,7 +5,7 @@ import { scrollRevealStateClass, scrollRevealTransitionClass, useScrollRevealBan
 import { withBasePath } from '../../utils/navigation'
 import { Icon } from '../icons/Icon'
 
-export type ShopManagementActivePanel = 'overview' | 'listings' | 'drafts' | 'sold' | 'orders' | 'settings'
+export type ShopManagementActivePanel = 'overview' | 'listings' | 'drafts' | 'sold' | 'orders' | 'promotions' | 'wallet' | 'settings'
 
 type ShopManagementNavigationProps = {
   activePanel: ShopManagementActivePanel
@@ -28,9 +28,11 @@ const primaryItems: NavigationItem[] = [
   { activePanel: 'drafts', href: '/manage-shop/drafts', icon: <RiDraftLine aria-hidden="true" />, label: 'Drafts' },
   { activePanel: 'sold', href: '/manage-shop/sold', icon: <IoReceiptOutline aria-hidden="true" />, label: 'Sold items', mobileLabel: 'Sold' },
   { activePanel: 'orders', href: '/manage-shop/orders', icon: <Icon name="box" />, label: 'Orders' },
+  { activePanel: 'promotions', href: '/manage-shop/promotions', icon: <Icon name="megaphone" />, label: 'Promotions' },
 ]
 
 const secondaryItems: NavigationItem[] = [
+  { activePanel: 'wallet', href: '/wallet', icon: <Icon name="wallet" />, label: 'Wallet' },
   { activePanel: 'settings', href: '/manage-shop/settings', icon: <Icon name="settings" />, label: 'Shop settings' },
 ]
 
@@ -124,19 +126,5 @@ export function ShopManagementMobileNav({
       </div>
       <span aria-hidden="true" className="pointer-events-none absolute inset-y-2 right-0 w-9 bg-gradient-to-l from-foose-bg via-foose-bg/95 to-transparent" />
     </nav>
-  )
-}
-
-export function ShopManagementNavigation({
-  activePanel,
-  collapsed,
-  mobileClassName = '',
-  onToggle,
-}: ShopManagementNavigationProps) {
-  return (
-    <>
-      <ShopManagementSidebar activePanel={activePanel} collapsed={collapsed} onToggle={onToggle} />
-      <ShopManagementMobileNav activePanel={activePanel} className={mobileClassName} />
-    </>
   )
 }

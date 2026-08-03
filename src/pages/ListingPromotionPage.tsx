@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
 import { IoMegaphone } from 'react-icons/io5'
-import { AppShell, Badge, FloatingCreateButton, Icon, InlineNotice, SafeImage, SectionHeader, ShopManagementMobileNav, ShopManagementSidebar, SkeletonBlock, StatePanel } from '../components'
+import { Badge, FloatingCreateButton, Icon, InlineNotice, SafeImage, SectionHeader, ShopManagementLayout, ShopManagementPageHeader, SkeletonBlock, StatePanel } from '../components'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
-import { NavigationBackButton } from '../components/navigation'
 import type { Listing, PromotionOrder, PromotionTier } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDate, formatMoney, getListingImage } from '../utils/format'
@@ -37,7 +36,6 @@ export function ListingPromotionPage() {
   const [error, setError] = useState('')
   const [paymentStatus, setPaymentStatus] = useState('')
   const [promotionPreviewNow] = useState(() => Date.now())
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const selectedPackage = listingPromotionPackages.find((item) => item.value === packageName) || listingPromotionPackages[0]
   const eligibleListings = useMemo(
@@ -95,23 +93,24 @@ export function ListingPromotionPage() {
   }
 
   return (
-    <AppShell active="shop" searchPlaceholder="Search marketplace..." showFooter={false}>
-      <ShopManagementSidebar activePanel="listings" collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((value) => !value)} />
-      <div className={`${sidebarCollapsed ? 'lg:pl-24' : 'lg:pl-72'} min-w-0 pb-16 lg:pb-0`}>
-        <ShopManagementMobileNav activePanel="listings" />
-        <section className="mx-auto w-full max-w-[1280px] space-y-5">
+    <ShopManagementLayout activePanel="promotions" fab={<FloatingCreateButton className={eligibleListings.length ? '!bottom-[var(--foose-fab-with-actions-inset)] lg:!bottom-6' : ''} href="/listings/new" label="Add listing" />}>
+      <ShopManagementPageHeader
+        actions={eligibleListings.length ? (
+          <button
+            className="hidden min-h-11 items-center justify-center gap-2 rounded-lg border border-accent bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-50 lg:inline-flex"
+            disabled={!selectedIds.length || submitting}
+            onClick={() => void startCheckout()}
+            type="button"
+          >
+            <IoMegaphone /> {promotionCtaLabel}
+          </button>
+        ) : undefined}
+        description="Choose one tier, select up to 30 listings, and pay per listing. Mobile Money, cards, and other available methods are handled securely by Paystack."
+        eyebrow="Paid placement"
+        title="Promote your listings"
+      />
 
-        <div className="rounded-2xl bg-accent-light/60 p-4 shadow-sm md:p-6">
-          <NavigationBackButton className="mb-3" fallback={{ href: '/manage-shop/listings', label: 'Active listings' }} />
-          <SectionHeader
-            eyebrow="Paid placement"
-            title="Promote your listings"
-          />
-          <p className="max-w-3xl text-sm leading-6 text-foose-muted">
-            Choose one tier, select up to 30 listings, and pay per listing. Mobile Money, cards, and other available methods are handled securely by Paystack.
-          </p>
-        </div>
-
+      <section className="mx-auto w-full max-w-[1280px] space-y-5">
         {paymentStatus && <InlineNotice title="Payment not completed" tone="info">{paymentStatus}</InlineNotice>}
         {error && <InlineNotice title="Promotion could not start" tone="error">{error}</InlineNotice>}
         <section className="grid gap-3 sm:grid-cols-3">
@@ -140,16 +139,6 @@ export function ListingPromotionPage() {
 
         <section className="rounded-2xl bg-foose-surface p-4 shadow-sm md:p-5">
           <SectionHeader
-            action={eligibleListings.length ? (
-              <button
-                className="hidden min-h-11 items-center justify-center gap-2 rounded-lg border border-accent bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-50 lg:inline-flex"
-                disabled={!selectedIds.length || submitting}
-                onClick={() => void startCheckout()}
-                type="button"
-              >
-                <IoMegaphone /> {promotionCtaLabel}
-              </button>
-            ) : undefined}
             eyebrow={`${selectedIds.length}/${selectedPackage.itemLimit} selected · ${formatMoney(checkoutTotal)}`}
             title="Choose listings"
           />
@@ -248,8 +237,6 @@ export function ListingPromotionPage() {
           )}
         </section>
       </section>
-      </div>
-      <FloatingCreateButton className={eligibleListings.length ? '!bottom-[var(--foose-fab-with-actions-inset)] lg:!bottom-6' : ''} href="/listings/new" label="Add listing" />
-    </AppShell>
+    </ShopManagementLayout>
   )
 }

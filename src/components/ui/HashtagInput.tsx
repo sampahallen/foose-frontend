@@ -219,23 +219,23 @@ function HashtagInputState({
         </label>
       )}
       <div
-        className={`rounded-xl border bg-foose-surface px-2 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15 lg:px-3 lg:py-2 ${
+        className={`rounded-xl border bg-foose-surface px-2 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15 ${
           disabled ? 'cursor-not-allowed border-foose-border opacity-60' : error ? 'border-foose-danger bg-foose-danger-bg/10 focus-within:border-foose-danger focus-within:ring-foose-danger/15' : 'border-foose-border'
         }`}
         onClick={() => inputRef.current?.focus()}
       >
         {/* Keep the empty value in FormData so clearing every tag also clears it on edit. */}
         <input name={name} readOnly type="hidden" value={tags.join(',')} />
-        <div className="flex min-h-11 flex-wrap items-center gap-1.5 lg:min-h-12 lg:gap-2">
+        <div className="flex min-h-10 flex-wrap items-center gap-1.5">
           {tags.map((tag) => (
             <span
-              className="inline-flex min-h-8 max-w-full items-center gap-0.5 rounded-full bg-accent-light py-0.5 pl-2 pr-0.5 text-[11px] font-black leading-4 text-accent lg:min-h-11 lg:gap-1 lg:py-1 lg:pl-3 lg:pr-1 lg:text-xs"
+              className="inline-flex max-w-full items-center gap-0.5 rounded-md bg-accent-light py-1 pl-2 pr-0.5 text-xs font-bold leading-4 text-accent"
               key={tag}
             >
               #{tag}
               <button
                 aria-label={`Remove #${tag}`}
-                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-accent transition hover:bg-accent hover:text-white focus:outline-none focus:ring-2 focus:ring-accent/30 lg:size-11"
+                className="inline-flex size-5 shrink-0 items-center justify-center rounded text-accent transition hover:bg-accent hover:text-white focus:outline-none focus:ring-2 focus:ring-accent/30"
                 disabled={disabled}
                 onClick={(event) => {
                   event.stopPropagation()
@@ -243,7 +243,7 @@ function HashtagInputState({
                 }}
                 type="button"
               >
-                <Icon name="close" size={11} />
+                <Icon name="close" size={9} />
               </button>
             </span>
           ))}

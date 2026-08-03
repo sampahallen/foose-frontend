@@ -32,14 +32,14 @@ describe('HashtagInput focus', () => {
     expect(screen.getByRole('combobox', { name: 'Hashtags' })).toBe(input)
   })
 
-  it('uses compact pills through tablet sizes and restores the larger desktop target', async () => {
+  it('uses small, soft-rounded pills consistently across screen sizes', async () => {
     const user = userEvent.setup()
     render(<ControlledHashtags />)
     await user.type(screen.getByRole('combobox', { name: 'Hashtags' }), 'streetwear{Enter}')
 
     const pill = screen.getByText('#streetwear').closest('span')
     const remove = screen.getByRole('button', { name: 'Remove #streetwear' })
-    expect(pill).toHaveClass('min-h-8', 'text-[11px]', 'lg:min-h-11', 'lg:text-xs')
-    expect(remove).toHaveClass('size-8', 'lg:size-11')
+    expect(pill).toHaveClass('rounded-md', 'text-xs')
+    expect(remove).toHaveClass('size-5', 'rounded')
   })
 })

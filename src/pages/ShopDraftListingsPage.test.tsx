@@ -2,48 +2,34 @@ import { render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '../components/feedback/ToastProvider'
+import { useApiResource } from '../hooks/useApiResource'
 import { ShopDraftListingsPage } from './ShopDraftListingsPage'
 
 const mocks = vi.hoisted(() => ({
-  resource: {
-    data: {
-      listings: [
-        {
-          _id: 'draft-1',
-          category: 'outerwear',
-          color: 'navy',
-          currency: 'GHS',
-          gender: 'unisex',
-          images: ['draft.jpg'],
-          price: 9500,
-          size: 'L',
-          status: 'draft',
-          title: 'Unpublished workwear jacket',
-          type: 'retail',
-        },
-        {
-          _id: 'active-1',
-          category: 'shirts',
-          color: 'white',
-          currency: 'GHS',
-          gender: 'men',
-          images: ['active.jpg'],
-          price: 7000,
-          size: 'M',
-          status: 'active',
-          title: 'Live shop shirt',
-          type: 'retail',
-        },
-      ],
-    } as { listings: Array<Record<string, unknown>> } | null,
-    error: '',
-    errorMeta: null,
-    initialLoading: false,
-    loading: false,
-    refetch: vi.fn(),
-    refreshing: false,
+  draftListing: {
+    _id: 'draft-1',
+    category: 'outerwear',
+    color: 'navy',
+    currency: 'GHS',
+    gender: 'unisex',
+    images: ['draft.jpg'],
+    price: 9500,
+    size: 'L',
+    status: 'draft',
+    title: 'Unpublished workwear jacket',
+    type: 'retail',
   },
 }))
+
+const resourceState = {
+  data: null as { listings: Array<Record<string, unknown>>; page: number; pages: number; total: number } | null,
+  error: '',
+  errorMeta: null,
+  initialLoading: false,
+  loading: false,
+  refetch: vi.fn(),
+  refreshing: false,
+}
 
 vi.mock('../components/layout/AppShell', () => ({
   AppShell: ({ children }: { children: ReactNode }) => <main>{children}</main>,
@@ -63,7 +49,7 @@ vi.mock('../hooks/useAuth', () => ({
 }))
 
 vi.mock('../hooks/useApiResource', () => ({
-  useApiResource: () => mocks.resource,
+  useApiResource: vi.fn(() => resourceState),
 }))
 
 function renderPage() {
@@ -72,39 +58,30 @@ function renderPage() {
 
 describe('ShopDraftListingsPage', () => {
   beforeEach(() => {
-    mocks.resource.data = {
-      listings: [
-        {
-          _id: 'draft-1', category: 'outerwear', color: 'navy', currency: 'GHS', gender: 'unisex', images: ['draft.jpg'], price: 9500, size: 'L', status: 'draft', title: 'Unpublished workwear jacket', type: 'retail',
-        },
-        {
-          _id: 'active-1', category: 'shirts', color: 'white', currency: 'GHS', gender: 'men', images: ['active.jpg'], price: 7000, size: 'M', status: 'active', title: 'Live shop shirt', type: 'retail',
-        },
-      ],
-    }
-    mocks.resource.error = ''
-    mocks.resource.initialLoading = false
-    mocks.resource.refetch.mockReset()
+    resourceState.data = { listings: [mocks.draftListing], page: 1, pages: 1, total: 1 }
+    resourceState.error = ''
+    resourceState.initialLoading = false
+    resourceState.refetch.mockReset()
+    vi.mocked(useApiResource).mockClear()
   })
 
-  it('keeps active products out and exposes complete draft details without a status filter', () => {
+  it('requests the draft collection server-side and exposes complete draft details without a client status filter', () => {
     renderPage()
 
+    expect(useApiResource).toHaveBeenCalledWith('/listings/me?page=1&status=draft')
     expect(screen.getByRole('heading', { name: 'Draft listings' })).toBeVisible()
     expect(screen.getByText('Unpublished workwear jacket')).toBeVisible()
-    expect(screen.queryByText('Live shop shirt')).not.toBeInTheDocument()
-    for (const value of ['GHS 95.00', 'Outerwear', 'L', 'Unisex', 'Navy']) {
-      expect(screen.getByText(value)).toBeVisible()
-    }
+    expect(screen.getByText('GHS 95.00')).toBeVisible()
+    expect(screen.getByText('Outerwear · L · Navy')).toBeVisible()
     expect(screen.getByRole('textbox', { name: 'Search draft listings' })).toBeVisible()
     expect(screen.getByRole('textbox', { name: 'Search draft listings' }).closest('div.mb-5')).toHaveClass('grid-cols-1', 'sm:grid-cols-2')
     expect(screen.queryByRole('combobox', { name: /status/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Continue editing/i })).toHaveAttribute('href', '/listings/draft-1/edit')
+    expect(screen.getByRole('link', { name: /Unpublished workwear jacket/i })).toHaveAttribute('href', '/listings/draft-1/edit')
     expect(screen.queryByRole('link', { name: /Open listing/i })).not.toBeInTheDocument()
   })
 
   it('uses a draft-specific empty state without duplicating the floating creation action', () => {
-    mocks.resource.data = { listings: [] }
+    resourceState.data = { listings: [], page: 1, pages: 1, total: 0 }
     renderPage()
 
     expect(screen.getByRole('heading', { name: 'No saved drafts' })).toBeVisible()
@@ -113,8 +90,8 @@ describe('ShopDraftListingsPage', () => {
   })
 
   it('uses a retryable draft-specific error state', () => {
-    mocks.resource.data = null
-    mocks.resource.error = 'Network unavailable'
+    resourceState.data = null
+    resourceState.error = 'Network unavailable'
     renderPage()
 
     expect(screen.getByRole('alert')).toHaveTextContent('Draft listings unavailable')

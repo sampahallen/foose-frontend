@@ -8,8 +8,8 @@ import {
   InlineNotice,
   OrderWorkflowCard,
   SectionHeader,
-  ShopManagementMobileNav,
-  ShopManagementSidebar,
+  ShopManagementLayout,
+  ShopManagementPageHeader,
   StatePanel,
   SubmitButton,
   TextAreaField,
@@ -106,7 +106,6 @@ function OrderManagementContent({
     orders: [],
   })
   const [loadingMore, setLoadingMore] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [reviewingOrder, setReviewingOrder] = useState<Order | null>(null)
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewComment, setReviewComment] = useState('')
@@ -210,43 +209,27 @@ function OrderManagementContent({
     )
   }
 
-  return (
-    <AppShell active={sellerMode ? 'shop' : 'profile'} searchPlaceholder="Search marketplace…" showFooter={!sellerMode}>
-      {sellerMode && (
-        <ShopManagementSidebar
-          activePanel="orders"
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed((value) => !value)}
-        />
-      )}
-      <div className={sellerMode ? `${sidebarCollapsed ? 'lg:pl-24' : 'lg:pl-72'} min-w-0 pb-16 lg:pb-0` : ''}>
-        {sellerMode && <ShopManagementMobileNav activePanel="orders" />}
+  const pageContent = (
+    <>
+      <ShopManagementPageHeader
+        actions={(
+          <ButtonLink
+            className="w-full sm:w-auto"
+            to={historyMode ? (sellerMode ? '/manage-shop/orders' : '/orders') : (sellerMode ? '/manage-shop/orders/history' : '/orders/history')}
+            variant="secondary"
+          >
+            <Icon name={historyMode ? 'arrow' : 'clock'} />
+            {historyMode ? 'Active orders' : 'Order history'}
+          </ButtonLink>
+        )}
+        description={sellerMode
+          ? 'See what needs you now, upload waybills, and follow every payment through settlement.'
+          : 'Track station pickup, shop pickup, express delivery, protected payments, refunds, and reports from one place.'}
+        eyebrow={sellerMode ? 'Seller fulfilment' : 'Buying activity'}
+        title={historyMode ? 'Order history' : sellerMode ? 'Seller orders' : 'Your orders'}
+      />
 
-        <header className="mb-6 border-b border-foose-border pb-5 md:mb-8">
-          <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-accent">{sellerMode ? 'Seller fulfilment' : 'Buying activity'}</p>
-              <h1 className="mt-1 font-display text-3xl font-semibold text-foose-text md:text-4xl">
-                {historyMode ? 'Order history' : sellerMode ? 'Seller orders' : 'Your orders'}
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-foose-muted">
-                {sellerMode
-                  ? 'See what needs you now, upload waybills, and follow every payment through settlement.'
-                  : 'Track station pickup, shop pickup, express delivery, protected payments, refunds, and reports from one place.'}
-              </p>
-            </div>
-            <ButtonLink
-              className="w-full sm:w-auto"
-              to={historyMode ? (sellerMode ? '/manage-shop/orders' : '/orders') : (sellerMode ? '/manage-shop/orders/history' : '/orders/history')}
-              variant="secondary"
-            >
-              <Icon name={historyMode ? 'arrow' : 'clock'} />
-              {historyMode ? 'Active orders' : 'Order history'}
-            </ButtonLink>
-          </div>
-        </header>
-
-        {orders.initialLoading && <OrderListSkeleton label="Loading orders" />}
+      {orders.initialLoading && <OrderListSkeleton label="Loading orders" />}
         {orders.error && !orders.data && (
           <StatePanel
             action={<button className="button button-secondary min-h-11 px-5" onClick={() => void orders.refetch()} type="button">Retry</button>}
@@ -362,10 +345,10 @@ function OrderManagementContent({
             )}
           </>
         )}
-      </div>
+    </>
+  )
 
-      {sellerMode && <FloatingCreateButton href="/listings/new" label="Add listing" />}
-
+  const reviewDialog = (
       <Dialog
         description={reviewingOrder ? `Share feedback for ${orderTitle(reviewingOrder)}.` : undefined}
         footer={(
@@ -417,6 +400,21 @@ function OrderManagementContent({
           {reviewError && <InlineNotice title="Could not post your review" tone="error">{reviewError}</InlineNotice>}
         </form>
       </Dialog>
+  )
+
+  if (sellerMode) {
+    return (
+      <ShopManagementLayout activePanel="orders" fab={<FloatingCreateButton href="/listings/new" label="Add listing" />}>
+        {pageContent}
+        {reviewDialog}
+      </ShopManagementLayout>
+    )
+  }
+
+  return (
+    <AppShell active="profile" searchPlaceholder="Search marketplace…">
+      {pageContent}
+      {reviewDialog}
     </AppShell>
   )
 }

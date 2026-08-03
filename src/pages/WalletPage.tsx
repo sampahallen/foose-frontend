@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AppShell, Icon, InlineNotice, SectionHeader, StatePanel } from '../components'
+import { AppShell, Icon, InlineNotice, SectionHeader, ShopManagementLayout, ShopManagementPageHeader, StatePanel } from '../components'
 import { NavigationBackButton } from '../components/navigation'
 import { getAppName } from '../config/env'
 import { useAuth } from '../hooks/useAuth'
@@ -138,9 +138,8 @@ function WalletActivityCard({ entry }: { entry: WalletLedgerEntry }) {
   )
 }
 
-export function WalletPage() {
+function WalletPageBody() {
   const { user } = useAuth()
-  const brand = getAppName()
   const wallet = user?.wallet || { balance: 0, escrow: 0 }
   const [filter, setFilter] = useState<ActivityFilter>('all')
   const endpoint = useMemo(() => {
@@ -191,17 +190,16 @@ export function WalletPage() {
   }
 
   return (
-    <AppShell searchPlaceholder={`Search ${brand}`}>
-      <NavigationBackButton className="mb-4" fallback={{ href: '/profile', label: 'Profile' }} />
-      <div className="wallet-head mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base">
-        <div>
-          <h1>Wallet</h1>
-          <p>Your available balance and protected order funds, backed by an immutable activity record.</p>
-        </div>
-        <button aria-disabled="true" className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-foose-border bg-foose-surface-mid px-5 py-2.5 text-center text-sm font-bold text-foose-faint" disabled title="Withdrawals are coming soon" type="button">
-          Withdraw funds
-        </button>
-      </div>
+    <>
+      <ShopManagementPageHeader
+        actions={(
+          <button aria-disabled="true" className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-foose-border bg-foose-surface-mid px-5 py-2.5 text-center text-sm font-bold text-foose-faint" disabled title="Withdrawals are coming soon" type="button">
+            Withdraw funds
+          </button>
+        )}
+        description="Your available balance and protected order funds, backed by an immutable activity record."
+        title="Wallet"
+      />
 
       <div className="wallet-grid mb-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
         <section className="flex min-h-64 flex-col justify-between rounded-2xl border border-accent bg-accent p-6 text-white shadow-sm">
@@ -286,6 +284,26 @@ export function WalletPage() {
           </div>
         )}
       </section>
+    </>
+  )
+}
+
+export function WalletPage() {
+  const { user } = useAuth()
+  const brand = getAppName()
+
+  if (user?.hasShop) {
+    return (
+      <ShopManagementLayout activePanel="wallet">
+        <WalletPageBody />
+      </ShopManagementLayout>
+    )
+  }
+
+  return (
+    <AppShell searchPlaceholder={`Search ${brand}`}>
+      <NavigationBackButton className="mb-4" fallback={{ href: '/profile', label: 'Profile' }} />
+      <WalletPageBody />
     </AppShell>
   )
 }

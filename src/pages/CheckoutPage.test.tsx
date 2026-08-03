@@ -283,11 +283,12 @@ describe('guided checkout form', () => {
 
     await user.click(screen.getByRole('radio', { name: '2M Express' }))
     const destinationSelect = await screen.findByRole('combobox', { name: 'Destination' })
+    await user.click(destinationSelect)
     expect(screen.getByRole('option', { name: 'Kumasi (Asafo)' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Takoradi' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Region' })).not.toBeInTheDocument()
 
-    await user.selectOptions(destinationSelect, 'Ashanti|Kumasi|Asafo')
+    await user.click(screen.getByRole('option', { name: 'Kumasi (Asafo)' }))
     await user.click(screen.getByRole('button', { name: 'Continue to payment' }))
 
     expect(paymentMocks.apiGet).toHaveBeenCalledWith('/orders/checkout/delivery-options?shopIds=shop-1')
@@ -336,11 +337,12 @@ describe('guided checkout form', () => {
 
     await user.click(screen.getByRole('radio', { name: 'Intercity STC' }))
     const destinationSelect = await screen.findByRole('combobox', { name: 'Destination' })
+    await user.click(destinationSelect)
     expect(screen.getByRole('option', { name: 'Tamale (Main)' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Wa' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Region' })).not.toBeInTheDocument()
 
-    await user.selectOptions(destinationSelect, 'Northern|Tamale|Main')
+    await user.click(screen.getByRole('option', { name: 'Tamale (Main)' }))
     await user.click(screen.getByRole('button', { name: 'Continue to payment' }))
 
     expect(screen.getByRole('heading', { name: 'Payment' })).toBeVisible()
@@ -388,11 +390,12 @@ describe('guided checkout form', () => {
 
     await user.click(screen.getByRole('radio', { name: 'VIP Jeoun' }))
     const destinationSelect = await screen.findByRole('combobox', { name: 'Destination' })
+    await user.click(destinationSelect)
     expect(screen.getByRole('option', { name: 'Kumasi' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Wa' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Region' })).not.toBeInTheDocument()
 
-    await user.selectOptions(destinationSelect, 'Ashanti|Kumasi|')
+    await user.click(screen.getByRole('option', { name: 'Kumasi' }))
     await user.click(screen.getByRole('button', { name: 'Continue to payment' }))
 
     expect(screen.getByRole('heading', { name: 'Payment' })).toBeVisible()
@@ -417,6 +420,7 @@ describe('guided checkout form', () => {
 
     await user.click(screen.getByRole('radio', { name: 'VIP Jeoun' }))
     const destinationSelect = await screen.findByRole('combobox', { name: 'Destination' })
+    await user.click(destinationSelect)
     const options = screen.getAllByRole('option')
     expect(options.map((option) => option.textContent)).toEqual(['Choose a destination', 'Accra'])
     expect(destinationSelect).toBeVisible()
