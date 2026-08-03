@@ -291,7 +291,7 @@ export function MarketplaceFilters({
         <IoFunnelOutline /> Filters
       </button>
       <aside className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
-        {renderForm('desktop', 'flex min-h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)] flex-col gap-4 overflow-y-auto rounded-2xl border border-foose-border/80 bg-foose-surface p-4 shadow-sm [scrollbar-width:thin]')}
+        {renderForm('desktop', 'flex max-h-[calc(100dvh-7rem)] flex-col gap-4 overflow-y-auto rounded-2xl border border-foose-border/80 bg-foose-surface p-4 shadow-sm [scrollbar-width:thin]')}
       </aside>
       {drawerMounted && createPortal(
         <div className="fixed inset-0 z-[1000] lg:hidden">

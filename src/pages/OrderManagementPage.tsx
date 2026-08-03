@@ -84,7 +84,7 @@ function OrderManagementContent({
   const { showToast } = useToast()
   const viewer: OrderViewer = sellerMode ? 'seller' : 'buyer'
   const [bucket, setBucket] = useState<OrderBucket>(historyMode ? 'history' : 'needs_action')
-  const [method, setMethod] = useState<'all' | 'pickup' | 'delivery'>('all')
+  const [method, setMethod] = useState<'all' | 'station_pickup' | 'shop_pickup' | 'airport_to_airport'>('all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'urgent' | 'newest'>('urgent')
   const deferredQuery = useDeferredValue(query.trim())
@@ -231,8 +231,8 @@ function OrderManagementContent({
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-foose-muted">
                 {sellerMode
-                  ? 'See what needs you now, send complete transit details, and follow every payment through settlement.'
-                  : 'Track pickup, delivery, protected payments, refunds, and reports from one place.'}
+                  ? 'See what needs you now, upload waybills, and follow every payment through settlement.'
+                  : 'Track station pickup, shop pickup, express delivery, protected payments, refunds, and reports from one place.'}
               </p>
             </div>
             <ButtonLink
@@ -296,8 +296,9 @@ function OrderManagementContent({
                   value={method}
                 >
                   <option value="all">All methods</option>
-                  <option value="pickup">Pickup</option>
-                  <option value="delivery">Standard delivery</option>
+                  <option value="station_pickup">Station pickup</option>
+                  <option value="shop_pickup">Shop pickup</option>
+                  <option value="airport_to_airport">Express delivery</option>
                 </select>
               </label>
               <label className="grid gap-1">

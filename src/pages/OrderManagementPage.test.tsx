@@ -27,7 +27,7 @@ vi.mock('../hooks/useApiResource', () => ({
         buyerId: { _id: 'buyer-1', email: 'buyer-with-a-long-address@example.com', name: 'Buyer Name' },
         createdAt: '2026-07-17T08:00:00.000Z',
         currency: 'GHS',
-        delivery: { address: { city: 'Accra', region: 'Greater Accra', street: 'A long delivery street' }, method: 'delivery' },
+        delivery: { address: { city: 'Accra', region: 'Greater Accra', street: 'A long delivery street' }, method: 'station_pickup' },
         escrowStatus: 'held',
         items: [{ price: 12000, quantity: 1, title: 'Vintage denim jacket' }],
         paymentStatus: 'paid',

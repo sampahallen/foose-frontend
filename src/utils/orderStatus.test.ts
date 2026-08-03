@@ -13,7 +13,7 @@ function order(overrides: Partial<Order> = {}): Order {
     _id: 'order-1',
     buyerId: 'buyer-1',
     currency: 'GHS',
-    delivery: { method: 'pickup' },
+    delivery: { method: 'shop_pickup' },
     fulfillmentStatus: 'awaiting_seller',
     items: [{ _id: 'line-1', price: 12000, quantity: 1, title: 'Vintage jacket' }],
     settlementStatus: 'held',

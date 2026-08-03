@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { AppShell, ButtonLink, ChoiceCardGroup, ErrorSummary, FormPage, FormSection, Icon, InlineNotice, OrderSummary, StatePanel, StepIndicator, TextField } from '../components'
 import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useCart, type CartItem } from '../hooks/useCart'
-import { useDeliveryEstimate } from '../hooks/useDeliveryEstimate'
-import { apiDelete, apiPost } from '../lib/api'
+import { apiDelete, apiGet, apiPost } from '../lib/api'
 import type { Order, PaystackPaymentSession } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { navigateTo } from '../utils/navigation'
+import { deliveryMethodLabel } from '../utils/orderStatus'
 import { openPaystackInline } from '../utils/paystackInline'
 
 type PlaceOrderResponse = {
@@ -27,6 +27,44 @@ type CancelPaymentResponse = {
   releasedItemCount: number
 }
 
+type DeliveryMethod = 'station_pickup' | 'shop_pickup' | 'airport_to_airport'
+
+type ShopDeliveryState = {
+  method: DeliveryMethod
+  company: string
+  recipientName: string
+  recipientPhone: string
+  region: string
+  town: string
+  preferredTerminal: string
+}
+
+type RouteStop = { label: string; region: string; terminal: string; town: string }
+type RouteOptions = { eligible: boolean; destinations: RouteStop[] }
+
+type ShopDeliveryOption = {
+  shopId: string
+  shopName: string
+  location: { city: string; region: string }
+  intercityStc: RouteOptions
+  twoMExpress: RouteOptions
+  vipJeoun: RouteOptions
+}
+
+const ROUTE_VALIDATED_COMPANIES = ['2M Express', 'Intercity STC', 'VIP Jeoun'] as const
+
+function routeOptionsFor(shopOption: ShopDeliveryOption | undefined, company: string): RouteOptions | undefined {
+  if (company === '2M Express') return shopOption?.twoMExpress
+  if (company === 'Intercity STC') return shopOption?.intercityStc
+  if (company === 'VIP Jeoun') return shopOption?.vipJeoun
+  return undefined
+}
+
+type ShopGroup = { shopId: string; shopName: string; items: CartItem[] }
+
+const STATION_PICKUP_COMPANIES = ['Intercity STC', '2M Express', 'VIP Jeoun'] as const
+const AIRPORT_COURIER = 'Passion Air Courier'
+
 function unavailablePopUpItems(items: CartItem[]) {
   const now = Date.now()
   return items.filter((item) => {
@@ -44,6 +82,33 @@ function createCheckoutIdempotencyKey() {
   return `checkout:${random}`
 }
 
+function groupItemsByShop(items: CartItem[]): ShopGroup[] {
+  const groups = new Map<string, ShopGroup>()
+  for (const item of items) {
+    const shopId = item.shopId || item.shopName || item.listingId
+    const existing = groups.get(shopId)
+    if (existing) existing.items.push(item)
+    else groups.set(shopId, { items: [item], shopId, shopName: item.shopName })
+  }
+  return [...groups.values()]
+}
+
+function stopKey(stop: { region: string; town: string; terminal: string }) {
+  return `${stop.region}|${stop.town}|${stop.terminal}`
+}
+
+function defaultShopDelivery(user: ReturnType<typeof useAuth>['user']): ShopDeliveryState {
+  return {
+    company: '',
+    method: 'station_pickup',
+    preferredTerminal: '',
+    recipientName: user?.name || '',
+    recipientPhone: user?.phone || '',
+    region: user?.location?.region || 'Greater Accra',
+    town: '',
+  }
+}
+
 export function CheckoutPage() {
   const { user } = useAuth()
   const cart = useCart()
@@ -54,12 +119,9 @@ export function CheckoutPage() {
   const [cancellationReference, setCancellationReference] = useState('')
   const [confirmedOrderIds, setConfirmedOrderIds] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
-  const [recipientName, setRecipientName] = useState(user?.name || '')
-  const [recipientPhone, setRecipientPhone] = useState(user?.phone || '')
-  const [region, setRegion] = useState(user?.location?.region || 'Greater Accra')
-  const [town, setTown] = useState(user?.location?.city || '')
-  const [preferredTerminal, setPreferredTerminal] = useState('')
-  const [method, setMethod] = useState<'pickup' | 'delivery'>('delivery')
+  const [deliveryByShop, setDeliveryByShop] = useState<Record<string, ShopDeliveryState>>({})
+  const [shopOptions, setShopOptions] = useState<Record<string, ShopDeliveryOption>>({})
+  const [optionsError, setOptionsError] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_pickup' | 'paystack'>('paystack')
   const [step, setStep] = useState(0)
   const [validationAttempted, setValidationAttempted] = useState(false)
@@ -67,32 +129,55 @@ export function CheckoutPage() {
   const checkoutIdempotencyKeyRef = useRef(createCheckoutIdempotencyKey())
   const cartFingerprint = cart.items.map((item) => `${item.listingId}:${item.quantity}`).sort().join('|')
   const cartFingerprintRef = useRef(cartFingerprint)
-  const parcelCount = new Set(cart.items.map((item) => item.shopId || item.shopName || item.listingId)).size
-  const deliveryEstimate = useDeliveryEstimate(region, method)
-  const deliveryFeeDisplay = method === 'pickup'
-    ? 0
-    : deliveryEstimate.fee === null
-      ? null
-      : deliveryEstimate.fee * Math.max(parcelCount, 1)
-  const usesPaystack = method === 'delivery' || paymentMethod === 'paystack'
-  const recipientNameError = validationAttempted && method === 'delivery' && !recipientName.trim() ? 'Enter the recipient’s full name.' : ''
-  const recipientPhoneError = validationAttempted && method === 'delivery' && recipientPhone.replace(/\D/g, '').length < 9 ? 'Enter a valid recipient phone number.' : ''
-  const regionError = validationAttempted && method === 'delivery' && !region.trim() ? 'Enter a delivery region.' : ''
-  const townError = validationAttempted && method === 'delivery' && !town.trim() ? 'Enter the destination town.' : ''
+
+  const shopGroups = useMemo(() => groupItemsByShop(cart.items), [cart.items])
+  const shopIdsKey = useMemo(() => [...new Set(shopGroups.map((group) => group.shopId))].sort().join(','), [shopGroups])
 
   useEffect(() => {
-    if (cartFingerprintRef.current === cartFingerprint) return
-    if (paymentSession || completedReference || cancellationReference) return
-    cartFingerprintRef.current = cartFingerprint
-    checkoutIdempotencyKeyRef.current = createCheckoutIdempotencyKey()
-    const resetTimer = window.setTimeout(() => {
-      setPaymentSession(null)
-      setCompletedReference('')
-      setCancellationReference('')
-      setConfirmedOrderIds([])
-    }, 0)
-    return () => window.clearTimeout(resetTimer)
-  }, [cancellationReference, cartFingerprint, completedReference, paymentSession])
+    if (!shopIdsKey) return
+    let cancelled = false
+    apiGet<{ shops: ShopDeliveryOption[] }>(`/orders/checkout/delivery-options?shopIds=${encodeURIComponent(shopIdsKey)}`)
+      .then((response) => {
+        if (cancelled) return
+        setOptionsError('')
+        setShopOptions(Object.fromEntries((response.shops || []).map((shop) => [shop.shopId, shop])))
+      })
+      .catch((fetchError) => {
+        if (cancelled) return
+        setOptionsError(getErrorMessage(fetchError, 'Unable to load delivery options for these sellers'))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [shopIdsKey])
+
+  function shopDeliveryFor(shopId: string): ShopDeliveryState {
+    return deliveryByShop[shopId] || defaultShopDelivery(user)
+  }
+
+  function updateShopDelivery(shopId: string, patch: Partial<ShopDeliveryState>) {
+    setDeliveryByShop((current) => ({
+      ...current,
+      [shopId]: { ...(current[shopId] || defaultShopDelivery(user)), ...patch },
+    }))
+  }
+
+  const allShopPickup = shopGroups.length > 0 && shopGroups.every((group) => shopDeliveryFor(group.shopId).method === 'shop_pickup')
+  const deliveryFeeDisplay = 0
+  const usesPaystack = !allShopPickup || paymentMethod === 'paystack'
+
+  function shopErrors(shopId: string) {
+    const state = shopDeliveryFor(shopId)
+    const requiresDestination = state.method !== 'shop_pickup'
+    const isRouteValidated = state.method === 'station_pickup' && (ROUTE_VALIDATED_COMPANIES as readonly string[]).includes(state.company)
+    return {
+      company: state.method === 'station_pickup' && !state.company ? 'Choose a bus transit company.' : '',
+      recipientName: requiresDestination && !state.recipientName.trim() ? 'Enter the recipient’s full name.' : '',
+      recipientPhone: requiresDestination && state.recipientPhone.replace(/\D/g, '').length < 9 ? 'Enter a valid recipient phone number.' : '',
+      region: requiresDestination && !state.region.trim() ? (isRouteValidated ? 'Choose a destination.' : 'Enter a delivery region.') : '',
+      town: requiresDestination && !state.town.trim() && !isRouteValidated ? 'Enter the destination town.' : '',
+    }
+  }
 
   function goToStep(nextStep: number) {
     setStep(nextStep)
@@ -104,14 +189,8 @@ export function CheckoutPage() {
 
   function continueFromDelivery() {
     setValidationAttempted(true)
-    if (method === 'delivery' && (
-      !recipientName.trim()
-      || recipientPhone.replace(/\D/g, '').length < 9
-      || !region.trim()
-      || !town.trim()
-    )) {
-      return
-    }
+    const hasInvalidShop = shopGroups.some((group) => Object.values(shopErrors(group.shopId)).some(Boolean))
+    if (hasInvalidShop) return
     setValidationAttempted(false)
     goToStep(1)
   }
@@ -160,6 +239,20 @@ export function CheckoutPage() {
     navigateTo(`/order-confirmed?orderIds=${encodeURIComponent(confirmedOrderIds.join(','))}`)
   }
 
+  useEffect(() => {
+    if (cartFingerprintRef.current === cartFingerprint) return
+    if (paymentSession || completedReference || cancellationReference) return
+    cartFingerprintRef.current = cartFingerprint
+    checkoutIdempotencyKeyRef.current = createCheckoutIdempotencyKey()
+    const resetTimer = window.setTimeout(() => {
+      setPaymentSession(null)
+      setCompletedReference('')
+      setCancellationReference('')
+      setConfirmedOrderIds([])
+    }, 0)
+    return () => window.clearTimeout(resetTimer)
+  }, [cancellationReference, cartFingerprint, completedReference, paymentSession])
+
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitting(true)
@@ -173,7 +266,7 @@ export function CheckoutPage() {
         return
       }
 
-      const resolvedPaymentMethod = method === 'delivery' ? 'paystack' : paymentMethod
+      const resolvedPaymentMethod = allShopPickup ? paymentMethod : 'paystack'
       let data: PlaceOrderResponse | undefined
       let onlinePayment = paymentSession
 
@@ -188,21 +281,32 @@ export function CheckoutPage() {
       }
 
       if (!onlinePayment || resolvedPaymentMethod === 'cash_on_pickup') {
+        const deliveryPayload = Object.fromEntries(
+          shopGroups.map((group) => {
+            const state = shopDeliveryFor(group.shopId)
+            const requiresDestination = state.method !== 'shop_pickup'
+            return [
+              group.shopId,
+              requiresDestination
+                ? {
+                    company: state.method === 'station_pickup' ? state.company : undefined,
+                    destination: {
+                      preferredTerminal: state.preferredTerminal.trim() || undefined,
+                      recipientName: state.recipientName.trim(),
+                      recipientPhone: state.recipientPhone.trim(),
+                      region: state.region.trim(),
+                      town: state.town.trim(),
+                    },
+                    method: state.method,
+                  }
+                : { method: state.method },
+            ]
+          }),
+        )
         data = await apiPost<PlaceOrderResponse>(
           '/orders',
           {
-            delivery: method === 'delivery'
-              ? {
-                  destination: {
-                    preferredTerminal: preferredTerminal.trim() || undefined,
-                    recipientName: recipientName.trim(),
-                    recipientPhone: recipientPhone.trim(),
-                    region: region.trim(),
-                    town: town.trim(),
-                  },
-                  method,
-                }
-              : { method },
+            deliveryByShop: deliveryPayload,
             items: cart.items.map((item) => ({
               listingId: item.listingId,
               quantity: item.type === 'wholesale' ? item.quantity : 1,
@@ -270,53 +374,115 @@ export function CheckoutPage() {
               <h2 className="sr-only" ref={stepHeadingRef} tabIndex={-1}>{step === 0 ? 'Delivery details' : step === 1 ? 'Payment method' : 'Review order'}</h2>
 
               {step === 0 && (
-                <FormSection description="Choose standard station delivery, shop pickup, or a future meet-up option." title="Delivery details">
-                  <ChoiceCardGroup<'pickup' | 'delivery' | 'meetup'>
-                    label="Fulfilment method"
-                    name="method"
-                    onChange={(value) => {
-                      if (value === 'meetup') return
-                      const nextMethod = value
-                      setMethod(nextMethod)
-                      if (nextMethod === 'delivery') setPaymentMethod('paystack')
-                    }}
-                    options={[
-                      { description: 'The seller sends one parcel per shop through a transit service to your destination town.', label: 'Standard delivery', value: 'delivery', visual: <Icon name="truck" /> },
-                      { description: "Collect from the seller's physical shop, when available.", label: 'Pickup', value: 'pickup', visual: <Icon name="store" /> },
-                      { description: 'Choose a meet point with the seller. Coming soon.', disabled: true, label: 'Meet up', value: 'meetup', visual: <Icon name="location" /> },
-                    ]}
-                    value={method}
-                  />
-                  {(recipientNameError || recipientPhoneError || regionError || townError) && (
-                    <ErrorSummary
-                      errors={[
-                        { fieldId: 'checkout-recipient-name', message: recipientNameError },
-                        { fieldId: 'checkout-recipient-phone', message: recipientPhoneError },
-                        { fieldId: 'checkout-region', message: regionError },
-                        { fieldId: 'checkout-town', message: townError },
-                      ].filter((item) => item.message)}
-                      focus
-                    />
-                  )}
-                  {method === 'delivery' && (
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      <TextField error={recipientNameError} id="checkout-recipient-name" label="Recipient full name" name="recipientName" onChange={(event) => setRecipientName(event.target.value)} placeholder="Name on the parcel" required value={recipientName} />
-                      <TextField error={recipientPhoneError} id="checkout-recipient-phone" inputMode="tel" label="Recipient phone" name="recipientPhone" onChange={(event) => setRecipientPhone(event.target.value)} placeholder="024 000 0000" required type="tel" value={recipientPhone} />
-                      <TextField error={regionError} id="checkout-region" label="Region" name="region" onChange={(event) => setRegion(event.target.value)} placeholder="Greater Accra" required value={region} />
-                      <TextField error={townError} id="checkout-town" label="Destination town" name="town" onChange={(event) => setTown(event.target.value)} placeholder="e.g. Kumasi" required value={town} />
-                      <TextField hint="Add this only if you already know the terminal you prefer. The seller still records the actual last stop when sending." id="checkout-terminal" label="Preferred terminal" name="preferredTerminal" onChange={(event) => setPreferredTerminal(event.target.value)} optional placeholder="e.g. Asafo station" value={preferredTerminal} wrapperClassName="sm:col-span-2" />
-                    </div>
-                  )}
-                  <InlineNotice tone="info">
-                    {method === 'pickup'
-                      ? "Pickup means collecting from the seller's physical shop. The seller will mark the order ready, and there is no delivery fee."
-                      : `${parcelCount} seller ${parcelCount === 1 ? 'parcel' : 'parcels'} will be created. Delivery is charged once for each seller parcel.`}
-                  </InlineNotice>
-                  {method === 'delivery' && deliveryEstimate.error && (
-                    <InlineNotice title="Delivery estimate unavailable" tone="warning">
-                      The exact configured delivery fee will still be calculated securely when the order is created.
-                    </InlineNotice>
-                  )}
+                <FormSection description="Choose a fulfilment method for each seller in your cart." title="Delivery details">
+                  {optionsError && <InlineNotice tone="warning">{optionsError}</InlineNotice>}
+                  <div className="grid gap-5">
+                    {shopGroups.map((group) => {
+                      const state = shopDeliveryFor(group.shopId)
+                      const errors = shopErrors(group.shopId)
+                      const requiresDestination = state.method !== 'shop_pickup'
+                      const isRouteValidated = state.method === 'station_pickup' && (ROUTE_VALIDATED_COMPANIES as readonly string[]).includes(state.company)
+                      const routeOptions = routeOptionsFor(shopOptions[group.shopId], state.company)
+                      const selectedStopKey = state.region || state.town ? stopKey({ region: state.region, terminal: state.preferredTerminal, town: state.town }) : ''
+                      return (
+                        <div className="rounded-xl border border-foose-border p-4 sm:p-5" key={group.shopId}>
+                          <h3 className="mb-3 font-display text-base font-semibold text-foose-text">{group.shopName}</h3>
+                          <ChoiceCardGroup<DeliveryMethod>
+                            label="Fulfilment method"
+                            name={`method-${group.shopId}`}
+                            onChange={(value) => updateShopDelivery(group.shopId, {
+                              company: value === 'station_pickup' ? state.company : '',
+                              method: value,
+                              preferredTerminal: '',
+                              region: value === 'station_pickup' ? '' : state.region,
+                              town: '',
+                            })}
+                            options={[
+                              { description: 'Collect at a bus station via Intercity STC, 2M Express, or VIP Jeoun. Pay the transit fee directly at the station.', label: 'Station pickup', value: 'station_pickup', visual: <Icon name="truck" /> },
+                              { description: "Collect from the seller's physical shop, when available. No delivery fee.", label: 'Shop pickup', value: 'shop_pickup', visual: <Icon name="store" /> },
+                              { description: `${AIRPORT_COURIER} sends an air waybill. Pay the courier fee at the collection point.`, label: 'Express delivery (airport-to-airport)', value: 'airport_to_airport', visual: <Icon name="send" /> },
+                            ]}
+                            value={state.method}
+                          />
+
+                          {validationAttempted && (errors.company || errors.recipientName || errors.recipientPhone || errors.region || errors.town) && (
+                            <ErrorSummary
+                              className="mt-4"
+                              errors={[
+                                { fieldId: `company-${group.shopId}`, message: errors.company },
+                                { fieldId: `recipient-name-${group.shopId}`, message: errors.recipientName },
+                                { fieldId: `recipient-phone-${group.shopId}`, message: errors.recipientPhone },
+                                { fieldId: isRouteValidated ? `destination-${group.shopId}` : `region-${group.shopId}`, message: errors.region },
+                                { fieldId: `town-${group.shopId}`, message: errors.town },
+                              ].filter((item) => item.message)}
+                              focus
+                            />
+                          )}
+
+                          {state.method === 'station_pickup' && (
+                            <ChoiceCardGroup
+                              className="mt-4"
+                              error={validationAttempted ? errors.company : undefined}
+                              id={`company-${group.shopId}`}
+                              label="Bus transit company"
+                              name={`company-${group.shopId}`}
+                              onChange={(value) => updateShopDelivery(group.shopId, (ROUTE_VALIDATED_COMPANIES as readonly string[]).includes(value)
+                                ? { company: value, preferredTerminal: '', region: '', town: '' }
+                                : { company: value })}
+                              options={STATION_PICKUP_COMPANIES.map((name) => ({ label: name, value: name }))}
+                              value={state.company}
+                            />
+                          )}
+
+                          {isRouteValidated && (
+                            routeOptions?.eligible ? (
+                              <label className="mt-4 grid gap-1.5 sm:gap-2" htmlFor={`destination-${group.shopId}`}>
+                                <span className="text-[13px] font-extrabold leading-5 text-foose-text sm:text-sm">Destination<span aria-hidden="true" className="ml-1 text-foose-danger">*</span></span>
+                                <select
+                                  className="min-h-11 w-full rounded-xl border border-foose-border bg-foose-surface px-3 py-2.5 text-base text-foose-text outline-none transition hover:border-accent/60 focus:border-accent focus:ring-2 focus:ring-accent/15 sm:min-h-12 sm:px-4 sm:py-3 sm:text-sm"
+                                  id={`destination-${group.shopId}`}
+                                  onChange={(event) => {
+                                    const stop = routeOptions.destinations.find((candidate) => stopKey(candidate) === event.target.value)
+                                    if (stop) updateShopDelivery(group.shopId, { preferredTerminal: stop.terminal, region: stop.region, town: stop.town })
+                                  }}
+                                  value={selectedStopKey}
+                                >
+                                  <option value="">Choose a destination</option>
+                                  {routeOptions.destinations.map((stopOption) => (
+                                    <option key={stopKey(stopOption)} value={stopKey(stopOption)}>{stopOption.label}</option>
+                                  ))}
+                                </select>
+                              </label>
+                            ) : (
+                              <InlineNotice className="mt-4" title={`${state.company} isn't available here`} tone="warning">
+                                {state.company} doesn't serve a route from {group.shopName}'s location. Choose a different company for this seller.
+                              </InlineNotice>
+                            )
+                          )}
+
+                          {requiresDestination && (
+                            <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                              <TextField error={validationAttempted ? errors.recipientName : undefined} id={`recipient-name-${group.shopId}`} label="Recipient full name" onChange={(event) => updateShopDelivery(group.shopId, { recipientName: event.target.value })} placeholder="Name on the parcel" required value={state.recipientName} />
+                              <TextField error={validationAttempted ? errors.recipientPhone : undefined} id={`recipient-phone-${group.shopId}`} inputMode="tel" label="Recipient phone" onChange={(event) => updateShopDelivery(group.shopId, { recipientPhone: event.target.value })} placeholder="024 000 0000" required type="tel" value={state.recipientPhone} />
+                              {!isRouteValidated && (
+                                <>
+                                  <TextField error={validationAttempted ? errors.region : undefined} id={`region-${group.shopId}`} label="Region" onChange={(event) => updateShopDelivery(group.shopId, { region: event.target.value })} placeholder="Greater Accra" required value={state.region} />
+                                  <TextField error={validationAttempted ? errors.town : undefined} id={`town-${group.shopId}`} label="Destination town" onChange={(event) => updateShopDelivery(group.shopId, { town: event.target.value })} placeholder="e.g. Kumasi" required value={state.town} />
+                                  <TextField hint="Add this only if you already know the terminal you prefer. The seller still records the actual last stop when sending." id={`terminal-${group.shopId}`} label="Preferred terminal" onChange={(event) => updateShopDelivery(group.shopId, { preferredTerminal: event.target.value })} optional placeholder="e.g. Asafo station" value={state.preferredTerminal} wrapperClassName="sm:col-span-2" />
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          <InlineNotice className="mt-4" tone="info">
+                            {state.method === 'shop_pickup'
+                              ? "Shop pickup means collecting from the seller's physical shop. The seller will mark the order ready, and there is no delivery fee."
+                              : 'Pay the transit or courier fee directly at the station or collection point — it is not charged through Foose.'}
+                          </InlineNotice>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </FormSection>
               )}
 
@@ -328,7 +494,7 @@ export function CheckoutPage() {
                     onChange={(value) => setPaymentMethod(value as 'cash_on_pickup' | 'paystack')}
                     options={[
                       { description: 'Pay in a secure Paystack window without leaving Foose. Paid funds are held in escrow.', label: 'Pay online with Paystack', value: 'paystack', visual: <Icon name="shield" /> },
-                      ...(method === 'pickup' ? [{ description: 'Pay the seller when you collect the order. No escrow is held.', label: 'Cash on pickup', value: 'cash_on_pickup', visual: <Icon name="money" /> }] : []),
+                      ...(allShopPickup ? [{ description: 'Pay the seller when you collect the order. No escrow is held.', label: 'Cash on pickup', value: 'cash_on_pickup', visual: <Icon name="money" /> }] : []),
                     ]}
                     value={paymentMethod}
                   />
@@ -339,14 +505,25 @@ export function CheckoutPage() {
 
               {step === 2 && (
                 <FormSection description={usesPaystack ? 'Payment is complete. Review the confirmed order details.' : 'Check these details before placing your order.'} title="Review and confirm">
-                  <dl className="grid gap-4 rounded-xl bg-foose-surface-low p-4 text-sm sm:grid-cols-2">
-                    <div><dt className="font-semibold text-foose-muted">Fulfilment</dt><dd className="mt-1 font-bold capitalize text-foose-text">{method}</dd></div>
-                    <div><dt className="font-semibold text-foose-muted">Payment</dt><dd className="mt-1 font-bold text-foose-text">{paymentMethod === 'paystack' ? 'Paystack' : 'Cash on pickup'}</dd></div>
-                    <div><dt className="font-semibold text-foose-muted">{method === 'delivery' ? 'Recipient' : 'Collection'}</dt><dd className="mt-1 font-bold text-foose-text">{method === 'delivery' ? `${recipientName} · ${recipientPhone}` : "Seller's physical shop"}</dd></div>
-                    {method === 'delivery' && <div><dt className="font-semibold text-foose-muted">Destination</dt><dd className="mt-1 font-bold text-foose-text">{[preferredTerminal, town, region].filter(Boolean).join(', ')}</dd></div>}
-                    <div><dt className="font-semibold text-foose-muted">Items</dt><dd className="mt-1 font-bold text-foose-text">{cart.items.length} distinct {cart.items.length === 1 ? 'item' : 'items'}</dd></div>
-                    <div><dt className="font-semibold text-foose-muted">Seller parcels</dt><dd className="mt-1 font-bold text-foose-text">{parcelCount}</dd></div>
-                  </dl>
+                  <div className="grid gap-4">
+                    {shopGroups.map((group) => {
+                      const state = shopDeliveryFor(group.shopId)
+                      const requiresDestination = state.method !== 'shop_pickup'
+                      return (
+                        <dl className="grid gap-3 rounded-xl bg-foose-surface-low p-4 text-sm sm:grid-cols-2" key={group.shopId}>
+                          <div className="sm:col-span-2"><dt className="font-semibold text-foose-muted">Seller</dt><dd className="mt-1 font-bold text-foose-text">{group.shopName}</dd></div>
+                          <div><dt className="font-semibold text-foose-muted">Fulfilment</dt><dd className="mt-1 font-bold text-foose-text">{deliveryMethodLabel(state.method)}{state.method === 'station_pickup' && state.company ? ` · ${state.company}` : ''}</dd></div>
+                          <div><dt className="font-semibold text-foose-muted">{requiresDestination ? 'Recipient' : 'Collection'}</dt><dd className="mt-1 font-bold text-foose-text">{requiresDestination ? `${state.recipientName} · ${state.recipientPhone}` : "Seller's physical shop"}</dd></div>
+                          {requiresDestination && <div className="sm:col-span-2"><dt className="font-semibold text-foose-muted">Destination</dt><dd className="mt-1 font-bold text-foose-text">{[state.preferredTerminal, state.town, state.region].filter(Boolean).join(', ')}</dd></div>}
+                        </dl>
+                      )
+                    })}
+                    <dl className="grid gap-4 rounded-xl bg-foose-surface-low p-4 text-sm sm:grid-cols-2">
+                      <div><dt className="font-semibold text-foose-muted">Payment</dt><dd className="mt-1 font-bold text-foose-text">{paymentMethod === 'paystack' ? 'Paystack' : 'Cash on pickup'}</dd></div>
+                      <div><dt className="font-semibold text-foose-muted">Items</dt><dd className="mt-1 font-bold text-foose-text">{cart.items.length} distinct {cart.items.length === 1 ? 'item' : 'items'}</dd></div>
+                      <div><dt className="font-semibold text-foose-muted">Seller parcels</dt><dd className="mt-1 font-bold text-foose-text">{shopGroups.length}</dd></div>
+                    </dl>
+                  </div>
                   {usesPaystack && <InlineNotice title="Payment confirmed" tone="success">Paystack has confirmed your payment. Your funds are now protected by Foose escrow.</InlineNotice>}
                   {!usesPaystack && error && <InlineNotice title="Checkout could not continue" tone="error">{error}</InlineNotice>}
                 </FormSection>
@@ -367,7 +544,7 @@ export function CheckoutPage() {
                       ? 'View order confirmation'
                       : submitting ? 'Placing pickup order...' : 'Place pickup order'}
                 deliveryFee={deliveryFeeDisplay}
-                deliveryParcelCount={method === 'delivery' ? parcelCount : undefined}
+                deliveryParcelCount={!allShopPickup ? shopGroups.length : undefined}
                 disabled={submitting}
                 items={cart.items}
                 onAction={step === 0 ? continueFromDelivery : step === 1 && !usesPaystack ? () => goToStep(2) : step === 2 && usesPaystack ? finishOnlineCheckout : undefined}

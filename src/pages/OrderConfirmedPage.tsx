@@ -18,7 +18,7 @@ import { apiPost } from '../lib/api'
 import type { Order } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatMoney } from '../utils/format'
-import { orderDeadlineLabel, orderNextStep, orderTitle } from '../utils/orderStatus'
+import { deliveryMethodLabel, orderDeadlineLabel, orderNextStep, orderTitle } from '../utils/orderStatus'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
 
 function orderIds() {
@@ -158,7 +158,7 @@ export function OrderConfirmedPage() {
                           <div className="min-w-0">
                             <div className="mb-2 flex flex-wrap items-center gap-2">
                               <OrderStatusBadge order={order} />
-                              <Badge>{order.delivery?.method === 'pickup' ? 'Pickup' : 'Standard delivery'}</Badge>
+                              <span className="self-end text-[11px] font-semibold text-foose-faint">{deliveryMethodLabel(order.delivery?.method)}</span>
                             </div>
                             <h2 className="font-display text-lg font-semibold text-foose-text">{orderTitle(order)}</h2>
                             <p className="mt-1 text-xs font-bold uppercase tracking-wide text-foose-faint">Order #{order._id.slice(-8).toUpperCase()}</p>
@@ -195,7 +195,7 @@ export function OrderConfirmedPage() {
 
                 <p className="mt-6 flex items-start justify-center gap-2 border-t border-foose-border pt-5 text-center text-xs leading-5 text-foose-muted">
                   <Icon name="bell" size={16} />
-                  Foose will notify you when a seller marks a pickup ready or sends a delivery.
+                  Foose will notify you when a seller marks a pickup ready or sends a waybill.
                 </p>
               </div>
             </div>

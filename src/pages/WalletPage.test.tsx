@@ -38,7 +38,7 @@ vi.mock('../hooks/useApiResource', () => ({
           id: 'ledger-1',
           order: {
             currency: 'GHS',
-            deliveryMethod: 'pickup',
+            deliveryMethod: 'shop_pickup',
             fulfillmentStatus: 'completed',
             id: 'order-12345678',
             itemCount: 1,

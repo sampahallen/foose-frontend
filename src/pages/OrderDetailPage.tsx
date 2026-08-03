@@ -1,18 +1,16 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import {
   AppShell,
-  Badge,
   ConfirmDialog,
   Dialog,
   ErrorSummary,
+  Icon,
   ImagePreviewInput,
   InlineNotice,
   OrderCountdown,
-  OrderEscrowCard,
   OrderStatusBadge,
   OrderTimeline,
   SafeImage,
-  SectionHeader,
   StatePanel,
   SubmitButton,
   TextField,
@@ -29,12 +27,14 @@ import { createOrderIdempotencyKey, postOrderAction } from '../lib/orderActions'
 import type { Listing, Order, OrderAllowedAction, OrderEvent, User } from '../types/api'
 import { formatDateTime, formatMoney, getListingImage } from '../utils/format'
 import {
+  deliveryMethodLabel,
   orderActionCopy,
   orderAddress,
   orderAllowedActions,
   orderDeadlineLabel,
   orderNextStep,
   orderRecipient,
+  orderSettlementLabel,
   orderTitle,
   participantContact,
   participantName,
@@ -43,11 +43,7 @@ import {
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
 
 type DispatchFields = {
-  busNumber: string
-  driverPhone: string
-  lastStopLocation: string
-  parcelNumber: string
-  transitServiceName: string
+  cargoTrackingNumber: string
 }
 
 type OrderEventsResponse = {
@@ -57,11 +53,7 @@ type OrderEventsResponse = {
 }
 
 const emptyDispatchFields: DispatchFields = {
-  busNumber: '',
-  driverPhone: '',
-  lastStopLocation: '',
-  parcelNumber: '',
-  transitServiceName: '',
+  cargoTrackingNumber: '',
 }
 
 function orderIdFromPath() {
@@ -104,6 +96,16 @@ function itemId(item: Order['items'][number], index: number) {
   if (item._id) return item._id
   if (typeof item.listingId === 'string') return item.listingId
   return item.listingId?._id || String(index)
+}
+
+function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+  if (!value) return null
+  return (
+    <div className="flex items-start justify-between gap-4 py-2.5 text-sm">
+      <dt className="shrink-0 text-foose-muted">{label}</dt>
+      <dd className="max-w-[65%] break-words text-right font-semibold text-foose-text">{value}</dd>
+    </div>
+  )
 }
 
 function actionMessage(action: Exclude<OrderAllowedAction, 'report' | 'dispatch'>) {
@@ -230,12 +232,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     event.preventDefault()
     if (!order) return
     setDispatchAttempted(true)
-    const missingRequired = !dispatchFields.transitServiceName.trim()
-      || !dispatchFields.busNumber.trim()
-      || !dispatchFields.lastStopLocation.trim()
-      || !dispatchFields.driverPhone.trim()
-      || !billImage
-    if (missingRequired) return
+    if (!billImage) return
     setActionError('')
     setDispatchReviewing(true)
   }
@@ -259,11 +256,9 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   async function confirmDispatch() {
     if (!order || !billImage) return
     const body = new FormData()
-    body.set('transitServiceName', dispatchFields.transitServiceName.trim())
-    body.set('busNumber', dispatchFields.busNumber.trim())
-    body.set('lastStopLocation', dispatchFields.lastStopLocation.trim())
-    body.set('driverPhone', dispatchFields.driverPhone.trim())
-    if (dispatchFields.parcelNumber.trim()) body.set('parcelNumber', dispatchFields.parcelNumber.trim())
+    if (dispatchFields.cargoTrackingNumber.trim()) {
+      body.set('cargoTrackingNumber', dispatchFields.cargoTrackingNumber.trim())
+    }
     body.set('billImage', billImage)
 
     setActionId('dispatch')
@@ -282,12 +277,12 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       billReadRevisionRef.current += 1
       setBillPreviewUrl('')
       showToast({
-        message: 'The buyer can now see the transit details and delivery release window.',
+        message: 'The buyer can now see the waybill and delivery release window.',
         title: 'Order marked as sent',
         tone: 'success',
       })
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Unable to send transit details')
+      setActionError(error instanceof Error ? error.message : 'Unable to send the waybill')
       if (error instanceof ApiError && [409, 410].includes(error.status)) {
         setDispatchOpen(false)
         setDispatchReviewing(false)
@@ -371,14 +366,17 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   }
 
   const deadline = order?.workflow?.deadline
+  const cashSettlement = order?.paymentMethod === 'cash_on_pickup' || order?.settlementStatus === 'cash_due'
+  const escrowHeading = order ? (cashSettlement ? 'Pay at pickup' : orderSettlementLabel(order.settlementStatus, order.paymentMethod)) : ''
   const transit = order?.delivery?.transit
+  const company = order?.delivery?.company || transit?.serviceName || transit?.transitServiceName
   const transitAvailable = Boolean(
-    transit?.serviceName
-    || transit?.transitServiceName
+    company
     || transit?.busNumber
     || transit?.lastStopLocation
     || transit?.driverPhone
     || transit?.parcelNumber
+    || transit?.cargoTrackingNumber
     || transit?.billImage,
   )
   const billAvailable = Boolean(transit?.billImage)
@@ -414,37 +412,42 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       )}
 
       {order && (
-        <div className="space-y-5 pb-28 sm:space-y-6 sm:pb-8">
-          <header className="overflow-hidden rounded-3xl border border-foose-border bg-white shadow-sm">
-            <div className="bg-gradient-to-br from-accent-light via-white to-foose-surface-low px-4 py-5 sm:px-6 sm:py-7">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <OrderStatusBadge order={order} />
-                    <Badge>{order.delivery?.method === 'pickup' ? 'Pickup' : 'Standard delivery'}</Badge>
-                  </div>
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-foose-faint">Order #{order._id.slice(-8).toUpperCase()}</p>
-                  <h1 className="mt-1 max-w-3xl font-display text-2xl font-semibold leading-tight text-foose-text sm:text-3xl">{orderTitle(order)}</h1>
-                  <p className="mt-2 text-sm text-foose-muted">{order.createdAt ? `Placed ${formatDateTime(order.createdAt)}` : 'Order date pending'}</p>
+        <div className="mx-auto max-w-3xl space-y-5 pb-28 sm:pb-10">
+          <header className="rounded-2xl border border-foose-border bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <OrderStatusBadge order={order} />
+                  <span className="text-[11px] font-semibold text-foose-faint">{deliveryMethodLabel(order.delivery?.method)}</span>
                 </div>
-                <strong className="shrink-0 font-display text-2xl font-semibold text-accent">{formatMoney(order.totalAmount, order.currency)}</strong>
+                <p className="text-xs font-bold uppercase tracking-wide text-foose-faint">Order #{order._id.slice(-8).toUpperCase()}</p>
+                <h1 className="mt-1 font-display text-2xl font-semibold leading-tight text-foose-text sm:text-3xl">{orderTitle(order)}</h1>
+                <p className="mt-1.5 text-sm text-foose-muted">{order.createdAt ? `Placed ${formatDateTime(order.createdAt)}` : 'Order date pending'}</p>
               </div>
-
-              <div className="mt-5 rounded-2xl border border-white/80 bg-white/90 p-4 shadow-sm backdrop-blur sm:p-5">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
-                  {[viewer, 'buyer_or_seller'].includes(order.workflow?.nextActor || '') ? 'Your next step' : 'What happens next'}
+              <div className="shrink-0 sm:text-right">
+                <strong className="block font-display text-2xl font-semibold text-accent">{formatMoney(order.totalAmount, order.currency)}</strong>
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-accent sm:justify-end">
+                  <Icon name={cashSettlement ? 'money' : 'shield'} size={14} />
+                  {escrowHeading}
                 </p>
-                <p className="mt-2 max-w-3xl text-base font-semibold leading-7 text-foose-text">{orderNextStep(order, viewer)}</p>
-                {deadline?.at && (
-                  <>
-                    <div className="mt-4 flex flex-col gap-1 border-t border-foose-border pt-3 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="text-sm font-bold text-foose-muted">{orderDeadlineLabel(deadline.type)} · {formatDateTime(deadline.at)}</span>
-                      <OrderCountdown at={deadline.at} className="text-sm" serverNow={order.workflow?.serverNow} />
-                    </div>
-                    {deadline.consequence && <p className="mt-2 text-sm leading-6 text-foose-muted">{deadline.consequence}</p>}
-                  </>
-                )}
+                <p className="mt-0.5 text-xs font-semibold text-foose-faint">{order.paymentMethod === 'cash_on_pickup' ? 'Cash on pickup' : 'Online payment'}</p>
               </div>
+            </div>
+
+            <div className="mt-5 rounded-xl bg-accent-light/60 p-4">
+              <p className="text-xs font-black uppercase tracking-wide text-accent">
+                {[viewer, 'buyer_or_seller'].includes(order.workflow?.nextActor || '') ? 'Your next step' : 'What happens next'}
+              </p>
+              <p className="mt-1.5 text-base font-semibold leading-6 text-foose-text">{orderNextStep(order, viewer)}</p>
+              {deadline?.at && (
+                <>
+                  <div className="mt-3 flex flex-col gap-1 border-t border-accent/15 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-sm font-bold text-foose-muted">{orderDeadlineLabel(deadline.type)} · {formatDateTime(deadline.at)}</span>
+                    <OrderCountdown at={deadline.at} className="text-sm" serverNow={order.workflow?.serverNow} />
+                  </div>
+                  {deadline.consequence && <p className="mt-1.5 text-sm leading-6 text-foose-muted">{deadline.consequence}</p>}
+                </>
+              )}
             </div>
           </header>
 
@@ -468,178 +471,126 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             </InlineNotice>
           )}
 
-          <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-            <main className="min-w-0 space-y-5">
-              <section className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-6">
-                <SectionHeader eyebrow={`${order.items.length} ${order.items.length === 1 ? 'item' : 'items'}`} title="Order contents" />
-                <div className="divide-y divide-foose-border overflow-hidden rounded-xl border border-foose-border">
-                  {order.items.map((item, index) => (
-                    <button
-                      className="flex min-w-0 w-full items-center gap-3 bg-white p-3 text-left transition hover:bg-accent-light/30 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent sm:p-4"
-                      key={itemId(item, index)}
-                      onClick={() => setSelectedItem(item)}
-                      type="button"
-                    >
-                      <SafeImage
-                        alt=""
-                        className="size-14 shrink-0 rounded-xl object-cover sm:size-16"
-                        fallback="No image"
-                        fallbackClassName="text-[9px] font-bold"
-                        src={itemImage(item)}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-black text-foose-text sm:text-base">{item.title}</span>
-                        <span className="mt-1 block text-xs font-semibold text-foose-muted">Quantity {item.quantity} · {formatMoney(item.price, order.currency)} each</span>
-                      </span>
-                      <strong className="shrink-0 text-sm font-black text-accent">{formatMoney(item.price * item.quantity, order.currency)}</strong>
-                    </button>
-                  ))}
-                </div>
-                <dl className="ml-auto mt-4 grid max-w-sm gap-2 text-sm">
-                  <div className="flex items-center justify-between gap-4 text-foose-muted"><dt>Items</dt><dd className="font-bold text-foose-text">{formatMoney(order.subtotalAmount ?? order.totalAmount - (order.deliveryFee || 0), order.currency)}</dd></div>
-                  <div className="flex items-center justify-between gap-4 text-foose-muted"><dt>Delivery</dt><dd className="font-bold text-foose-text">{order.deliveryFee || order.delivery?.fee ? formatMoney(order.deliveryFee || order.delivery?.fee || 0, order.currency) : 'Free'}</dd></div>
-                  <div className="mt-1 flex items-center justify-between gap-4 border-t border-foose-border pt-3 text-base"><dt className="font-black text-foose-text">Total</dt><dd className="font-black text-accent">{formatMoney(order.totalAmount, order.currency)}</dd></div>
-                </dl>
-              </section>
+          <section className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-6">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-display text-lg font-semibold text-foose-text">Order contents</h2>
+              <span className="text-xs font-bold text-foose-faint">{order.items.length} {order.items.length === 1 ? 'item' : 'items'}</span>
+            </div>
+            <div className="divide-y divide-foose-border overflow-hidden rounded-xl border border-foose-border">
+              {order.items.map((item, index) => (
+                <button
+                  className="flex min-w-0 w-full items-center gap-3 bg-white p-3 text-left transition hover:bg-accent-light/30 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent sm:p-4"
+                  key={itemId(item, index)}
+                  onClick={() => setSelectedItem(item)}
+                  type="button"
+                >
+                  <SafeImage
+                    alt=""
+                    className="size-14 shrink-0 rounded-xl object-cover sm:size-16"
+                    fallback="No image"
+                    fallbackClassName="text-[9px] font-bold"
+                    src={itemImage(item)}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-black text-foose-text sm:text-base">{item.title}</span>
+                    <span className="mt-1 block text-xs font-semibold text-foose-muted">Quantity {item.quantity} · {formatMoney(item.price, order.currency)} each</span>
+                  </span>
+                  <strong className="shrink-0 text-sm font-black text-accent">{formatMoney(item.price * item.quantity, order.currency)}</strong>
+                </button>
+              ))}
+            </div>
+            <dl className="mt-4 space-y-1.5 text-sm">
+              <div className="flex items-center justify-between text-foose-muted"><dt>Items</dt><dd className="font-bold text-foose-text">{formatMoney(order.subtotalAmount ?? order.totalAmount - (order.deliveryFee || 0), order.currency)}</dd></div>
+              <div className="flex items-center justify-between text-foose-muted"><dt>Delivery</dt><dd className="font-bold text-foose-text">{order.deliveryFee || order.delivery?.fee ? formatMoney(order.deliveryFee || order.delivery?.fee || 0, order.currency) : 'Free'}</dd></div>
+              <div className="flex items-center justify-between border-t border-foose-border pt-2 text-base"><dt className="font-black text-foose-text">Total</dt><dd className="font-black text-accent">{formatMoney(order.totalAmount, order.currency)}</dd></div>
+            </dl>
+          </section>
 
-              <section className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-6">
-                <SectionHeader
-                  eyebrow={order.delivery?.method === 'pickup' ? 'Collection' : 'Parcel journey'}
-                  title={order.delivery?.method === 'pickup' ? 'Pickup details' : 'Delivery details'}
-                />
-                <dl className="grid gap-3 text-sm sm:grid-cols-2 [&_div]:rounded-xl [&_div]:bg-foose-surface-low [&_div]:p-3 [&_dt]:text-xs [&_dt]:font-black [&_dt]:uppercase [&_dt]:tracking-wide [&_dt]:text-foose-faint [&_dd]:mt-1 [&_dd]:break-words [&_dd]:font-semibold [&_dd]:text-foose-text">
-                  <div>
-                    <dt>{sellerMode ? 'Buyer' : 'Seller'}</dt>
-                    <dd>{sellerMode ? participantName(order.buyerId, 'Buyer') : shopName(order)}</dd>
-                  </div>
-                  {sellerMode && (
-                    <div>
-                      <dt>Buyer contact</dt>
-                      <dd>{participantContact(order.buyerId) || orderRecipient(order) || 'Not provided'}</dd>
-                    </div>
-                  )}
-                  {order.delivery?.method === 'delivery' && (
-                    <>
-                      <div>
-                        <dt>Recipient</dt>
-                        <dd>{orderRecipient(order) || 'Recipient details pending'}</dd>
-                      </div>
-                      <div>
-                        <dt>Destination</dt>
-                        <dd>{orderAddress(order) || 'Destination pending'}</dd>
-                      </div>
-                    </>
-                  )}
-                  {order.delivery?.method === 'pickup' && (
-                    <div>
-                      <dt>Pickup location</dt>
-                      <dd>{orderAddress(order) || shopLocation(order) || 'Collect from the seller’s shop'}</dd>
-                    </div>
-                  )}
-                  {order.delivery?.method === 'pickup' && !sellerMode && (
-                    <div>
-                      <dt>Seller contact</dt>
-                      <dd>
-                        {shopOwner(order)?.phone
-                          ? <a className="text-accent underline underline-offset-2" href={`tel:${shopOwner(order)?.phone}`}>{shopOwner(order)?.phone}</a>
-                          : participantContact(shopOwner(order)) || 'Message the seller to coordinate collection'}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-
-                {order.delivery?.method === 'pickup' && !sellerMode && typeof order.shopId === 'object' && (
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                    {order.shopId.slug && (
-                      <a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-black text-foose-text hover:border-accent hover:text-accent" href={withBasePath(`/shops/${order.shopId.slug}`)}>
-                        View seller shop
-                      </a>
-                    )}
-                    {shopOwner(order)?._id && (
-                      <a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-4 text-sm font-black text-white hover:bg-accent-hover" href={withBasePath(`/inbox?receiverId=${encodeURIComponent(shopOwner(order)?._id || '')}`)}>
-                        Message seller
-                      </a>
-                    )}
-                  </div>
-                )}
-
-                {transitAvailable && transit && (
-                  <div className="mt-5 border-t border-foose-border pt-5">
-                    <h3 className="font-display text-lg font-semibold text-foose-text">Transit details</h3>
-                    <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 [&_div]:rounded-xl [&_div]:border [&_div]:border-foose-border [&_div]:p-3 [&_dt]:text-xs [&_dt]:font-black [&_dt]:uppercase [&_dt]:tracking-wide [&_dt]:text-foose-faint [&_dd]:mt-1 [&_dd]:font-semibold [&_dd]:text-foose-text">
-                      <div><dt>Transit service</dt><dd>{transit.serviceName || transit.transitServiceName || 'Not provided'}</dd></div>
-                      <div><dt>Bus number</dt><dd>{transit.busNumber || 'Not provided'}</dd></div>
-                      <div><dt>Last stop</dt><dd>{transit.lastStopLocation || 'Not provided'}</dd></div>
-                      <div>
-                        <dt>Driver phone</dt>
-                        <dd>{transit.driverPhone ? <a className="text-accent underline underline-offset-2" href={`tel:${transit.driverPhone}`}>{transit.driverPhone}</a> : 'Not provided'}</dd>
-                      </div>
-                      {transit.parcelNumber && <div><dt>Parcel number</dt><dd>{transit.parcelNumber}</dd></div>}
-                    </dl>
-                    {billAvailable && (
-                      <button
-                        className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-black text-accent transition hover:border-accent hover:bg-accent-light"
-                        disabled={billLoading}
-                        onClick={() => void openTransitBill()}
-                        type="button"
-                      >
-                        {billLoading ? 'Creating private link…' : 'View private bus bill'}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </section>
-
-              <section className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-6">
-                <SectionHeader eyebrow="Recorded by Foose" title="Order timeline" />
-                {eventsResource.error && <InlineNotice tone="warning">Live activity could not refresh. The saved order timestamps are shown instead.</InlineNotice>}
-                <OrderTimeline events={visibleEvents} fallbackOrder={order} />
-                {eventsCursor && (
-                  <button
-                    className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-60 sm:w-auto"
-                    disabled={eventsLoadingMore}
-                    onClick={() => void loadMoreEvents()}
-                    type="button"
-                  >
-                    {eventsLoadingMore ? 'Loading more activity…' : 'Load more activity'}
-                  </button>
-                )}
-              </section>
-            </main>
-
-            <aside className="space-y-5 lg:sticky lg:top-24">
-              <OrderEscrowCard order={order} viewer={viewer} />
-              <section className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-5">
-                <h2 className="font-display text-lg font-semibold text-foose-text">Order reference</h2>
-                <dl className="mt-3 grid gap-3 text-sm">
-                  <div className="flex items-start justify-between gap-4 border-b border-foose-border pb-3"><dt className="text-foose-muted">Order</dt><dd className="font-black text-foose-text">#{order._id.slice(-8).toUpperCase()}</dd></div>
-                  <div className="flex items-start justify-between gap-4 border-b border-foose-border pb-3"><dt className="text-foose-muted">Method</dt><dd className="font-black capitalize text-foose-text">{order.delivery?.method || 'Delivery'}</dd></div>
-                  <div className="flex items-start justify-between gap-4"><dt className="text-foose-muted">Payment</dt><dd className="text-right font-black text-foose-text">{order.paymentMethod === 'cash_on_pickup' ? 'Cash on pickup' : 'Online payment'}</dd></div>
-                </dl>
-              </section>
-              {!allowedActions.length && (
-                <p className="rounded-xl bg-foose-surface-low p-4 text-sm leading-6 text-foose-muted">
-                  There is no action for you right now. This page refreshes when the order changes.
-                </p>
+          <section className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-6">
+            <h2 className="mb-1 font-display text-lg font-semibold text-foose-text">{order.delivery?.method === 'shop_pickup' ? 'Pickup details' : 'Delivery details'}</h2>
+            <dl className="divide-y divide-foose-border">
+              <DetailRow label={sellerMode ? 'Buyer' : 'Seller'} value={sellerMode ? participantName(order.buyerId, 'Buyer') : shopName(order)} />
+              {sellerMode && (
+                <DetailRow label="Buyer contact" value={participantContact(order.buyerId) || orderRecipient(order) || 'Not provided'} />
               )}
-            </aside>
-          </div>
+              {order.delivery?.method !== 'shop_pickup' && (
+                <>
+                  <DetailRow label="Recipient" value={orderRecipient(order) || 'Recipient details pending'} />
+                  <DetailRow label="Destination" value={orderAddress(order) || 'Destination pending'} />
+                </>
+              )}
+              {order.delivery?.method === 'shop_pickup' && (
+                <DetailRow label="Pickup location" value={orderAddress(order) || shopLocation(order) || 'Collect from the seller’s shop'} />
+              )}
+              {order.delivery?.method === 'shop_pickup' && !sellerMode && (
+                <DetailRow
+                  label="Seller contact"
+                  value={shopOwner(order)?.phone
+                    ? <a className="text-accent underline underline-offset-2" href={`tel:${shopOwner(order)?.phone}`}>{shopOwner(order)?.phone}</a>
+                    : participantContact(shopOwner(order)) || 'Message the seller to coordinate collection'}
+                />
+              )}
+              {transitAvailable && transit && (
+                <>
+                  <DetailRow label="Company" value={company || 'Not provided'} />
+                  {transit.cargoTrackingNumber && <DetailRow label="Cargo tracking number" value={transit.cargoTrackingNumber} />}
+                </>
+              )}
+            </dl>
+
+            {order.delivery?.method === 'shop_pickup' && !sellerMode && typeof order.shopId === 'object' && (
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                {order.shopId.slug && (
+                  <a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-black text-foose-text hover:border-accent hover:text-accent sm:flex-1" href={withBasePath(`/shops/${order.shopId.slug}`)}>
+                    View seller shop
+                  </a>
+                )}
+                {shopOwner(order)?._id && (
+                  <a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-4 text-sm font-black text-white hover:bg-accent-hover sm:flex-1" href={withBasePath(`/inbox?receiverId=${encodeURIComponent(shopOwner(order)?._id || '')}`)}>
+                    Message seller
+                  </a>
+                )}
+              </div>
+            )}
+
+            {billAvailable && (
+              <button
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-black text-accent transition hover:border-accent hover:bg-accent-light disabled:opacity-60 sm:w-auto"
+                disabled={billLoading}
+                onClick={() => void openTransitBill()}
+                type="button"
+              >
+                {billLoading ? 'Creating private link…' : 'View private waybill'}
+              </button>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-6">
+            <h2 className="mb-3 font-display text-lg font-semibold text-foose-text">Order timeline</h2>
+            {eventsResource.error && <InlineNotice tone="warning">Live activity could not refresh. The saved order timestamps are shown instead.</InlineNotice>}
+            <OrderTimeline events={visibleEvents} fallbackOrder={order} />
+            {eventsCursor && (
+              <button
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-60 sm:w-auto"
+                disabled={eventsLoadingMore}
+                onClick={() => void loadMoreEvents()}
+                type="button"
+              >
+                {eventsLoadingMore ? 'Loading more activity…' : 'Load more activity'}
+              </button>
+            )}
+          </section>
 
           {allowedActions.length > 0 && (
             <section
               aria-label="Available order actions"
               className="fixed inset-x-0 bottom-0 z-30 border-t border-foose-border bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-2 sm:rounded-2xl sm:border sm:p-4 sm:shadow-sm"
             >
-              <div className="mx-auto flex max-w-[1280px] flex-col-reverse gap-2 sm:mx-0 sm:flex-row sm:flex-wrap sm:justify-end">
+              <div className="mx-auto flex max-w-3xl flex-col-reverse gap-2 sm:mx-0 sm:flex-row sm:flex-wrap sm:justify-end">
                 {allowedActions.map((action, index) => actionButton(action, index === 0))}
               </div>
             </section>
           )}
-
-          <footer className="flex flex-col gap-2 border-t border-foose-border py-5 text-xs text-foose-muted sm:flex-row sm:items-center sm:justify-between">
-            <span>Foose order support</span>
-            <span className="font-semibold text-foose-text">Order #{order._id.slice(-8).toUpperCase()}</span>
-          </footer>
         </div>
       )}
 
@@ -660,8 +611,8 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
 
       <Dialog
         description={dispatchReviewing
-          ? 'Confirm every detail against the station bill before notifying the buyer.'
-          : 'Enter the exact details on the station bill. The buyer will use them to identify and collect the parcel.'}
+          ? 'Confirm the waybill image before notifying the buyer.'
+          : 'Upload a clear photo of the waybill. The buyer will use it to identify and collect the parcel.'}
         dismissible={actionId !== 'dispatch'}
         footer={(
           dispatchReviewing ? (
@@ -704,28 +655,27 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         }}
         open={dispatchOpen}
         size="lg"
-        title={dispatchReviewing ? 'Review dispatch details' : 'Add transit details'}
+        title={dispatchReviewing ? 'Review dispatch details' : 'Upload waybill'}
       >
         {dispatchReviewing ? (
           <div className="grid gap-5">
-            {actionError && <InlineNotice title="Transit details were not saved" tone="error">{actionError}</InlineNotice>}
+            {actionError && <InlineNotice title="Waybill was not saved" tone="error">{actionError}</InlineNotice>}
             <InlineNotice title="This starts the delivery clock" tone="warning">
               The buyer is notified immediately. Unless they confirm receipt or submit a report, the protected payment releases after 36 hours.
             </InlineNotice>
-            <dl className="grid gap-3 text-sm sm:grid-cols-2 [&_div]:rounded-xl [&_div]:border [&_div]:border-foose-border [&_div]:bg-foose-surface-low [&_div]:p-3 [&_dt]:text-xs [&_dt]:font-black [&_dt]:uppercase [&_dt]:tracking-wide [&_dt]:text-foose-faint [&_dd]:mt-1 [&_dd]:break-words [&_dd]:font-semibold [&_dd]:text-foose-text">
-              <div><dt>Transit service</dt><dd>{dispatchFields.transitServiceName.trim()}</dd></div>
-              <div><dt>Bus number</dt><dd>{dispatchFields.busNumber.trim()}</dd></div>
-              <div><dt>Actual last stop</dt><dd>{dispatchFields.lastStopLocation.trim()}</dd></div>
-              <div><dt>Driver phone</dt><dd>{dispatchFields.driverPhone.trim()}</dd></div>
-              {dispatchFields.parcelNumber.trim() && <div><dt>Parcel number</dt><dd>{dispatchFields.parcelNumber.trim()}</dd></div>}
-              <div><dt>Private station bill</dt><dd>{billImage?.name}</dd></div>
+            <dl className="divide-y divide-foose-border rounded-xl border border-foose-border px-3">
+              {company && <DetailRow label="Company" value={company} />}
+              {order?.delivery?.method === 'airport_to_airport' && dispatchFields.cargoTrackingNumber.trim() && (
+                <DetailRow label="Cargo tracking number" value={dispatchFields.cargoTrackingNumber.trim()} />
+              )}
+              <DetailRow label="Private waybill" value={billImage?.name} />
             </dl>
             <div className="overflow-hidden rounded-2xl border border-foose-border bg-foose-surface-low p-3">
-              <p className="mb-2 text-xs font-black uppercase tracking-wide text-foose-faint">Station bill preview</p>
+              <p className="mb-2 text-xs font-black uppercase tracking-wide text-foose-faint">Waybill preview</p>
               <SafeImage
-                alt={`Preview of ${billImage?.name || 'station bill'}`}
+                alt={`Preview of ${billImage?.name || 'waybill'}`}
                 className="max-h-80 w-full rounded-xl bg-white object-contain"
-                fallback="Preparing bill preview…"
+                fallback="Preparing waybill preview…"
                 fallbackClassName="min-h-40 text-sm font-bold"
                 src={billPreviewUrl}
               />
@@ -733,84 +683,35 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
           </div>
         ) : (
         <form className="grid gap-5" id="dispatch-order-form" noValidate onSubmit={reviewDispatch}>
-          {actionError && <InlineNotice title="Transit details were not saved" tone="error">{actionError}</InlineNotice>}
-          {dispatchAttempted && (
-            !dispatchFields.transitServiceName.trim()
-            || !dispatchFields.busNumber.trim()
-            || !dispatchFields.lastStopLocation.trim()
-            || !dispatchFields.driverPhone.trim()
-            || !billImage
-          ) && (
+          {actionError && <InlineNotice title="Waybill was not saved" tone="error">{actionError}</InlineNotice>}
+          {dispatchAttempted && !billImage && (
             <ErrorSummary
-              errors={[
-                ...(!dispatchFields.transitServiceName.trim() ? [{ fieldId: 'dispatch-service', message: 'Enter the transit service name.' }] : []),
-                ...(!dispatchFields.busNumber.trim() ? [{ fieldId: 'dispatch-bus-number', message: 'Enter the bus number.' }] : []),
-                ...(!dispatchFields.lastStopLocation.trim() ? [{ fieldId: 'dispatch-last-stop', message: 'Enter the actual last stop.' }] : []),
-                ...(!dispatchFields.driverPhone.trim() ? [{ fieldId: 'dispatch-driver-phone', message: 'Enter the driver’s phone number.' }] : []),
-                ...(!billImage ? [{ fieldId: 'dispatch-bill', message: 'Add a clear image of the station bill.' }] : []),
-              ]}
+              errors={[{ fieldId: 'dispatch-bill', message: 'Add a clear image of the waybill.' }]}
               focus
             />
           )}
           <InlineNotice title="Check before sending" tone="info">
-            You will review these details before the buyer is notified and the 36-hour confirmation window begins.
+            You will review this before the buyer is notified and the 36-hour confirmation window begins.
           </InlineNotice>
-          <div className="grid gap-4 sm:grid-cols-2">
+          {company && <InlineNotice tone="info">Company: {company}</InlineNotice>}
+          {order?.delivery?.method === 'airport_to_airport' && (
             <TextField
-              error={dispatchAttempted && !dispatchFields.transitServiceName.trim() ? 'Enter the transit service name.' : undefined}
-              id="dispatch-service"
-              label="Transit service name"
-              onChange={(event) => setDispatchFields((current) => ({ ...current, transitServiceName: event.target.value }))}
-              placeholder="e.g. VIP Jeoun"
-              required
-              value={dispatchFields.transitServiceName}
-            />
-            <TextField
-              error={dispatchAttempted && !dispatchFields.busNumber.trim() ? 'Enter the bus number.' : undefined}
-              id="dispatch-bus-number"
-              label="Bus number"
-              onChange={(event) => setDispatchFields((current) => ({ ...current, busNumber: event.target.value }))}
-              placeholder="e.g. GT 4821-24"
-              required
-              value={dispatchFields.busNumber}
-            />
-            <TextField
-              error={dispatchAttempted && !dispatchFields.lastStopLocation.trim() ? 'Enter the actual last stop.' : undefined}
-              id="dispatch-last-stop"
-              label="Actual last stop"
-              onChange={(event) => setDispatchFields((current) => ({ ...current, lastStopLocation: event.target.value }))}
-              placeholder="e.g. Kumasi Asafo station"
-              required
-              value={dispatchFields.lastStopLocation}
-            />
-            <TextField
-              error={dispatchAttempted && !dispatchFields.driverPhone.trim() ? 'Enter the driver’s phone number.' : undefined}
-              id="dispatch-driver-phone"
-              inputMode="tel"
-              label="Driver phone number"
-              onChange={(event) => setDispatchFields((current) => ({ ...current, driverPhone: event.target.value }))}
-              placeholder="e.g. 024 000 0000"
-              required
-              type="tel"
-              value={dispatchFields.driverPhone}
-            />
-            <TextField
-              id="dispatch-parcel-number"
-              label="Parcel number"
-              onChange={(event) => setDispatchFields((current) => ({ ...current, parcelNumber: event.target.value }))}
+              hint="If Passion Air Courier issued one."
+              id="dispatch-cargo-tracking"
+              label="Cargo tracking number"
+              onChange={(event) => setDispatchFields((current) => ({ ...current, cargoTrackingNumber: event.target.value }))}
               optional
-              placeholder="If the station issued one"
-              value={dispatchFields.parcelNumber}
-              wrapperClassName="sm:col-span-2"
+              placeholder="Optional"
+              value={dispatchFields.cargoTrackingNumber}
             />
-          </div>
+          )}
           <ImagePreviewInput
             accept="image/jpeg,image/png,image/webp"
             aspect="wide"
-            error={dispatchAttempted && !billImage ? 'Add a clear image of the station bill.' : undefined}
+            error={dispatchAttempted && !billImage ? 'Add a clear image of the waybill.' : undefined}
             hint="JPEG, PNG or WebP only. Maximum 5 MB. This image stays private to order participants and authorized staff."
             id="dispatch-bill"
-            label="Station bill"
+            label={order?.delivery?.method === 'airport_to_airport' ? 'Air waybill / receipt' : 'Bus waybill'}
             maxBytes={5 * 1024 * 1024}
             maxFiles={1}
             name="billImage"

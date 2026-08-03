@@ -1,6 +1,11 @@
 import type { ReactNode } from 'react'
 
-const badgeBase = 'inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide'
+const badgeBase = 'inline-flex w-fit items-center px-3 py-1 text-xs font-bold uppercase tracking-wide'
+
+const badgeShapes = {
+  pill: 'rounded-full',
+  soft: 'rounded-lg',
+}
 
 const badgeTones = {
   neutral: 'bg-foose-surface-high text-foose-muted',
@@ -12,10 +17,12 @@ const badgeTones = {
 
 export function Badge({
   children,
+  shape = 'pill',
   tone = 'neutral',
 }: {
   children: ReactNode
+  shape?: 'pill' | 'soft'
   tone?: 'neutral' | 'accent' | 'danger' | 'success' | 'warning'
 }) {
-  return <span className={`${badgeBase} ${badgeTones[tone]}`}>{children}</span>
+  return <span className={`${badgeBase} ${badgeShapes[shape]} ${badgeTones[tone]}`}>{children}</span>
 }

@@ -1,8 +1,9 @@
+import { PRODUCT_GRID_CLASS } from '../marketplace/ProductCard'
 import { InlineNotice } from './InlineNotice'
 import { LoadingRegion } from './LoadingRegion'
 import { SkeletonBlock } from './SkeletonBlock'
 
-const productGridClasses = 'grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+const productGridClasses = PRODUCT_GRID_CLASS
 
 function ProductTileSkeleton() {
   return (

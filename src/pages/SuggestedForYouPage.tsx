@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/refs -- the infinite-resource hook exposes reactive state through a stable facade */
 import { useCallback, useMemo } from 'react'
-import { AppShell, InlineNotice, ProductCard, RefreshIndicator, StatePanel, TopFilterBar } from '../components'
+import { AppShell, BrowseSearchCombobox, InlineNotice, ListingTypeToggle, MarketplaceFilters, MarketplaceSortControl, ProductCard, RefreshIndicator, StatePanel } from '../components'
+import { PRODUCT_GRID_CLASS } from '../components/marketplace/ProductCard'
 import { AppendFeedback, ProductGridSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { useAuth } from '../hooks/useAuth'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
@@ -10,18 +12,12 @@ import { withBasePath } from '../utils/navigation'
 
 function suggestedPath(page: number, search: string) {
   const query = new URLSearchParams(search)
-  query.set('page', String(page))
-  query.set('limit', '50')
+  if (!query.has('page')) query.set('page', '1')
+  if (!query.has('limit')) query.set('limit', '50')
   if (!query.has('type')) query.set('type', 'retail')
+  if (!query.has('sort')) query.set('sort', 'relevance')
+  query.set('page', String(page))
   return `/recommendations/suggested?${query.toString()}`
-}
-
-function modeHref(mode: 'retail' | 'wholesale', search: string) {
-  const query = new URLSearchParams(search)
-  query.set('type', mode)
-  query.delete('page')
-  query.delete('limit')
-  return withBasePath(`/suggested-for-you?${query.toString()}`)
 }
 
 export function SuggestedForYouPage() {
@@ -31,59 +27,53 @@ export function SuggestedForYouPage() {
   const activeMode = query.get('type') === 'wholesale' ? 'wholesale' : 'retail'
   const buildPath = useCallback((page: number) => suggestedPath(page, search), [search])
   const extractListings = useCallback((data: PaginatedListings) => data.results || [], [])
-  const {
-    data: listingData,
-    error,
-    items,
-    loading,
-    loadingMore,
-    loadMoreError,
-    refetch,
-    refreshing,
-    retryLoadMore,
-    sentinelRef,
-    total,
-  } = useInfiniteApiResource(buildPath, extractListings, [search])
+  const listings = useInfiniteApiResource(buildPath, extractListings, [search])
   const filterBandVisible = useScrollRevealBand()
-  const feedListings = useMemo(() => withoutOwnListings(items, user), [items, user])
+  const feedListings = useMemo(() => withoutOwnListings(listings.items, user), [listings.items, user])
+  const resultCount = listings.total > 50 ? '50+' : String(listings.total)
 
   return (
-    <AppShell active="browse" searchPlaceholder="Search your suggestions...">
-      <header className="mb-5 border-b border-foose-border pb-4">
-        <h1 className="text-2xl font-bold text-foose-text md:text-3xl">Suggested for you</h1>
-      </header>
-      <div className={`sticky top-16 z-40 mb-6 space-y-3 bg-foose-bg ${scrollRevealTransitionClass} ${scrollRevealStateClass(filterBandVisible)}`}>
-        <nav className="flex items-center justify-center border-b border-foose-border bg-foose-bg/95 py-2 backdrop-blur" aria-label="Suggested listing type">
-          <div className="flex w-full max-w-md items-center justify-center gap-4 text-sm font-black md:justify-between">
-            <a className={`border-b-2 px-4 py-2 transition ${activeMode === 'retail' ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:text-accent'}`} href={modeHref('retail', search)}>
-              Retail
-            </a>
-            <a className={`border-b-2 px-4 py-2 transition ${activeMode === 'wholesale' ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:text-accent'}`} href={modeHref('wholesale', search)}>
-              Bale
-            </a>
-          </div>
-        </nav>
-        <TopFilterBar actionPath="/suggested-for-you" hideType locationOptions={listingData?.filters?.locations || []} query={query} relevanceSort resultLabel={`${total} suggested ${activeMode === 'wholesale' ? 'bales' : 'items'}`} />
-      </div>
-      <section>
-        <RefreshIndicator active={refreshing} className="mb-4" label="Refreshing personalized suggestions" />
-        {loading && !feedListings.length && <ProductGridSkeleton label="Loading your personalized suggestions" />}
-        {error && !feedListings.length && <StatePanel action={<button className="button button-secondary" onClick={refetch} type="button">Try again</button>} body={error} layout="section" title="Your suggestions could not load" tone="error" />}
-        {error && !!feedListings.length && <InlineNotice action={<button className="font-black text-accent" onClick={refetch} type="button">Retry</button>} tone="warning">Could not refresh your suggestions. Your current picks are still available.</InlineNotice>}
-        {!loading && !error && !feedListings.length && (
-          <StatePanel action={<a className="button button-secondary" href={withBasePath('/browse')}>Explore marketplace items</a>} body="Browse, save, and shop a few more pieces to shape this feed." layout="section" title="Your suggestions are warming up" tone="info" />
-        )}
-        {!!feedListings.length && (
-          <div className="masonry grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {feedListings.map((listing) => (
-              <ProductCard key={listing._id} listing={listing} />
-            ))}
-          </div>
-        )}
-        <div ref={sentinelRef} className="min-h-14 py-2">
-          <AppendFeedback error={loadMoreError} label="Loading more suggestions" loading={loadingMore} retry={retryLoadMore} />
+    <AppShell active="browse">
+      <div className={`sticky top-16 z-40 mb-6 space-y-3 ${scrollRevealTransitionClass} ${scrollRevealStateClass(filterBandVisible)}`}>
+        <div className="space-y-3 lg:pl-[19.5rem]">
+          <BrowseSearchCombobox actionPath="/suggested-for-you" className="mx-auto w-full max-w-2xl" key={query.get('q') || ''} query={query} />
+          <ListingTypeToggle actionPath="/suggested-for-you" activeMode={activeMode} search={search} />
         </div>
-      </section>
+        <div className="lg:hidden">
+          <MarketplaceFilters actionPath="/suggested-for-you" hideType key={`mobile-${query.toString()}`} locationOptions={listings.data?.filters?.locations || []} query={query} />
+        </div>
+      </div>
+      <div className="browse-layout grid min-w-0 items-start gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
+        <MarketplaceFilters actionPath="/suggested-for-you" desktopOnly hideType key={`desktop-${query.toString()}`} locationOptions={listings.data?.filters?.locations || []} query={query} />
+        <section aria-busy={listings.loading} className="browse-results lg:pb-24">
+          {!listings.loading && !listings.error && (
+            <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+              <h1 className="font-display text-xl font-semibold text-foose-text">Suggested for you</h1>
+              <div className="flex min-w-0 items-center gap-2">
+                <MarketplaceSortControl actionPath="/suggested-for-you" query={query} />
+                <span className="whitespace-nowrap rounded-full bg-accent-light px-3 py-1.5 text-xs font-black text-accent">{resultCount} {activeMode === 'wholesale' ? 'bales' : 'items'}</span>
+              </div>
+            </div>
+          )}
+          <RefreshIndicator active={listings.refreshing} className="mb-4" label="Refreshing personalized suggestions" />
+          {listings.loading && !feedListings.length && <ProductGridSkeleton label="Loading your personalized suggestions" />}
+          {listings.error && !feedListings.length && <StatePanel action={<button className="button button-secondary" onClick={listings.refetch} type="button">Try again</button>} body={listings.error} layout="section" title="Your suggestions could not load" tone="error" />}
+          {listings.error && !!feedListings.length && <InlineNotice action={<button className="font-black text-accent" onClick={listings.refetch} type="button">Retry</button>} tone="warning">Could not refresh your suggestions. Your current picks are still available.</InlineNotice>}
+          {!listings.loading && !listings.error && !feedListings.length && (
+            <StatePanel action={<a className="button button-secondary" href={withBasePath('/browse')}>Explore marketplace items</a>} body="Browse, save, and shop a few more pieces to shape this feed." layout="section" title="Your suggestions are warming up" tone="info" />
+          )}
+          {!!feedListings.length && (
+            <div className={PRODUCT_GRID_CLASS}>
+              {feedListings.map((listing) => (
+                <ProductCard key={listing._id} listing={listing} />
+              ))}
+            </div>
+          )}
+          <div ref={listings.sentinelRef} className="min-h-14 py-2">
+            <AppendFeedback error={listings.loadMoreError} label="Loading more suggestions" loading={listings.loadingMore} retry={listings.retryLoadMore} />
+          </div>
+        </section>
+      </div>
     </AppShell>
   )
 }

@@ -1,9 +1,11 @@
 /* eslint-disable react-hooks/refs -- the infinite-resource hook exposes reactive state through a stable facade */
 import { useCallback, useMemo } from 'react'
-import { AppShell, InlineNotice, MarketplaceFilters, MarketplaceSortControl, ProductCard, RefreshIndicator, StatePanel } from '../components'
+import { AppShell, BrowseSearchCombobox, CollectionHero, InlineNotice, MarketplaceFilters, MarketplaceSortControl, ProductCard, RefreshIndicator, StatePanel } from '../components'
+import { PRODUCT_GRID_CLASS } from '../components/marketplace/ProductCard'
 import { AppendFeedback, ProductGridSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { useAuth } from '../hooks/useAuth'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
+import { scrollRevealStateClass, scrollRevealTransitionClass, useScrollRevealBand } from '../hooks/useScrollRevealBand'
 import type { PaginatedListings } from '../types/api'
 import { withoutOwnListings } from '../utils/listingOwnership'
 import { withBasePath } from '../utils/navigation'
@@ -24,20 +26,23 @@ export function TopPicksPage() {
   const buildPath = useCallback((page: number) => topPicksPath(page, search), [search])
   const extractListings = useCallback((data: PaginatedListings) => data.results || [], [])
   const listings = useInfiniteApiResource(buildPath, extractListings, [search])
+  const filterBandVisible = useScrollRevealBand()
   const feedListings = useMemo(() => withoutOwnListings(listings.items, user), [listings.items, user])
 
   return (
-    <AppShell active="browse" searchPlaceholder="Search top picks...">
-      <section className="page-hero [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base mb-8 rounded-xl border border-foose-border bg-foose-surface p-5 md:p-8 [&.small]:py-6 max-md:[&_h1]:text-2xl small top-picks-hero">
-        <h1>Top Picks</h1>
-        <p>Promoted finds from Foose sellers, curated into one faster shopping lane.</p>
-      </section>
-      <div className="mb-6 lg:hidden">
-        <MarketplaceFilters actionPath="/top-picks" key={`mobile-${query.toString()}`} query={query} />
+    <AppShell active="browse">
+      <CollectionHero description="Promoted finds from Foose sellers, curated into one faster shopping lane." title="Top Picks" />
+      <div className={`sticky top-16 z-40 mb-6 space-y-3 ${scrollRevealTransitionClass} ${scrollRevealStateClass(filterBandVisible)}`}>
+        <div className="lg:pl-[19.5rem]">
+          <BrowseSearchCombobox actionPath="/top-picks" className="mx-auto w-full max-w-2xl" key={query.get('q') || ''} query={query} />
+        </div>
+        <div className="lg:hidden">
+          <MarketplaceFilters actionPath="/top-picks" key={`mobile-${query.toString()}`} query={query} />
+        </div>
       </div>
       <div className="browse-layout grid min-w-0 items-start gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
         <MarketplaceFilters actionPath="/top-picks" desktopOnly key={`desktop-${query.toString()}`} query={query} />
-        <section className="browse-results">
+        <section aria-busy={listings.loading} className="browse-results lg:pb-24">
           <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end">
             <div className="min-w-0">
               <h2 className="font-display text-xl font-semibold text-foose-text">Promoted items</h2>
@@ -56,7 +61,7 @@ export function TopPicksPage() {
             <StatePanel action={<a className="button button-secondary" href={withBasePath('/browse')}>Browse the marketplace</a>} body="Top Picks will appear when promoted listings are active." layout="section" title="No Top Picks right now" tone="empty" />
           )}
           {!!feedListings.length && (
-            <div className="masonry grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4">
+            <div className={PRODUCT_GRID_CLASS}>
               {feedListings.map((listing) => (
                 <ProductCard key={listing._id} listing={listing} />
               ))}

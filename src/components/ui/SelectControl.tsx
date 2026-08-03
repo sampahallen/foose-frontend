@@ -304,7 +304,7 @@ function SelectControlState({
   const sortVariant = variant === 'sort'
 
   return (
-    <span className="relative block w-full">
+    <span className={`relative ${sortVariant ? 'inline-block' : 'block w-full'}`}>
       <button
         aria-activedescendant={open && activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
         aria-controls={open ? listboxId : undefined}
@@ -315,7 +315,7 @@ function SelectControlState({
         aria-label={nativeProps['aria-label']}
         aria-labelledby={nativeProps['aria-labelledby']}
         aria-required={required || undefined}
-        className={`flex min-w-0 max-w-full items-center justify-between gap-2.5 rounded-xl border border-foose-border bg-foose-surface px-3 text-left text-base font-semibold outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-foose-surface-low disabled:text-foose-faint disabled:opacity-70 sm:gap-3 sm:text-sm ${selectedValue ? 'text-foose-text' : 'text-foose-faint'} ${filterVariant ? 'min-h-11 border-accent/30 bg-accent-light/30' : sortVariant ? 'min-h-10' : 'min-h-11 sm:min-h-12'} ${className}`}
+        className={`flex min-w-0 max-w-full items-center justify-between rounded-xl border border-foose-border bg-foose-surface text-left font-semibold outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-foose-surface-low disabled:text-foose-faint disabled:opacity-70 ${selectedValue ? 'text-foose-text' : 'text-foose-faint'} ${filterVariant ? 'min-h-11 gap-2.5 border-accent/30 bg-accent-light/30 px-3 text-base sm:gap-3 sm:text-sm' : sortVariant ? 'min-h-10 gap-1.5 px-2 text-xs' : 'min-h-11 gap-2.5 px-3 text-base sm:min-h-12 sm:gap-3 sm:text-sm'} ${className}`}
         disabled={disabled}
         id={buttonId}
         onClick={() => (open ? closeMenu() : openMenu())}
@@ -325,7 +325,7 @@ function SelectControlState({
         title={nativeProps.title}
         type="button"
       >
-        <span className="flex min-w-0 items-center gap-2.5">
+        <span className={`flex min-w-0 items-center ${sortVariant ? 'gap-1.5' : 'gap-2.5'}`}>
           {leadingIcon && <span aria-hidden className="inline-flex shrink-0 text-foose-text">{leadingIcon}</span>}
           {selectedOption?.swatch && (
             <span
@@ -338,7 +338,7 @@ function SelectControlState({
           <span className="truncate">{triggerLabel || selectedLabel}</span>
         </span>
         <span className="inline-flex shrink-0 text-accent">
-          <DropdownChevron className="text-[15px]" open={open} />
+          <DropdownChevron className={sortVariant ? 'text-xs' : 'text-[15px]'} open={open} />
         </span>
       </button>
       <select

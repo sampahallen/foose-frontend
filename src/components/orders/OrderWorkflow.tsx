@@ -3,6 +3,7 @@ import type { Order, OrderEvent } from '../../types/api'
 import { formatDateTime, formatMoney } from '../../utils/format'
 import { formatOrderCountdown } from '../../utils/orderCountdown'
 import {
+  deliveryMethodLabel,
   orderActionCopy,
   orderAddress,
   orderDeadlineLabel,
@@ -11,7 +12,6 @@ import {
   orderPrimaryAction,
   orderProgressLabel,
   orderRecipient,
-  orderSettlementLabel,
   orderStatusTone,
   orderTitle,
   type OrderViewer,
@@ -70,36 +70,7 @@ function LiveOrderCountdown({
 }
 
 export function OrderStatusBadge({ order }: { order: Order }) {
-  return <Badge tone={orderStatusTone(order)}>{orderProgressLabel(order)}</Badge>
-}
-
-export function OrderEscrowCard({ order, viewer }: { order: Order; viewer: OrderViewer }) {
-  const cash = order.paymentMethod === 'cash_on_pickup' || order.settlementStatus === 'cash_due'
-  const heading = cash ? 'Pay at pickup' : orderSettlementLabel(order.settlementStatus, order.paymentMethod)
-  const explanation = order.workflow?.settlementExplanation
-    || (cash
-      ? 'No online payment is held. Pay the seller only when you collect the complete order.'
-      : order.settlementStatus === 'held'
-        ? 'Foose is protecting this payment until the order completes or a refund is due.'
-        : viewer === 'seller'
-          ? 'Settlement activity for this order appears here.'
-          : 'Payment and refund activity for this order appears here.')
-
-  return (
-    <section aria-labelledby="order-settlement-title" className="overflow-hidden rounded-2xl border border-accent/20 bg-white shadow-sm">
-      <div className="flex items-center gap-3 border-b border-accent/15 bg-accent-light/55 px-4 py-3 sm:px-5">
-        <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-accent shadow-sm">
-          <Icon name={cash ? 'money' : 'shield'} size={21} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-accent">{cash ? 'Payment arrangement' : 'Protected payment'}</p>
-          <h2 className="mt-0.5 font-display text-lg font-semibold text-foose-text" id="order-settlement-title">{heading}</h2>
-        </div>
-        <strong className="shrink-0 text-lg font-black text-accent">{formatMoney(order.totalAmount, order.currency)}</strong>
-      </div>
-      <p className="px-4 py-4 text-sm leading-6 text-foose-muted sm:px-5">{explanation}</p>
-    </section>
-  )
+  return <Badge shape="soft" tone={orderStatusTone(order)}>{orderProgressLabel(order)}</Badge>
 }
 
 export function OrderWorkflowCard({
@@ -122,7 +93,7 @@ export function OrderWorkflowCard({
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <OrderStatusBadge order={order} />
-            <Badge>{order.delivery?.method === 'pickup' ? 'Pickup' : 'Standard delivery'}</Badge>
+            <span className="self-end text-[11px] font-semibold text-foose-faint">{deliveryMethodLabel(order.delivery?.method)}</span>
           </div>
           <h2 className="line-clamp-2 font-display text-lg font-semibold text-foose-text">{orderTitle(order)}</h2>
           <p className="mt-1 text-xs font-semibold text-foose-faint">

@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/refs -- the infinite-resource hook exposes reactive state through a stable facade */
 import { useCallback, useMemo } from 'react'
-import { AppShell, BrowseSearchCombobox, InlineNotice, MarketplaceFilters, MarketplaceSortControl, ProductCard, RefreshIndicator, StatePanel } from '../components'
+import { AppShell, BrowseSearchCombobox, InlineNotice, ListingTypeToggle, MarketplaceFilters, MarketplaceSortControl, ProductCard, RefreshIndicator, StatePanel } from '../components'
+import { PRODUCT_GRID_CLASS } from '../components/marketplace/ProductCard'
 import { AppendFeedback, ProductGridSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { useAuth } from '../hooks/useAuth'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
@@ -17,13 +18,6 @@ function searchPath(page: number, search: string) {
   if (!query.has('sort')) query.set('sort', 'relevance')
   query.set('page', String(page))
   return `/recommendations/feed?${query.toString()}`
-}
-
-function modeHref(mode: 'retail' | 'wholesale', search: string) {
-  const query = new URLSearchParams(search)
-  query.set('type', mode)
-  query.delete('page')
-  return withBasePath(`/browse?${query.toString()}`)
 }
 
 export function BrowsePage() {
@@ -43,17 +37,8 @@ export function BrowsePage() {
     <AppShell active="browse">
       <div className={`sticky top-16 z-40 mb-6 space-y-3 ${scrollRevealTransitionClass} ${scrollRevealStateClass(filterBandVisible)}`}>
         <div className="space-y-3 lg:pl-[19.5rem]">
-          <BrowseSearchCombobox className="mx-auto w-full max-w-2xl" key={query.get('q') || ''} query={query} />
-          <nav className="mx-auto flex w-full max-w-2xl items-center justify-center rounded-2xl border border-foose-border bg-foose-bg/95 px-3 py-2 shadow-sm backdrop-blur" aria-label="Browse listing type">
-            <div className="flex w-full max-w-sm items-center justify-between gap-4 text-sm font-black">
-              <a className={`border-b-2 px-4 py-2 transition ${activeMode === 'retail' ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:text-accent'}`} href={modeHref('retail', search)}>
-                Retail
-              </a>
-              <a className={`border-b-2 px-4 py-2 transition ${activeMode === 'wholesale' ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:text-accent'}`} href={modeHref('wholesale', search)}>
-                Bale
-              </a>
-            </div>
-          </nav>
+          <BrowseSearchCombobox actionPath="/browse" className="mx-auto w-full max-w-2xl" key={query.get('q') || ''} query={query} />
+          <ListingTypeToggle actionPath="/browse" activeMode={activeMode} search={search} />
         </div>
         <div className="lg:hidden">
           <MarketplaceFilters actionPath="/browse" hideType key={`mobile-${query.toString()}`} locationOptions={listings.data?.filters?.locations || []} query={query} />
@@ -61,7 +46,7 @@ export function BrowsePage() {
       </div>
       <div className="browse-layout grid min-w-0 items-start gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
         <MarketplaceFilters actionPath="/browse" desktopOnly hideType key={`desktop-${query.toString()}`} locationOptions={listings.data?.filters?.locations || []} query={query} />
-        <section aria-busy={listings.loading} className="browse-results">
+        <section aria-busy={listings.loading} className="browse-results lg:pb-24">
           {!listings.loading && !listings.error && (
             <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
               <h1 className="font-display text-xl font-semibold text-foose-text">Marketplace</h1>
@@ -87,7 +72,7 @@ export function BrowsePage() {
             />
           )}
           {!!feedListings.length && (
-            <div className="masonry grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4">
+            <div className={PRODUCT_GRID_CLASS}>
               {feedListings.map((listing) => (
                 <ProductCard key={listing._id} listing={listing} />
               ))}

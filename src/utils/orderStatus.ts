@@ -63,8 +63,8 @@ const actionCopy: Record<OrderAllowedAction, {
     label: 'Confirm collection',
   },
   dispatch: {
-    busyLabel: 'Sending details…',
-    label: 'Add transit details & send',
+    busyLabel: 'Sending…',
+    label: 'Upload waybill & send',
   },
   confirm_receipt: {
     busyLabel: 'Releasing funds…',
@@ -158,6 +158,19 @@ export function orderAddress(order: Pick<Order, 'delivery'>) {
   return [address?.street, address?.city, address?.region].filter(Boolean).join(', ')
 }
 
+export function deliveryMethodLabel(method?: NonNullable<Order['delivery']>['method']) {
+  switch (method) {
+    case 'shop_pickup':
+      return 'Shop pickup'
+    case 'station_pickup':
+      return 'Station pickup'
+    case 'airport_to_airport':
+      return 'Express delivery'
+    default:
+      return 'Delivery'
+  }
+}
+
 export function orderRecipient(order: Pick<Order, 'delivery'>) {
   const destination = order.delivery?.destination
   return [
@@ -207,7 +220,7 @@ export function orderProgressLabel(order: Order) {
   if (order.status === 'cancelled') return 'Cancelled'
   if (order.status === 'refunded') return 'Refunded'
   if (order.status === 'disputed') return 'Funds frozen — under review'
-  if (order.delivery?.method === 'pickup' && order.sellerAction === 'pickup_ready') return 'Ready for pickup'
+  if (order.delivery?.method === 'shop_pickup' && order.sellerAction === 'pickup_ready') return 'Ready for pickup'
   if (order.status === 'shipped') return 'On the way'
   if (order.status === 'processing') return 'Preparing order'
   if (order.status === 'paid') return 'Payment protected'
@@ -264,7 +277,7 @@ export function orderNextStep(order: Order, viewer: OrderViewer) {
       complete_cash_pickup: 'At handoff, confirm only after the buyer has the order and you have the cash.',
       release_unclaimed_pickup: 'The collection window has passed. You may return the items to inventory.',
       confirm_collection: 'Collect and inspect the order, then confirm while you are with the seller.',
-      dispatch: 'Take the parcel to the station, then add the complete transit details and bill.',
+      dispatch: 'Send the parcel, then upload a clear photo of the waybill.',
       confirm_receipt: 'Inspect the complete parcel, then confirm receipt to release payment.',
       close_no_action: 'The seller action window has passed. You may close the order for a full refund.',
       report: 'If something is wrong, submit a report before the release window ends.',
@@ -306,7 +319,7 @@ export function orderEventLabel(type: string) {
     cash_pickup_cancelled: 'Cash pickup cancelled and inventory restored',
     cash_pickup_completed: 'Pickup completed and cash received',
     pickup_released: 'Unclaimed pickup returned to inventory',
-    delivery_dispatched: 'Parcel sent with transit details',
+    delivery_dispatched: 'Parcel sent with waybill uploaded',
     funds_released: 'Protected payment released to seller',
     refund_pending: 'Full refund requested',
     collection_confirmed: 'Collection confirmed and payment released',
@@ -331,5 +344,5 @@ export function canSellerMarkPickupReady(order: Order) {
 }
 
 export function canBuyerConfirmOrder(order: Order) {
-  return orderHasAction(order, order.delivery?.method === 'pickup' ? 'confirm_collection' : 'confirm_receipt')
+  return orderHasAction(order, order.delivery?.method === 'shop_pickup' ? 'confirm_collection' : 'confirm_receipt')
 }

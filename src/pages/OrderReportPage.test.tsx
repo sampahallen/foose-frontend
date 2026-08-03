@@ -43,7 +43,7 @@ function reportableOrder(overrides: Partial<Order> = {}): Order {
     _id: 'order-12345678',
     buyerId: 'buyer-1',
     currency: 'GHS',
-    delivery: { method: 'delivery' },
+    delivery: { method: 'station_pickup' },
     fulfillmentStatus: 'in_transit',
     items: [{ _id: 'line-1', price: 12000, quantity: 1, title: 'Vintage jacket' }],
     settlementStatus: 'held',

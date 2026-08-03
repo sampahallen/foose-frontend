@@ -6,6 +6,10 @@ import { FavoriteButton } from '../ui/FavoriteButton'
 import { MdVerified } from 'react-icons/md'
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 
+// Fixed 2-up grid on phones (matches the card's fixed text sizing); fluid auto-fill from `sm:` up so
+// column count scales continuously with available width instead of jumping at each breakpoint.
+export const PRODUCT_GRID_CLASS = 'grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]'
+
 export function ProductCard({
   className = '',
   imageFailed = false,

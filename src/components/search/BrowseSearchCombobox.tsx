@@ -34,6 +34,7 @@ type BrowseChoice =
   | { key: string; kind: 'item'; suggestion: BrowseSearchItemSuggestion }
 
 type BrowseSearchComboboxProps = {
+  actionPath?: string
   className?: string
   query: URLSearchParams
 }
@@ -42,7 +43,7 @@ function normalized(value: string) {
   return value.normalize('NFKC').trim()
 }
 
-function browseHref(query: URLSearchParams, value: string) {
+function browseHref(actionPath: string, query: URLSearchParams, value: string) {
   const next = new URLSearchParams(query.toString())
   next.delete('page')
   next.delete('limit')
@@ -52,7 +53,7 @@ function browseHref(query: URLSearchParams, value: string) {
   else next.delete('q')
 
   const suffix = next.toString()
-  return suffix ? `/browse?${suffix}` : '/browse'
+  return suffix ? `${actionPath}?${suffix}` : actionPath
 }
 
 function refinementValue(suggestion: BrowseSearchRefinementSuggestion) {
@@ -70,7 +71,7 @@ function refinementIcon(type: BrowseSearchRefinementSuggestion['type']) {
   return 'search'
 }
 
-export function BrowseSearchCombobox({ className = '', query }: BrowseSearchComboboxProps) {
+export function BrowseSearchCombobox({ actionPath = '/browse', className = '', query }: BrowseSearchComboboxProps) {
   const submittedValue = query.get('q') || ''
   const [value, setValue] = useState(submittedValue)
   const [suggestions, setSuggestions] = useState<BrowseSearchSuggestionsResponse['suggestions']>([])
@@ -166,7 +167,7 @@ export function BrowseSearchCombobox({ className = '', query }: BrowseSearchComb
     setLoading(false)
     setOpen(false)
     setActiveIndex(-1)
-    navigateTo(browseHref(query, searchValue))
+    navigateTo(browseHref(actionPath, query, searchValue))
   }
 
   function selectChoice(choice: BrowseChoice) {
@@ -235,7 +236,7 @@ export function BrowseSearchCombobox({ className = '', query }: BrowseSearchComb
 
   return (
     <form
-      action={withBasePath('/browse')}
+      action={withBasePath(actionPath)}
       className={`relative ${className}`}
       method="get"
       onSubmit={submit}

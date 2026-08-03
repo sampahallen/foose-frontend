@@ -223,12 +223,14 @@ export type PrivateOrderAsset = string | {
 }
 
 export type OrderTransit = {
+  /** Legacy free-text transit fields, retained for display on pre-redesign orders. */
   serviceName?: string
   transitServiceName?: string
   busNumber?: string
   lastStopLocation?: string
   driverPhone?: string
   parcelNumber?: string
+  cargoTrackingNumber?: string
   billImage?: PrivateOrderAsset
 }
 
@@ -324,7 +326,8 @@ export type Order = {
   releasedAt?: string
   buyerConfirmedAt?: string
   delivery?: {
-    method?: 'pickup' | 'delivery'
+    method?: 'station_pickup' | 'shop_pickup' | 'airport_to_airport'
+    company?: string
     fee?: number
     destination?: OrderDestination
     recipient?: {
@@ -359,7 +362,7 @@ export type WalletLedgerOrder = {
   currency: string
   fulfillmentStatus?: OrderFulfillmentStatus
   settlementStatus?: OrderSettlementStatus
-  deliveryMethod?: 'pickup' | 'delivery'
+  deliveryMethod?: 'station_pickup' | 'shop_pickup' | 'airport_to_airport'
   workflow?: OrderWorkflow | null
 }
 
