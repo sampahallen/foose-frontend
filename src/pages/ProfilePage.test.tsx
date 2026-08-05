@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
     user: { _id: 'user-1', name: 'Ama', username: 'ama' },
   } as { status: string; user: Record<string, unknown> | null },
   contentPaths: [] as string[],
+  contentRefetch: vi.fn(),
   resourcePaths: [] as string[],
   apiDelete: vi.fn(),
   apiPost: vi.fn(),
@@ -49,7 +50,10 @@ function baseSummary(): ProfileSummary {
 }
 
 const content = {
-  events: [{ _id: 'event-1', date: '2027-01-01', location: 'Accra', status: 'upcoming', title: 'Vintage Fair', type: 'fair' }],
+  events: [
+    { _id: 'event-1', date: '2027-01-01', location: 'Accra', status: 'upcoming', title: 'Vintage Fair', type: 'fair' },
+    { _id: 'event-past', date: '2020-01-01', location: 'Kumasi', status: 'past', title: 'Old Market Day', type: 'fair' },
+  ],
   finspo: [{ _id: 'finspo-1', caption: 'Blue mood', imageUrl: 'look.jpg', likes: [] }],
   listings: [{ _id: 'listing-1', currency: 'GHS', images: ['dress.jpg'], price: 12000, status: 'active', title: 'Blue dress', type: 'retail' }],
 }
@@ -68,7 +72,8 @@ vi.mock('../components/navigation', () => ({
 }))
 
 vi.mock('../components/marketplace/ProductCard', () => ({
-  ProductCard: ({ listing }: { listing: { title: string } }) => <article data-testid="product-card">{listing.title}</article>,
+  PRODUCT_GRID_CLASS: 'grid',
+  ProductCard: ({ listing, manageHref }: { listing: { title: string }; manageHref?: string }) => <article data-testid="product-card">{listing.title}{manageHref ? <a aria-label={`Edit ${listing.title}`} href={manageHref}>Edit</a> : <button aria-label="Favorite" type="button" />}</article>,
 }))
 
 vi.mock('../components/ui/FinspoLikeButton', () => ({
@@ -88,7 +93,7 @@ vi.mock('../hooks/useApiResource', () => ({
       errorMeta: null,
       initialLoading: false,
       loading: false,
-      refetch: vi.fn(),
+      refetch: mocks.contentRefetch,
       refreshing: false,
     }
   },
@@ -120,7 +125,7 @@ vi.mock('../hooks/useInfiniteApiResource', () => ({
       loadingMore: false,
       loadMoreError: '',
       loadMoreErrorMeta: null,
-      refetch: vi.fn(),
+      refetch: mocks.contentRefetch,
       refreshing: false,
       retryLoadMore: vi.fn(),
       sentinelRef: vi.fn(),
@@ -163,6 +168,8 @@ describe('ProfilePage creator tabs', () => {
     mocks.auth.status = 'authenticated'
     mocks.auth.user = { _id: 'user-1', name: 'Ama', username: 'ama' }
     mocks.contentPaths.length = 0
+    mocks.contentRefetch.mockReset()
+    mocks.contentRefetch.mockResolvedValue(undefined)
     mocks.resourcePaths.length = 0
     mocks.apiDelete.mockReset()
     mocks.apiDelete.mockImplementation((path: string) => Promise.resolve(path.includes('/me/followers/') ? { followerCount: 7, removed: true } : { following: false, followingCount: 2 }))
@@ -187,7 +194,7 @@ describe('ProfilePage creator tabs', () => {
     expect(screen.getByRole('link', { name: 'View shop' })).toHaveAttribute('href', '/shops/ama-shop')
     expect(screen.getByRole('link', { name: 'Manage shop' })).toHaveAttribute('href', '/manage-shop')
     expect(screen.getByText('Blue mood')).toBeVisible()
-    expect(screen.getByRole('link', { name: 'Blue mood' })).toHaveAttribute('href', '/community/finspo/finspo-1')
+    expect(screen.getByRole('link', { name: 'Open Blue mood, image 1 of 1' })).toHaveAttribute('href', '/community/finspo/finspo-1')
     expect(screen.queryByText(/active orders/i)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Post Finspo' })).toHaveAttribute('href', '/community/finspo/new')
     expect(mocks.contentPaths.some((path) => path.includes('type=finspo'))).toBe(true)
@@ -213,6 +220,8 @@ describe('ProfilePage creator tabs', () => {
 
     expect(screen.getByRole('link', { name: 'Listings, 1 listing' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByTestId('product-card')).toHaveTextContent('Blue dress')
+    expect(screen.getByRole('link', { name: 'Edit Blue dress' })).toHaveAttribute('href', '/listings/listing-1/edit')
+    expect(screen.queryByRole('button', { name: 'Favorite' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Add listing' })).toHaveAttribute('href', '/listings/new')
     expect(mocks.contentPaths.some((path) => path.includes('type=listings'))).toBe(true)
     expect(mocks.contentPaths.some((path) => path.includes('type=finspo'))).toBe(false)
@@ -287,6 +296,64 @@ describe('ProfilePage creator tabs', () => {
     expect(following).toHaveClass('flex-col', 'border-0', 'cursor-pointer')
     expect(followers.firstElementChild).toHaveTextContent('8')
     expect(followers.lastElementChild).toHaveTextContent('Followers')
+  })
+
+  it('keeps the Profile section selector pinned beneath the persistent header', () => {
+    renderPage()
+
+    const tabs = screen.getByRole('navigation', { name: 'Profile sections' })
+    expect(tabs).toHaveClass('sticky', 'top-16')
+    expect(tabs).not.toHaveClass('translate-y-[-120%]')
+  })
+
+  it('shows Finspo management only to the owner and refreshes after archive confirmation', async () => {
+    const view = renderPage()
+
+    expect(screen.queryByRole('button', { name: 'Like Finspo' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open options for Blue mood' }))
+    expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveAttribute('href', '/community/finspo/finspo-1/edit')
+    expect(screen.getByRole('link', { name: 'Archived Finspo' })).toHaveAttribute('href', '/community/finspo/archived')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Archive' }))
+    expect(screen.getByRole('dialog', { name: 'Archive this post?' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Archive post' }))
+    await waitFor(() => expect(mocks.apiPost).toHaveBeenCalledWith('/community/gallery/finspo-1/archive'))
+    expect(mocks.contentRefetch).toHaveBeenCalled()
+
+    viewAsVisitor()
+    view.rerender(<ProfilePage />)
+    expect(screen.queryByRole('button', { name: /options for Blue mood/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Like Finspo' })).toBeVisible()
+  })
+
+  it('shows Event manage/delete controls only to the owner', () => {
+    setProfileUrl('events')
+    const view = renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open options for Vintage Fair' }))
+    expect(screen.getByRole('menuitem', { name: 'Manage' })).toHaveAttribute('href', '/community/events/event-1/manage')
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeVisible()
+    viewAsVisitor()
+    view.rerender(<ProfilePage />)
+    expect(screen.queryByRole('button', { name: /options for Vintage Fair/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'View event' })).toBeVisible()
+  })
+
+  it('hides past events by default and exposes them only through the owner Past events view', () => {
+    setProfileUrl('events')
+    const view = renderPage()
+
+    expect(screen.getByText('Vintage Fair')).toBeVisible()
+    expect(screen.queryByText('Old Market Day')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Past events' }))
+    expect(screen.getByText('Old Market Day')).toBeVisible()
+    expect(screen.queryByText('Vintage Fair')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Current events' })).toHaveAttribute('aria-pressed', 'true')
+
+    viewAsVisitor()
+    view.rerender(<ProfilePage />)
+    expect(screen.queryByRole('button', { name: 'Past events' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Old Market Day')).not.toBeInTheDocument()
+    expect(screen.getByText('Vintage Fair')).toBeVisible()
   })
 
   it('opens accessible owner connection dialogs with profile, message, and relationship actions', async () => {

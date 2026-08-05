@@ -309,6 +309,10 @@ export type Order = {
   workflow?: OrderWorkflow
   events?: OrderEvent[]
   activeReportId?: OrderReport | string | null
+  reportResolution?: {
+    awardedTo?: 'buyer' | 'seller'
+    resolvedAt?: string
+  }
   report?: OrderReport | null
   paidAt?: string
   readyAt?: string
@@ -333,7 +337,7 @@ export type Order = {
   releasedAt?: string
   buyerConfirmedAt?: string
   delivery?: {
-    method?: 'station_pickup' | 'shop_pickup' | 'airport_to_airport'
+    method?: 'station_pickup' | 'shop_pickup'
     company?: string
     fee?: number
     destination?: OrderDestination
@@ -369,7 +373,7 @@ export type WalletLedgerOrder = {
   currency: string
   fulfillmentStatus?: OrderFulfillmentStatus
   settlementStatus?: OrderSettlementStatus
-  deliveryMethod?: 'station_pickup' | 'shop_pickup' | 'airport_to_airport'
+  deliveryMethod?: 'station_pickup' | 'shop_pickup'
   workflow?: OrderWorkflow | null
 }
 
@@ -448,6 +452,7 @@ export type Event = {
 export type GalleryPost = {
   _id: string
   imageUrl: string
+  images?: string[]
   caption?: string
   tags?: string[]
   likes?: string[]

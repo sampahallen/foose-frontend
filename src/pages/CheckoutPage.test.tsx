@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -79,43 +79,44 @@ describe('guided checkout form', () => {
     })))
   })
 
-  it('summarizes, associates, and links to the first invalid delivery field', async () => {
+  it('uses the dynamic destination form instead of loading manual location fields', async () => {
     const user = userEvent.setup()
     render(<CheckoutPage />)
 
-    const region = screen.getByRole('textbox', { name: 'Region' })
-    await user.clear(region)
+    expect(screen.queryByRole('textbox', { name: 'Region' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Destination town' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: /Preferred terminal/ })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Continue to payment' }))
 
-    const summary = screen.getByRole('alert')
-    await waitFor(() => expect(summary).toHaveFocus())
-    expect(region).toHaveAttribute('aria-invalid', 'true')
-    expect(region).toHaveAccessibleDescription('Enter a delivery region.')
-    expect(screen.getByRole('textbox', { name: 'Destination town' })).toHaveAccessibleDescription('Enter the destination town.')
-    await user.click(screen.getByRole('link', { name: 'Enter a delivery region.' }))
-    expect(region).toHaveFocus()
+    expect(screen.getAllByText('Choose a bus transit company.').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('textbox', { name: 'Region' })).not.toBeInTheDocument()
   })
 
   it('preserves entered delivery values while moving forward and back', async () => {
     const user = userEvent.setup()
+    paymentMocks.apiGet.mockResolvedValue({
+      shops: [{
+        location: { city: 'Accra', region: 'Greater Accra' },
+        shopId: 'shop-1',
+        shopName: 'Archive Shop',
+        twoMExpress: {
+          destinations: [{ label: 'Kumasi (Asafo)', region: 'Ashanti', terminal: 'Asafo', town: 'Kumasi' }],
+          eligible: true,
+        },
+      }],
+    })
     render(<CheckoutPage />)
 
-    await user.click(screen.getByRole('radio', { name: 'Express delivery (airport-to-airport)' }))
-    const region = screen.getByRole('textbox', { name: 'Region' })
-    const town = screen.getByRole('textbox', { name: 'Destination town' })
-    const terminal = screen.getByRole('textbox', { name: /Preferred terminal/ })
-    await user.clear(region)
-    await user.type(region, 'Ashanti')
-    await user.type(town, 'Kumasi')
-    await user.type(terminal, 'Asafo station')
+    await user.click(screen.getByRole('radio', { name: '2M Express' }))
+    const destination = await screen.findByRole('combobox', { name: 'Destination' })
+    await user.click(destination)
+    await user.click(screen.getByRole('option', { name: 'Kumasi (Asafo)' }))
     await user.click(screen.getByRole('button', { name: 'Continue to payment' }))
 
     expect(screen.getByRole('heading', { name: 'Payment' })).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Delivery, completed' }))
 
-    expect(screen.getByRole('textbox', { name: 'Region' })).toHaveValue('Ashanti')
-    expect(screen.getByRole('textbox', { name: 'Destination town' })).toHaveValue('Kumasi')
-    expect(screen.getByRole('textbox', { name: /Preferred terminal/ })).toHaveValue('Asafo station')
+    expect(screen.getByRole('combobox', { name: 'Destination' })).toHaveTextContent('Kumasi (Asafo)')
   }, 15_000)
 
   it('treats shop pickup as collection from the seller shop', async () => {
@@ -171,8 +172,7 @@ describe('guided checkout form', () => {
     paymentMocks.apiDelete.mockResolvedValue({ cancelled: true, paid: false, releasedItemCount: 1 })
 
     render(<CheckoutPage />)
-    await user.click(screen.getByRole('radio', { name: 'Express delivery (airport-to-airport)' }))
-    await user.type(screen.getByRole('textbox', { name: 'Destination town' }), 'Kumasi')
+    await user.click(screen.getByRole('radio', { name: 'Shop pickup' }))
     await user.click(screen.getByRole('button', { name: 'Continue to payment' }))
     await user.click(screen.getByRole('button', { name: 'Pay with Paystack' }))
 
@@ -184,14 +184,7 @@ describe('guided checkout form', () => {
       '/orders',
       expect.objectContaining({
         deliveryByShop: expect.objectContaining({
-          'shop-1': expect.objectContaining({
-            destination: expect.objectContaining({
-              recipientName: 'Ama Buyer',
-              recipientPhone: '0240000000',
-              region: 'Greater Accra',
-              town: 'Kumasi',
-            }),
-          }),
+          'shop-1': expect.objectContaining({ method: 'shop_pickup' }),
         }),
       }),
       expect.objectContaining({
@@ -246,8 +239,7 @@ describe('guided checkout form', () => {
     paymentMocks.openPaystackInline.mockResolvedValue({ reference: 'payment-reference', status: 'success' })
 
     render(<CheckoutPage />)
-    await user.click(screen.getByRole('radio', { name: 'Express delivery (airport-to-airport)' }))
-    await user.type(screen.getByRole('textbox', { name: 'Destination town' }), 'Kumasi')
+    await user.click(screen.getByRole('radio', { name: 'Shop pickup' }))
     await user.click(screen.getByRole('button', { name: 'Continue to payment' }))
     await user.click(screen.getByRole('button', { name: 'Pay with Paystack' }))
 

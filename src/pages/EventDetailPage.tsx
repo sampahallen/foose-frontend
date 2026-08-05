@@ -73,10 +73,10 @@ export function EventDetailPage() {
         </div>
       </div>
 
-      {!eventId && <StatePanel action={<a className="button button-secondary" href={withBasePath('/community?tab=events')}>Browse community events</a>} body="This link does not identify a community event." layout="page" title="Event link is incomplete" tone="unavailable" />}
+      {!eventId && <StatePanel action={<a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath('/community?tab=events')}>Browse community events</a>} body="This link does not identify a community event." layout="page" title="Event link is incomplete" tone="unavailable" />}
       {eventResource.initialLoading && <EventDetailSkeleton />}
       <RefreshIndicator active={eventResource.refreshing} className="mb-4" label="Refreshing event details" />
-      {eventResource.error && <StatePanel action={<button className="button button-secondary" onClick={eventResource.refetch} type="button">Try again</button>} body={eventResource.error} layout="page" title={eventResource.errorMeta?.status === 404 ? 'This event is no longer available' : 'Event could not load'} tone={eventResource.errorMeta?.status === 403 ? 'permission' : eventResource.errorMeta?.status === 404 ? 'unavailable' : 'error'} />}
+      {eventResource.error && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={eventResource.refetch} type="button">Try again</button>} body={eventResource.error} layout="page" title={eventResource.errorMeta?.status === 404 ? 'This event is no longer available' : 'Event could not load'} tone={eventResource.errorMeta?.status === 403 ? 'permission' : eventResource.errorMeta?.status === 404 ? 'unavailable' : 'error'} />}
 
       {event && (
         <section className="event-detail grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] max-lg:grid-cols-1">

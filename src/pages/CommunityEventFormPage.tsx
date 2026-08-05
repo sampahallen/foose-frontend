@@ -200,16 +200,13 @@ export function CommunityEventFormPage() {
     setSubmitting(true)
     setError('')
     try {
-      let savedEvent: Event | undefined
       if (eventId) {
-        const data = await apiPut<{ event: Event }>(`/community/events/${eventId}`, payload)
-        savedEvent = data.event
+        await apiPut<{ event: Event }>(`/community/events/${eventId}`, payload)
       } else {
-        const data = await apiPost<{ event: Event }>('/community/events', payload)
-        savedEvent = data.event
+        await apiPost<{ event: Event }>('/community/events', payload)
       }
       navigateWithFlash(
-        savedEvent?._id ? `/community/events/${savedEvent._id}/manage` : '/community?tab=events&scope=mine',
+        '/profile?tab=events',
         { message: `Your event was ${eventId ? 'updated' : 'created'}.`, title: 'Event saved', tone: 'success' },
       )
       draft.clearDraft()
@@ -222,14 +219,14 @@ export function CommunityEventFormPage() {
 
   return (
     <AppShell active="community" searchPlaceholder="Search community...">
-      {eventId && !event && <NavigationBackButton className="mb-5" fallback={{ href: '/community?tab=events&scope=mine', label: 'My events' }} />}
+      {eventId && !event && <NavigationBackButton className="mb-5" fallback={{ href: '/profile?tab=events', label: 'Profile events' }} />}
       {eventId && eventResource.initialLoading && <FormPageSkeleton label="Loading event editor" media />}
-      {eventId && eventResource.error && !eventResource.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void eventResource.refetch()} type="button">Retry</button>} body={eventResource.error} layout="page" title="Event unavailable" tone="unavailable" />}
+      {eventId && eventResource.error && !eventResource.data && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void eventResource.refetch()} type="button">Retry</button>} body={eventResource.error} layout="page" title="Event unavailable" tone="unavailable" />}
 
       {(!eventId || event) && (
         <FormPage
           description={eventId ? 'Update the schedule, attendee details, and cover shown to the community.' : 'Create an in-person or online pop-up for the Foose community.'}
-          eyebrow={<NavigationBackButton fallback={{ href: '/community?tab=events&scope=mine', label: 'My events' }} />}
+          eyebrow={<NavigationBackButton fallback={{ href: '/profile?tab=events', label: 'Profile events' }} />}
           title={eventId ? 'Edit event' : 'Add event'}
           width="standard"
         >
@@ -305,7 +302,7 @@ export function CommunityEventFormPage() {
             {error && <InlineNotice title="Event was not saved" tone="error">{error}</InlineNotice>}
 
             <FormActions sticky>
-              <ButtonLink to="/community?tab=events&scope=mine" variant="secondary">
+              <ButtonLink to="/profile?tab=events" variant="secondary">
                 Cancel
               </ButtonLink>
               <SubmitButton disabled={onlineRequiresShop} loading={submitting} loadingLabel="Saving event…">{eventId ? 'Save event' : 'Post event'}</SubmitButton>

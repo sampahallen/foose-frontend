@@ -86,7 +86,7 @@ export function AuthRequired({
         <StatePanel
           actions={(
             <>
-              <button className="button button-primary" disabled={resending} onClick={() => void resendVerificationEmail()} type="button">
+              <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={resending} onClick={() => void resendVerificationEmail()} type="button">
                 {resending ? 'Sending verification email...' : 'Send new verification email'}
               </button>
               {verifiedOnly === 'messaging' && <ButtonLink to="/inbox?view=system" variant="secondary">View system notifications</ButtonLink>}

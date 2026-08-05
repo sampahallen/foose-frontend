@@ -89,7 +89,7 @@ export function AdminDisputesPage() {
         </InlineNotice>
 
         {queue.initialLoading && <AdminTableSkeleton label="Loading order reports" />}
-        {queue.error && !queue.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void queue.refetch()} type="button">Retry</button>} body={queue.error} layout="section" title="Reports unavailable" tone="error" />}
+        {queue.error && !queue.data && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void queue.refetch()} type="button">Retry</button>} body={queue.error} layout="section" title="Reports unavailable" tone="error" />}
         {!queue.loading && !queue.error && !items.length && (
           <StatePanel body="Submitted buyer reports will appear here with their order and evidence summary." layout="section" title="The report queue is clear" tone="success" />
         )}

@@ -154,7 +154,7 @@ export function ListingPromotionPage() {
           {listings.initialLoading && !listings.data ? (
             <PromotionListingSelectionSkeleton />
           ) : listings.error && !listings.data ? (
-            <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void listings.refetch()} type="button">Retry</button>} body={listings.error} layout="section" title="Listings unavailable" tone="error" />
+            <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void listings.refetch()} type="button">Retry</button>} body={listings.error} layout="section" title="Listings unavailable" tone="error" />
           ) : listings.data && !eligibleListings.length ? (
             <StatePanel body="Add an active listing before starting a promotion." layout="section" title="No listings can be promoted yet" tone="empty" />
           ) : eligibleListings.length ? (

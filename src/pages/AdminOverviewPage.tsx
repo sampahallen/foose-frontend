@@ -19,7 +19,7 @@ export function AdminOverviewPage() {
           </div>
         </div>
         {stats.initialLoading && <AdminTableSkeleton label="Loading marketplace health" />}
-        {stats.error && !stats.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void stats.refetch()} type="button">Retry</button>} body={stats.error} layout="section" title="Marketplace metrics unavailable" tone="error" />}
+        {stats.error && !stats.data && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void stats.refetch()} type="button">Retry</button>} body={stats.error} layout="section" title="Marketplace metrics unavailable" tone="error" />}
         {stats.data && (
           <>
             <div className="stats-row grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">

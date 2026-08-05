@@ -164,8 +164,6 @@ export function deliveryMethodLabel(method?: NonNullable<Order['delivery']>['met
       return 'Shop pickup'
     case 'station_pickup':
       return 'Station pickup'
-    case 'airport_to_airport':
-      return 'Express delivery'
     default:
       return 'Delivery'
   }

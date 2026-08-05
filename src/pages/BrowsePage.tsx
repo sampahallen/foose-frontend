@@ -59,12 +59,12 @@ export function BrowsePage() {
           <RefreshIndicator active={listings.refreshing} className="mb-4" label="Refreshing marketplace listings" />
           {listings.loading && !feedListings.length && <ProductGridSkeleton label={hasSearchQuery ? 'Searching marketplace' : 'Loading marketplace'} />}
           {listings.error && !feedListings.length && (
-            <StatePanel action={<button className="button button-secondary" onClick={listings.refetch} type="button">Try again</button>} body={listings.error} layout="section" title="Marketplace could not load" tone="error" />
+            <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={listings.refetch} type="button">Try again</button>} body={listings.error} layout="section" title="Marketplace could not load" tone="error" />
           )}
           {listings.error && !!feedListings.length && <InlineNotice action={<button className="font-black text-accent" onClick={listings.refetch} type="button">Retry</button>} tone="warning">The latest marketplace update failed. Your current results are still here.</InlineNotice>}
           {!listings.loading && !listings.error && !feedListings.length && (
             <StatePanel
-              action={<a className="button button-secondary" href={withBasePath(activeMode === 'wholesale' ? '/browse?type=wholesale' : '/browse?type=retail')}>Clear search and filters</a>}
+              action={<a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath(activeMode === 'wholesale' ? '/browse?type=wholesale' : '/browse?type=retail')}>Clear search and filters</a>}
               body={hasSearchQuery ? `No ${activeMode === 'wholesale' ? 'bales' : 'items'} match “${query.get('q')}”. Try a shorter search or clear a filter.` : `There are no active ${activeMode === 'wholesale' ? 'bales' : 'items'} for these filters yet.`}
               layout="section"
               title="No marketplace matches"

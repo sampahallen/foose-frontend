@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Mou
 import { FaBookmark, FaComment } from 'react-icons/fa'
 import { IoShareSocial } from 'react-icons/io5'
 import { MdVerified } from 'react-icons/md'
-import { AppShell, Badge, FinspoCaption, FinspoComments, FinspoDetailSkeleton, FinspoLikeButton, FinspoMasonry, FinspoSkeletonTile, InlineNotice, LightboxImage, RefreshIndicator, StatePanel } from '../components'
+import { AppShell, Badge, FinspoCaption, FinspoComments, FinspoDetailSkeleton, FinspoLikeButton, FinspoMasonry, FinspoMediaBadge, FinspoMediaCarousel, FinspoSkeletonTile, InlineNotice, RefreshIndicator, StatePanel } from '../components'
 import { NavigationBackButton } from '../components/navigation'
 import { useApiResource } from '../hooks/useApiResource'
 import { useAuth } from '../hooks/useAuth'
@@ -12,6 +12,7 @@ import { usePageNavigationSnapshot } from '../hooks/usePageNavigationSnapshot'
 import { getNavigationSnapshot } from '../stores/navigationMemoryStore'
 import type { GalleryPost } from '../types/api'
 import { formatDate, initials } from '../utils/format'
+import { finspoImages } from '../utils/finspoImages'
 import { cacheFinspoPreview, captureNavigationTrigger, getCurrentAppPathname, navigateTo, readFinspoPreview, withBasePath } from '../utils/navigation'
 
 type FinspoDetailNavigationSnapshot = {
@@ -52,8 +53,10 @@ function openFinspo(event: MouseEvent<HTMLAnchorElement>, post: GalleryPost) {
 }
 
 function renderImageTile(post: GalleryPost, currentUserId?: string, mediaFailed = false) {
+  const images = finspoImages(post)
   return (
     <article className="finspo-tile relative mb-3 break-inside-avoid max-md:mb-2" key={post._id}>
+      <FinspoMediaBadge count={images.length} />
       <a
         aria-label={post.caption || `Finspo by ${authorName(post)}`}
         className="finspo-image block overflow-hidden rounded-none border-0 bg-transparent [&_img]:h-auto [&_img]:w-full [&_img]:object-contain [&_img]:transition-transform [&_img]:duration-300 [&_img]:ease-out hover:[&_img]:scale-[1.025] motion-reduce:[&_img]:transform-none motion-reduce:[&_img]:transition-none finspo-tile-link"
@@ -120,9 +123,8 @@ export function CommunityFinspoDetailPage() {
     initialSnapshot: restoredDetail?.related,
   })
   const post = postResource.data?.post || (postResource.loading ? cachedPreview : null)
-  const postImage = useImageBatchReady(post ? [post.imageUrl] : [], Boolean(post))
+  const postImage = useImageBatchReady(post ? finspoImages(post) : [], Boolean(post))
   const detailLoading = Boolean(postId) && ((!post && postResource.loading) || (Boolean(post) && !postImage.ready))
-  const postImageFailed = Boolean(post && postImage.ready && postImage.failed.includes(post.imageUrl))
   const activePostId = post?._id || ''
   const commentCount = post ? commentCounts[post._id] ?? post.commentCount ?? 0 : 0
   const commentsOpen = Boolean(activePostId && (commentsOpenPostId === activePostId || commentsRequested || focusCommentId))
@@ -131,7 +133,7 @@ export function CommunityFinspoDetailPage() {
     relatedPosts.map((relatedPost) => relatedPost.imageUrl),
     !relatedLoading || Boolean(relatedPosts.length),
   )
-  const currentImageDimensions = focusedImageDimensions.url === post?.imageUrl ? focusedImageDimensions : null
+  const currentImageDimensions = focusedImageDimensions.width ? focusedImageDimensions : null
   const focusedImageHeightLimit = viewportSize.width >= 768
     ? Math.min(viewportSize.height * 0.72, 680)
     : Math.min(viewportSize.height * 0.58, 480)
@@ -198,7 +200,7 @@ export function CommunityFinspoDetailPage() {
         : <StatePanel
             action={postResource.errorMeta?.status === 403 || postResource.errorMeta?.status === 404
               ? <NavigationBackButton className="button button-secondary" fallback={finspoFallback} label="Return to Finspo" />
-              : <button className="button button-secondary" onClick={postResource.refetch} type="button">Try again</button>}
+              : <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={postResource.refetch} type="button">Try again</button>}
             body={postResource.error}
             layout="page"
             title={postResource.errorMeta?.status === 404 ? 'This Finspo is unavailable' : 'Finspo could not load'}
@@ -213,20 +215,13 @@ export function CommunityFinspoDetailPage() {
             featuredItem={(
             <article className="finspo-detail-card finspo-focus-card relative grid min-w-0 self-start items-start gap-0 overflow-hidden rounded-xl border border-foose-border bg-foose-surface md:grid-cols-[minmax(0,min(52%,var(--finspo-image-width)))_minmax(0,1fr)]" key={`focus-${post._id}`}>
               <NavigationBackButton className="hidden md:inline-flex" fallback={finspoFallback} variant="floating" />
-              {postImageFailed ? (
-                <div className="flex min-h-72 w-full items-center justify-center bg-foose-surface-mid px-5 text-center text-sm font-bold text-foose-muted" role="img" aria-label="Finspo image unavailable">
-                  This image could not be displayed.
-                </div>
-              ) : <LightboxImage
+              <FinspoMediaCarousel
                 alt={post.caption || 'Finspo post'}
-                className="finspo-detail-image self-start justify-self-start rounded-none [&_img]:ml-0 [&_img]:mr-auto [&_img]:block [&_img]:h-auto [&_img]:max-h-[min(58dvh,480px)] [&_img]:max-w-full [&_img]:rounded-t-xl [&_img]:object-contain [&_img]:w-auto md:[&_img]:ml-auto md:[&_img]:mr-0 md:[&_img]:max-h-[min(72dvh,680px)] md:[&_img]:rounded-none"
-                onLoad={(event) => {
-                  const image = event.currentTarget
-                  if (!image.naturalWidth || !image.naturalHeight) return
-                  setFocusedImageDimensions({ height: image.naturalHeight, url: post.imageUrl, width: image.naturalWidth })
-                }}
-                src={post.imageUrl}
-              />}
+                className="finspo-detail-image self-start justify-self-start rounded-none"
+                images={finspoImages(post)}
+                onActiveImageLoad={setFocusedImageDimensions}
+                variant="detail"
+              />
               <div className={`finspo-detail-body min-w-0 w-full rounded-none border-0 bg-foose-surface p-4 shadow-none sm:p-5 ${commentsPanelVisible ? 'h-[min(72dvh,620px)] overflow-hidden md:h-[min(72dvh,680px)]' : ''}`}>
                 <div className={commentsPanelVisible ? 'flex h-full min-h-0 flex-col' : 'grid grid-cols-1 gap-4'}>
                   <div className={`grid grid-cols-1 gap-3 ${commentsPanelVisible ? 'finspo-thin-scrollbar max-h-[40%] shrink-0 overflow-y-auto overscroll-contain pb-3' : ''}`}>

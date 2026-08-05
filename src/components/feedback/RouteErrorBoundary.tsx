@@ -37,7 +37,7 @@ export class RouteErrorBoundary extends Component<Props, State> {
           actions={(
             <>
               <button
-                className="button button-primary inline-flex min-h-11 items-center justify-center rounded-lg border border-accent bg-accent px-5 py-2.5 text-sm font-bold text-white"
+                className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover"
                 onClick={() => window.location.reload()}
                 type="button"
               >

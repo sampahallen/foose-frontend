@@ -243,7 +243,7 @@ export function ShopReviewPanel({
       )}
       {reviews.error && !reviews.data && (
         <StatePanel
-          action={<button className="button button-secondary" onClick={() => void reviews.refetch()} type="button">Try again</button>}
+          action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void reviews.refetch()} type="button">Try again</button>}
           body={reviews.error}
           className="[&_h2]:text-base"
           layout="compact"

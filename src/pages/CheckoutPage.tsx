@@ -27,7 +27,7 @@ type CancelPaymentResponse = {
   releasedItemCount: number
 }
 
-type DeliveryMethod = 'station_pickup' | 'shop_pickup' | 'airport_to_airport'
+type DeliveryMethod = 'station_pickup' | 'shop_pickup'
 
 type ShopDeliveryState = {
   method: DeliveryMethod
@@ -63,7 +63,6 @@ function routeOptionsFor(shopOption: ShopDeliveryOption | undefined, company: st
 type ShopGroup = { shopId: string; shopName: string; items: CartItem[] }
 
 const STATION_PICKUP_COMPANIES = ['Intercity STC', '2M Express', 'VIP Jeoun'] as const
-const AIRPORT_COURIER = 'Passion Air Courier'
 
 function unavailablePopUpItems(items: CartItem[]) {
   const now = Date.now()
@@ -174,8 +173,8 @@ export function CheckoutPage() {
       company: state.method === 'station_pickup' && !state.company ? 'Choose a bus transit company.' : '',
       recipientName: requiresDestination && !state.recipientName.trim() ? 'Enter the recipient’s full name.' : '',
       recipientPhone: requiresDestination && state.recipientPhone.replace(/\D/g, '').length < 9 ? 'Enter a valid recipient phone number.' : '',
-      region: requiresDestination && !state.region.trim() ? (isRouteValidated ? 'Choose a destination.' : 'Enter a delivery region.') : '',
-      town: requiresDestination && !state.town.trim() && !isRouteValidated ? 'Enter the destination town.' : '',
+      region: isRouteValidated && !state.region.trim() ? 'Choose a destination.' : '',
+      town: '',
     }
   }
 
@@ -400,7 +399,6 @@ export function CheckoutPage() {
                             options={[
                               { description: 'Collect at a bus station via Intercity STC, 2M Express, or VIP Jeoun. Pay the transit fee directly at the station.', label: 'Station pickup', value: 'station_pickup', visual: <Icon name="truck" /> },
                               { description: "Collect from the seller's physical shop, when available. No delivery fee.", label: 'Shop pickup', value: 'shop_pickup', visual: <Icon name="store" /> },
-                              { description: `${AIRPORT_COURIER} sends an air waybill. Pay the courier fee at the collection point.`, label: 'Express delivery (airport-to-airport)', value: 'airport_to_airport', visual: <Icon name="send" /> },
                             ]}
                             value={state.method}
                           />
@@ -412,8 +410,7 @@ export function CheckoutPage() {
                                 { fieldId: `company-${group.shopId}`, message: errors.company },
                                 { fieldId: `recipient-name-${group.shopId}`, message: errors.recipientName },
                                 { fieldId: `recipient-phone-${group.shopId}`, message: errors.recipientPhone },
-                                { fieldId: isRouteValidated ? `destination-${group.shopId}` : `region-${group.shopId}`, message: errors.region },
-                                { fieldId: `town-${group.shopId}`, message: errors.town },
+                                { fieldId: `destination-${group.shopId}`, message: errors.region },
                               ].filter((item) => item.message)}
                               focus
                             />
@@ -464,20 +461,13 @@ export function CheckoutPage() {
                             <div className="mt-4 grid gap-5 sm:grid-cols-2">
                               <TextField error={validationAttempted ? errors.recipientName : undefined} id={`recipient-name-${group.shopId}`} label="Recipient full name" onChange={(event) => updateShopDelivery(group.shopId, { recipientName: event.target.value })} placeholder="Name on the parcel" required value={state.recipientName} />
                               <TextField error={validationAttempted ? errors.recipientPhone : undefined} id={`recipient-phone-${group.shopId}`} inputMode="tel" label="Recipient phone" onChange={(event) => updateShopDelivery(group.shopId, { recipientPhone: event.target.value })} placeholder="024 000 0000" required type="tel" value={state.recipientPhone} />
-                              {!isRouteValidated && (
-                                <>
-                                  <TextField error={validationAttempted ? errors.region : undefined} id={`region-${group.shopId}`} label="Region" onChange={(event) => updateShopDelivery(group.shopId, { region: event.target.value })} placeholder="Greater Accra" required value={state.region} />
-                                  <TextField error={validationAttempted ? errors.town : undefined} id={`town-${group.shopId}`} label="Destination town" onChange={(event) => updateShopDelivery(group.shopId, { town: event.target.value })} placeholder="e.g. Kumasi" required value={state.town} />
-                                  <TextField hint="Add this only if you already know the terminal you prefer. The seller still records the actual last stop when sending." id={`terminal-${group.shopId}`} label="Preferred terminal" onChange={(event) => updateShopDelivery(group.shopId, { preferredTerminal: event.target.value })} optional placeholder="e.g. Asafo station" value={state.preferredTerminal} wrapperClassName="sm:col-span-2" />
-                                </>
-                              )}
                             </div>
                           )}
 
                           <InlineNotice className="mt-4" tone="info">
                             {state.method === 'shop_pickup'
                               ? "Shop pickup means collecting from the seller's physical shop. The seller will mark the order ready, and there is no delivery fee."
-                              : 'Pay the transit or courier fee directly at the station or collection point — it is not charged through Foose.'}
+                              : 'Pay the transit fee directly at the station — it is not charged through Foose.'}
                           </InlineNotice>
                         </div>
                       )

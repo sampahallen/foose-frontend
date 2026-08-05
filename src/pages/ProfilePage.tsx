@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
-import { IoBanOutline, IoChatbubbleOutline, IoEllipsisVertical, IoFlagOutline, IoShareSocialOutline } from 'react-icons/io5'
+import { IoArchiveOutline, IoBanOutline, IoChatbubbleOutline, IoEllipsisVertical, IoFlagOutline, IoShareSocialOutline } from 'react-icons/io5'
 import { MdVerified } from 'react-icons/md'
-import { AppShell, Badge, ButtonLink, ConfirmDialog, Dialog, FinspoCaption, FinspoLikeButton, FinspoMasonry, FinspoFeedSkeleton, FloatingCreateButton, Icon, InlineNotice, LoadingState, ProductCard, RefreshIndicator, SafeImage, StatePanel, useToast } from '../components'
+import { AppShell, Badge, ButtonLink, ConfirmDialog, Dialog, FinspoCaption, FinspoLikeButton, FinspoMasonry, FinspoFeedSkeleton, FinspoMediaCarousel, FloatingCreateButton, Icon, InlineNotice, LoadingState, ProductCard, RefreshIndicator, SafeImage, StatePanel, useToast } from '../components'
 import { AppendFeedback, EventGridSkeleton, ProductGridSkeleton, ProfilePageSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { DiscoveryImage } from '../components/feedback/DiscoveryMedia'
 import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
-import { scrollRevealStateClass, scrollRevealTransitionClass, useScrollRevealBand } from '../hooks/useScrollRevealBand'
 import { apiDelete, apiPost } from '../lib/api'
 import type { Event, GalleryPost, Listing, PaginatedProfileConnections, PaginatedProfileContent, ProfileConnectionMember, ProfileConnectionType, ProfileContentType, ProfileSummary, Shop } from '../types/api'
 import { authHref } from '../utils/authRedirect'
 import { getErrorMessage } from '../utils/errorMessage'
-import { eventTimeLabel, eventTypeLabel } from '../utils/events'
+import { eventTimeLabel, eventTypeLabel, eventWindowHasClosed } from '../utils/events'
 import { initials } from '../utils/format'
+import { finspoImages } from '../utils/finspoImages'
 import { cacheFinspoPreview, captureNavigationTrigger, getCurrentAppHref, getCurrentAppPathname, navigateTo, withBasePath } from '../utils/navigation'
 
 type ProfileTab = ProfileContentType
@@ -130,6 +130,52 @@ function ProfileContentFeedback({
   )
 }
 
+type ProfileCardMenuItem = {
+  href?: string
+  icon: ReactNode
+  label: string
+  onSelect?: () => void
+  tone?: 'default' | 'danger'
+}
+
+function ProfileCardMenu({ items, label }: { items: ProfileCardMenuItem[]; label: string }) {
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const closeOnOutsideClick = (event: globalThis.MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
+
+  return (
+    <div className="absolute right-2 top-2 z-30" ref={menuRef}>
+      <button aria-expanded={open} aria-haspopup="menu" aria-label={`${open ? 'Close' : 'Open'} options for ${label}`} className="inline-flex size-9 items-center justify-center rounded-full border border-white/70 bg-white/95 text-foose-text shadow-md transition hover:bg-white hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={() => setOpen((current) => !current)} type="button">
+        <IoEllipsisVertical size={19} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-10 z-40 w-44 rounded-xl border border-foose-border bg-foose-surface p-1.5 shadow-2xl" role="menu">
+          {items.map((item) => {
+            const className = `flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-bold transition ${item.tone === 'danger' ? 'text-foose-danger hover:bg-foose-danger-bg' : 'text-foose-text hover:bg-foose-surface-low hover:text-accent'}`
+            if (item.href) return <a className={className} href={withBasePath(item.href)} key={item.label} onClick={() => setOpen(false)} role="menuitem">{item.icon}{item.label}</a>
+            return <button className={className} key={item.label} onClick={() => { setOpen(false); item.onSelect?.() }} role="menuitem" type="button">{item.icon}{item.label}</button>
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function connectionPath(username: string, type: ProfileConnectionType, page: number) {
   return `/users/${encodeURIComponent(username)}/connections?type=${type}&page=${page}&limit=30`
 }
@@ -232,7 +278,7 @@ function ProfileConnectionsDialog({
     <>
       <Dialog closeLabel={`Close ${label.toLocaleLowerCase()}`} description={`${currentCount} ${currentCount === 1 ? label.slice(0, -1).toLocaleLowerCase() : label.toLocaleLowerCase()}`} onClose={onClose} open={Boolean(selected)} size="sm" title={label}>
         {(resource.initialLoading || activating) && <ConnectionListSkeleton />}
-        {resource.error && !resource.items.length && <StatePanel action={<button className="button button-secondary" onClick={() => void resource.refetch()} type="button">Try again</button>} body={resource.error} layout="compact" title={`${label} could not load`} tone="error" />}
+        {resource.error && !resource.items.length && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void resource.refetch()} type="button">Try again</button>} body={resource.error} layout="compact" title={`${label} could not load`} tone="error" />}
         {!activating && !resource.initialLoading && !resource.error && !visibleItems.length && <StatePanel body={isOwnProfile ? `You do not have any ${label.toLocaleLowerCase()} yet.` : `@${username} does not have any ${label.toLocaleLowerCase()} yet.`} layout="compact" title={`No ${label.toLocaleLowerCase()}`} tone="empty" />}
         {actionError?.type === selected && <InlineNotice className="mb-3" title="Connection did not update" tone="error">{actionError.message}</InlineNotice>}
         {!!visibleItems.length && (
@@ -268,6 +314,10 @@ function FinspoProfilePanel({ isOwnProfile, username, viewerId }: { isOwnProfile
   const buildPath = useCallback((page: number) => contentPath(username, 'finspo', page), [username])
   const extractItems = useCallback((page: PaginatedProfileContent<GalleryPost>) => page.items, [])
   const resource = useInfiniteApiResource<GalleryPost, PaginatedProfileContent<GalleryPost>>(buildPath, extractItems, [username])
+  const { showToast } = useToast()
+  const [pendingAction, setPendingAction] = useState<{ action: 'archive' | 'delete'; post: GalleryPost } | null>(null)
+  const [actionBusy, setActionBusy] = useState(false)
+  const [actionError, setActionError] = useState('')
 
   function openFinspo(event: MouseEvent<HTMLAnchorElement>, post: GalleryPost) {
     if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
@@ -279,34 +329,85 @@ function FinspoProfilePanel({ isOwnProfile, username, viewerId }: { isOwnProfile
     })
   }
 
+  async function confirmAction() {
+    if (!pendingAction || actionBusy) return
+    const { action, post } = pendingAction
+    setActionBusy(true)
+    setActionError('')
+    try {
+      if (action === 'archive') await apiPost(`/community/gallery/${post._id}/archive`)
+      else await apiDelete(`/community/gallery/${post._id}`)
+      setPendingAction(null)
+      await resource.refetch()
+      showToast({
+        message: action === 'archive' ? 'You can restore it from Archived Finspo for 30 days.' : 'The Finspo post was permanently removed.',
+        title: action === 'archive' ? 'Finspo archived' : 'Finspo deleted',
+        tone: 'success',
+      })
+    } catch (error) {
+      const message = getErrorMessage(error, action === 'archive' ? 'Could not archive Finspo' : 'Could not delete Finspo')
+      setActionError(message)
+      showToast({ message, title: 'Finspo was not updated', tone: 'error' })
+    } finally {
+      setActionBusy(false)
+    }
+  }
+
   if (resource.initialLoading) return <FinspoFeedSkeleton count={8} label={`Loading @${username} Finspo`} showAuthor={false} />
   if (resource.error && !resource.items.length) {
-    return <StatePanel action={<button className="button button-secondary" onClick={() => void resource.refetch()} type="button">Try again</button>} body={resource.error} layout="section" title="Finspo could not load" tone="error" />
+    return <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void resource.refetch()} type="button">Try again</button>} body={resource.error} layout="section" title="Finspo could not load" tone="error" />
   }
   if (!resource.items.length) {
-    return <StatePanel action={isOwnProfile ? <ButtonLink to="/community/finspo/new">Post Finspo</ButtonLink> : undefined} body={isOwnProfile ? 'Share a look or source of inspiration to start your profile collection.' : `@${username} has not shared any Finspo yet.`} layout="section" title="No Finspo posts" tone="empty" />
+    const action = isOwnProfile ? <div className="flex flex-wrap justify-center gap-2"><ButtonLink to="/community/finspo/new">Post Finspo</ButtonLink><ButtonLink to="/community/finspo/archived" variant="secondary">Archived Finspo</ButtonLink></div> : undefined
+    return <StatePanel action={action} body={isOwnProfile ? 'Share a look or source of inspiration to start your profile collection.' : `@${username} has not shared any Finspo yet.`} layout="section" title="No Finspo posts" tone="empty" />
   }
 
   return (
     <>
+      {isOwnProfile && (
+        <div className="mb-3 flex justify-end">
+          <ButtonLink to="/community/finspo/archived" variant="secondary">Archived Finspo</ButtonLink>
+        </div>
+      )}
+      {actionError && <InlineNotice className="mb-3" tone="error">{actionError}</InlineNotice>}
       <FinspoMasonry className="profile-finspo-grid" gap={10} maxColumns={5} minColumnWidth={135} targetColumnWidth={190}>
         {resource.items.map((post) => (
           <article className="finspo-tile relative min-w-0" key={post._id}>
-            <a
-              aria-label={post.caption || `Open Finspo by @${username}`}
+            <FinspoMediaCarousel
+              alt={post.caption || `Finspo by @${username}`}
               className="block overflow-hidden rounded-xl bg-foose-surface-mid [&_img]:h-auto [&_img]:w-full [&_img]:object-contain [&_img]:transition-transform [&_img]:duration-300 [&_img]:ease-out hover:[&_img]:scale-[1.025] motion-reduce:[&_img]:transform-none motion-reduce:[&_img]:transition-none"
               href={withBasePath(`/community/finspo/${post._id}`)}
-              id={`profile-finspo-${post._id}`}
-              onClick={(event) => openFinspo(event, post)}
-            >
-              <DiscoveryImage alt="" className="w-full" fallback="Finspo image unavailable" fallbackClassName="aspect-[4/5] w-full" src={post.imageUrl} />
-            </a>
-            <FinspoLikeButton className="absolute right-2 top-2 z-10 inline-flex size-9 items-center justify-center rounded-full bg-white/90 text-foose-text shadow transition hover:bg-accent hover:text-white [&.is-active]:bg-accent [&.is-active]:text-white" initialCount={post.likes?.length} initialLiked={viewerId ? post.likes?.some((id) => String(id) === viewerId) : undefined} targetId={post._id} />
+              images={finspoImages(post)}
+              onNavigate={(event) => openFinspo(event, post)}
+              surface="profile"
+            />
+            {isOwnProfile ? (
+              <ProfileCardMenu
+                items={[
+                  { href: `/community/finspo/${post._id}/edit`, icon: <Icon name="pencil" size={17} />, label: 'Edit' },
+                  { icon: <IoArchiveOutline size={18} />, label: 'Archive', onSelect: () => setPendingAction({ action: 'archive', post }) },
+                  { icon: <Icon name="trash" size={17} />, label: 'Delete', onSelect: () => setPendingAction({ action: 'delete', post }), tone: 'danger' },
+                ]}
+                label={post.caption || 'Finspo post'}
+              />
+            ) : (
+              <FinspoLikeButton className="absolute right-2 top-2 z-10 inline-flex size-9 items-center justify-center rounded-full bg-white/90 text-foose-text shadow transition hover:bg-accent hover:text-white [&.is-active]:bg-accent [&.is-active]:text-white" initialCount={post.likes?.length} initialLiked={viewerId ? post.likes?.some((id) => String(id) === viewerId) : undefined} targetId={post._id} />
+            )}
             <FinspoCaption caption={post.caption} />
           </article>
         ))}
       </FinspoMasonry>
       <ProfileContentFeedback error={resource.loadMoreError} hasMore={resource.hasMore} label="Finspo posts" loadingMore={resource.loadingMore} retry={resource.retryLoadMore} sentinelRef={resource.sentinelRef} />
+      <ConfirmDialog
+        busy={actionBusy}
+        confirmLabel={pendingAction?.action === 'delete' ? 'Delete post' : 'Archive post'}
+        description={pendingAction?.action === 'delete' ? 'This Finspo post will be permanently deleted. This action cannot be undone.' : 'This Finspo post will be hidden from your profile and kept in Archived Finspo for 30 days.'}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={() => void confirmAction()}
+        open={Boolean(pendingAction)}
+        title={pendingAction?.action === 'delete' ? 'Delete this post?' : 'Archive this post?'}
+        tone={pendingAction?.action === 'delete' ? 'destructive' : 'default'}
+      />
     </>
   )
 }
@@ -318,7 +419,7 @@ function ListingsProfilePanel({ isOwnProfile, shop, username }: { isOwnProfile: 
 
   if (resource.initialLoading) return <ProductGridSkeleton count={8} label={`Loading @${username} listings`} />
   if (resource.error && !resource.items.length) {
-    return <StatePanel action={<button className="button button-secondary" onClick={() => void resource.refetch()} type="button">Try again</button>} body={resource.error} layout="section" title="Listings could not load" tone="error" />
+    return <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void resource.refetch()} type="button">Try again</button>} body={resource.error} layout="section" title="Listings could not load" tone="error" />
   }
   if (!resource.items.length) {
     const action = isOwnProfile ? <ButtonLink to={shop ? '/listings/new' : '/open-shop'}>{shop ? 'Add listing' : 'Open a DigiShop'}</ButtonLink> : undefined
@@ -328,17 +429,26 @@ function ListingsProfilePanel({ isOwnProfile, shop, username }: { isOwnProfile: 
   return (
     <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {resource.items.map((listing) => <ProductCard key={listing._id} listing={listing} />)}
+        {resource.items.map((listing) => <ProductCard key={listing._id} listing={listing} manageHref={isOwnProfile ? `/listings/${listing._id}/edit` : undefined} />)}
       </div>
       <ProfileContentFeedback error={resource.loadMoreError} hasMore={resource.hasMore} label="listings" loadingMore={resource.loadingMore} retry={resource.retryLoadMore} sentinelRef={resource.sentinelRef} />
     </>
   )
 }
 
-function EventCard({ event }: { event: Event }) {
+function EventCard({ event, isOwnProfile, onDelete }: { event: Event; isOwnProfile: boolean; onDelete: (event: Event) => void }) {
   const statusTone = event.status === 'past' ? 'neutral' : event.status === 'ongoing' ? 'warning' : 'accent'
   return (
-    <article className="overflow-hidden rounded-xl border border-foose-border bg-foose-surface shadow-sm">
+    <article className="relative overflow-visible rounded-xl border border-foose-border bg-foose-surface shadow-sm">
+      {isOwnProfile && (
+        <ProfileCardMenu
+          items={[
+            { href: `/community/events/${event._id}/manage`, icon: <Icon name="pencil" size={17} />, label: 'Manage' },
+            { icon: <Icon name="trash" size={17} />, label: 'Delete', onSelect: () => onDelete(event), tone: 'danger' },
+          ]}
+          label={event.title}
+        />
+      )}
       <a className="block aspect-[16/9] overflow-hidden bg-foose-surface-mid" href={withBasePath(`/community/events/${event._id}`)}>
         <DiscoveryImage alt={`${event.title} cover`} className="h-full w-full object-cover transition duration-300 hover:scale-[1.02]" fallback="Event cover unavailable" fallbackClassName="h-full w-full" src={event.coverImage} />
       </a>
@@ -360,10 +470,36 @@ function EventsProfilePanel({ isOwnProfile, username }: { isOwnProfile: boolean;
   const buildPath = useCallback((page: number) => contentPath(username, 'events', page), [username])
   const extractItems = useCallback((page: PaginatedProfileContent<Event>) => page.items, [])
   const resource = useInfiniteApiResource<Event, PaginatedProfileContent<Event>>(buildPath, extractItems, [username])
+  const { showToast } = useToast()
+  const [pendingDelete, setPendingDelete] = useState<Event | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [showPastEvents, setShowPastEvents] = useState(false)
+  const currentEvents = resource.items.filter((event) => !eventWindowHasClosed(event))
+  const pastEvents = resource.items.filter(eventWindowHasClosed)
+  const visibleEvents = isOwnProfile && showPastEvents ? pastEvents : currentEvents
+
+  async function deleteEvent() {
+    if (!pendingDelete || deleteBusy) return
+    setDeleteBusy(true)
+    setDeleteError('')
+    try {
+      await apiDelete(`/community/events/${pendingDelete._id}`)
+      setPendingDelete(null)
+      await resource.refetch()
+      showToast({ message: 'The event was removed from your profile and Community.', title: 'Event deleted', tone: 'success' })
+    } catch (error) {
+      const message = getErrorMessage(error, 'Could not delete event')
+      setDeleteError(message)
+      showToast({ message, title: 'Event was not deleted', tone: 'error' })
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
 
   if (resource.initialLoading) return <EventGridSkeleton count={6} label={`Loading @${username} events`} />
   if (resource.error && !resource.items.length) {
-    return <StatePanel action={<button className="button button-secondary" onClick={() => void resource.refetch()} type="button">Try again</button>} body={resource.error} layout="section" title="Events could not load" tone="error" />
+    return <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void resource.refetch()} type="button">Try again</button>} body={resource.error} layout="section" title="Events could not load" tone="error" />
   }
   if (!resource.items.length) {
     return <StatePanel action={isOwnProfile ? <ButtonLink to="/community/events/new">Add event</ButtonLink> : undefined} body={isOwnProfile ? 'Host an online or in-person event to display it here.' : `@${username} has not posted any events.`} layout="section" title="No posted events" tone="empty" />
@@ -371,10 +507,29 @@ function EventsProfilePanel({ isOwnProfile, username }: { isOwnProfile: boolean;
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {resource.items.map((event) => <EventCard event={event} key={event._id} />)}
-      </div>
+      {isOwnProfile && (
+        <div className="mb-4 flex justify-end">
+          <button aria-pressed={showPastEvents} className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => setShowPastEvents((current) => !current)} type="button">
+            {showPastEvents ? 'Current events' : 'Past events'}
+          </button>
+        </div>
+      )}
+      {deleteError && <InlineNotice className="mb-3" tone="error">{deleteError}</InlineNotice>}
+      {visibleEvents.length ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {visibleEvents.map((event) => <EventCard event={event} isOwnProfile={isOwnProfile} key={event._id} onDelete={setPendingDelete} />)}
+        </div>
+      ) : (
+        <StatePanel
+          action={showPastEvents ? undefined : isOwnProfile ? <ButtonLink to="/community/events/new">Add event</ButtonLink> : undefined}
+          body={showPastEvents ? 'Events that have ended will appear here.' : isOwnProfile ? 'Add an event to display it on your profile.' : `@${username} has no upcoming or ongoing events.`}
+          layout="section"
+          title={showPastEvents ? 'No past events' : 'No current events'}
+          tone="empty"
+        />
+      )}
       <ProfileContentFeedback error={resource.loadMoreError} hasMore={resource.hasMore} label="events" loadingMore={resource.loadingMore} retry={resource.retryLoadMore} sentinelRef={resource.sentinelRef} />
+      <ConfirmDialog busy={deleteBusy} confirmLabel="Delete event" description={pendingDelete ? `Delete “${pendingDelete.title}”? This action cannot be undone.` : ''} onCancel={() => setPendingDelete(null)} onConfirm={() => void deleteEvent()} open={Boolean(pendingDelete)} title="Delete this event?" tone="destructive" />
     </>
   )
 }
@@ -429,7 +584,6 @@ function contextualOwnerAction(tab: ProfileTab, shop?: Shop | null) {
 }
 
 export function ProfilePage() {
-  const profileNavVisible = useScrollRevealBand()
   const { status, user } = useAuth()
   const { showToast } = useToast()
   const username = profileUsername()
@@ -526,7 +680,7 @@ export function ProfilePage() {
       {username && !isExplicitOwnProfile && !isOwnProfile && <NavigationBackButton className="mb-5" fallback={{ href: '/', label: 'Home' }} />}
       {profile.initialLoading && <ProfilePageSkeleton />}
       <RefreshIndicator active={profile.refreshing} className="mb-4" label="Refreshing profile" />
-      {profile.error && !data && <StatePanel action={<button className="button button-secondary" onClick={profile.refetch} type="button">Try again</button>} body={profile.error} layout="page" title={profile.errorMeta?.status === 404 ? 'This profile is unavailable' : 'Profile could not load'} tone={profile.errorMeta?.status === 403 ? 'permission' : profile.errorMeta?.status === 404 ? 'unavailable' : 'error'} />}
+      {profile.error && !data && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={profile.refetch} type="button">Try again</button>} body={profile.error} layout="page" title={profile.errorMeta?.status === 404 ? 'This profile is unavailable' : 'Profile could not load'} tone={profile.errorMeta?.status === 403 ? 'permission' : profile.errorMeta?.status === 404 ? 'unavailable' : 'error'} />}
       {profile.error && data && <InlineNotice action={<button className="font-black text-accent" onClick={profile.refetch} type="button">Retry</button>} tone="warning">This profile could not refresh. Showing the last loaded details.</InlineNotice>}
       <span aria-live="polite" className="sr-only">{followAnnouncement}</span>
       {data && (
@@ -580,7 +734,7 @@ export function ProfilePage() {
               <ShopProfilePanel isOwnProfile={isOwnProfile} shop={data.shop} />
             </aside>
             <div className="min-w-0">
-              <nav aria-label="Profile sections" className={`sticky top-16 z-30 mb-6 overflow-hidden border-b border-foose-border bg-foose-bg/95 backdrop-blur ${scrollRevealTransitionClass} ${scrollRevealStateClass(profileNavVisible)}`}>
+              <nav aria-label="Profile sections" className="sticky top-16 z-30 mb-6 overflow-hidden border-b border-foose-border bg-foose-bg/95 backdrop-blur">
                 <div className="grid w-full grid-cols-3 items-center">
               {PROFILE_TABS.map((tab) => {
                 const count = data.contentCounts[tab.value]

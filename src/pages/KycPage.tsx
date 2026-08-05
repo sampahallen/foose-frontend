@@ -216,7 +216,7 @@ export function KycPage() {
       </header>
       <main>
         {resource.initialLoading && <FormPageSkeleton label="Loading identity verification" media />}
-        {resource.error && !record && <StatePanel action={<button className="button button-secondary" onClick={() => void resource.refetch()} type="button">Try again</button>} body={resource.error} layout="page" title="Verification could not load" tone="error" />}
+        {resource.error && !record && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void resource.refetch()} type="button">Try again</button>} body={resource.error} layout="page" title="Verification could not load" tone="error" />}
         {record?.status === 'approved' && <StatePanel action={<ButtonLink to="/open-shop">Open DigiShop</ButtonLink>} body="Your identity is verified and you can create and manage a DigiShop." layout="page" title="Verification approved" tone="success" />}
         {record?.status === 'pending' && <StatePanel body="Your documents are waiting for review. We will notify you when the decision is ready." layout="page" title="Verification pending" tone="info" />}
         {record && ['not_submitted', 'rejected'].includes(record.status) && <KycForm key={`${record.status}:${record.submissionCount || 0}`} kyc={record} onSaved={resource.refetch} user={user} />}

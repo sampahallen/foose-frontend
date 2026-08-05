@@ -5,6 +5,7 @@ import {
   AppShell,
   FinspoCaption,
   FinspoLikeButton,
+  FinspoMediaBadge,
   FinspoMasonry,
   Icon,
   InlineNotice,
@@ -23,6 +24,7 @@ import { useUnifiedSearch, type UnifiedSearchSnapshot } from '../hooks/useUnifie
 import type { Event, GalleryPost, UnifiedSearchResult, UnifiedSearchResultType, UnifiedSearchScope, UnifiedSearchUser } from '../types/api'
 import { eventHostName, eventTimeLabel, eventTypeLabel, isOnlinePopUp } from '../utils/events'
 import { recordFinspoSearchClick } from '../utils/finspoSearchSignals'
+import { finspoCoverImage, finspoImages } from '../utils/finspoImages'
 import { formatMoney, getShopName, initials } from '../utils/format'
 import { cacheFinspoPreview, captureNavigationTrigger, getCurrentAppHref, navigateTo, withBasePath } from '../utils/navigation'
 import { getNavigationSnapshot } from '../stores/navigationMemoryStore'
@@ -60,7 +62,7 @@ function searchHref(search: URLSearchParams, scope: UnifiedSearchScope) {
 
 function imageForResult(result: UnifiedSearchResult) {
   if (result.type === 'item') return result.entity.images?.find(Boolean) || ''
-  if (result.type === 'finspo') return result.entity.imageUrl
+  if (result.type === 'finspo') return finspoCoverImage(result.entity)
   if (result.type === 'event') return result.entity.coverImage || ''
   return result.entity.profilePhoto || result.entity.shop?.logoUrl || ''
 }
@@ -68,6 +70,7 @@ function imageForResult(result: UnifiedSearchResult) {
 function FinspoResultCard({ failed, post }: { failed: boolean; post: GalleryPost }) {
   const { user } = useAuth()
   const author = typeof post.userId === 'object' ? post.userId : null
+  const images = finspoImages(post)
 
   function rememberPost(event: MouseEvent<HTMLAnchorElement>) {
     if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
@@ -82,6 +85,7 @@ function FinspoResultCard({ failed, post }: { failed: boolean; post: GalleryPost
 
   return (
     <article className="finspo-tile relative min-w-0 overflow-hidden rounded-xl bg-foose-surface shadow-sm">
+      <FinspoMediaBadge count={images.length} />
       <a
         aria-label={post.caption || `Finspo by @${author?.username || 'Foose member'}`}
         className="block overflow-hidden bg-foose-surface-mid"
@@ -89,7 +93,7 @@ function FinspoResultCard({ failed, post }: { failed: boolean; post: GalleryPost
         id={`finspo-search-${post._id}`}
         onClick={rememberPost}
       >
-        <SafeImage alt="" className="block h-auto w-full object-contain" fallback="Image unavailable" fallbackClassName="aspect-[4/5] text-sm" src={failed ? undefined : post.imageUrl} />
+        <SafeImage alt="" className="block h-auto w-full object-contain" fallback="Image unavailable" fallbackClassName="aspect-[4/5] text-sm" src={failed ? undefined : finspoCoverImage(post)} />
       </a>
       <FinspoLikeButton
         className="favorite-button absolute right-2 top-2 z-10 inline-flex size-8 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-text shadow transition hover:bg-accent-light hover:text-accent [&.is-active]:bg-accent [&.is-active]:text-white"
@@ -490,7 +494,7 @@ export function SearchPage() {
             </div>
 
             {search.loading && <SearchSkeleton scope={scope} />}
-            {search.error && !search.results.length && <StatePanel action={<button className="button button-secondary" onClick={search.refetch} type="button">Try search again</button>} body={search.error} layout="section" title="Search could not load" tone="error" />}
+            {search.error && !search.results.length && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={search.refetch} type="button">Try search again</button>} body={search.error} layout="section" title="Search could not load" tone="error" />}
             {search.error && !!search.results.length && <InlineNotice action={<button className="font-black text-accent" onClick={search.refetch} type="button">Retry</button>} title="Search did not refresh" tone="warning">Your current results are still available.</InlineNotice>}
             {noResults && (
               <>
@@ -542,9 +546,9 @@ export function SearchPage() {
               {explore.feed?.personalized && <span className="rounded-full bg-accent-light px-3 py-1 text-[10px] font-black uppercase tracking-wider text-accent">For you</span>}
             </div>
             {explore.loading && <ExploreSkeleton />}
-            {explore.error && !explore.results.length && <StatePanel action={<button className="button button-secondary" onClick={explore.refetch} type="button">Refresh Explore</button>} body={explore.error} layout="section" title="Explore could not load" tone="error" />}
+            {explore.error && !explore.results.length && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={explore.refetch} type="button">Refresh Explore</button>} body={explore.error} layout="section" title="Explore could not load" tone="error" />}
             {explore.error && !!explore.results.length && <InlineNotice action={<button className="font-black text-accent" onClick={explore.refetch} type="button">Retry</button>} title="Explore did not refresh" tone="warning">Your current recommendations are still available.</InlineNotice>}
-            {!explore.loading && !explore.error && !explore.results.length && <StatePanel action={<a className="button button-secondary" href={withBasePath('/browse')}>Browse marketplace items</a>} body="Fresh recommendations will appear as the Foose community posts." layout="section" title="Explore is warming up" tone="info" />}
+            {!explore.loading && !explore.error && !explore.results.length && <StatePanel action={<a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath('/browse')}>Browse marketplace items</a>} body="Fresh recommendations will appear as the Foose community posts." layout="section" title="Explore is warming up" tone="info" />}
             {!!explore.results.length && <ExploreMosaic failedImages={explore.failedImageSet} results={explore.results} />}
             {explore.loadingMore && <ExploreSkeleton count={8} />}
             <div className="flex min-h-16 items-center justify-center" ref={explore.sentinelRef}>

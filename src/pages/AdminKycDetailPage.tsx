@@ -120,7 +120,7 @@ export function AdminKycDetailPage() {
         <NavigationBackButton className="mb-6" fallback={{ href: '/admin/kyc', label: 'KYC queue' }} />
         {!kycId && <StatePanel action={<ButtonLink to="/admin/kyc">Return to KYC queue</ButtonLink>} body="Open a KYC record from the admin queue." layout="page" title="KYC record required" tone="unavailable" />}
         {resource.initialLoading && <FormPageSkeleton label="Loading KYC details" media />}
-        {resource.error && !resource.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void resource.refetch()} type="button">Retry</button>} body={resource.error} layout="page" title="KYC record unavailable" tone="unavailable" />}
+        {resource.error && !resource.data && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void resource.refetch()} type="button">Retry</button>} body={resource.error} layout="page" title="KYC record unavailable" tone="unavailable" />}
         {actionError && <InlineNotice title="Review action failed" tone="error">{actionError}</InlineNotice>}
         {kyc && (
           <>

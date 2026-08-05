@@ -47,4 +47,11 @@ describe('ProductCard listing navigation', () => {
       trigger: { elementId: expect.any(String) },
     })
   })
+
+  it('replaces the favorite heart with an edit pencil when a management link is supplied', () => {
+    render(<ProductCard listing={listing} manageHref="/listings/listing-42/edit" />)
+
+    expect(screen.getByRole('link', { name: 'Edit Blue coat' })).toHaveAttribute('href', '/listings/listing-42/edit')
+    expect(screen.queryByRole('button', { name: 'Favorite' })).not.toBeInTheDocument()
+  })
 })

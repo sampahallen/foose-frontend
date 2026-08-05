@@ -83,7 +83,7 @@ export function AdminKycPage() {
           </div>
         </div>
         {records.initialLoading && <AdminTableSkeleton label="Loading KYC records" />}
-        {records.error && !records.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void records.refetch()} type="button">Retry</button>} body={records.error} layout="section" title="KYC records unavailable" tone="error" />}
+        {records.error && !records.data && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void records.refetch()} type="button">Retry</button>} body={records.error} layout="section" title="KYC records unavailable" tone="error" />}
         {actionError && <InlineNotice title="Review action failed" tone="error">{actionError}</InlineNotice>}
         {!records.loading && !records.error && !records.data?.records.length && (
           <StatePanel body="No pending KYC submissions are waiting for review." layout="section" title="KYC queue is clear" tone="success" />

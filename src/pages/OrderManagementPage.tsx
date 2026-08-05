@@ -84,7 +84,7 @@ function OrderManagementContent({
   const { showToast } = useToast()
   const viewer: OrderViewer = sellerMode ? 'seller' : 'buyer'
   const [bucket, setBucket] = useState<OrderBucket>(historyMode ? 'history' : 'needs_action')
-  const [method, setMethod] = useState<'all' | 'station_pickup' | 'shop_pickup' | 'airport_to_airport'>('all')
+  const [method, setMethod] = useState<'all' | 'station_pickup' | 'shop_pickup'>('all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'urgent' | 'newest'>('urgent')
   const deferredQuery = useDeferredValue(query.trim())
@@ -224,7 +224,7 @@ function OrderManagementContent({
         )}
         description={sellerMode
           ? 'See what needs you now, upload waybills, and follow every payment through settlement.'
-          : 'Track station pickup, shop pickup, express delivery, protected payments, refunds, and reports from one place.'}
+          : 'Track station pickup, shop pickup, protected payments, refunds, and reports from one place.'}
         eyebrow={sellerMode ? 'Seller fulfilment' : 'Buying activity'}
         title={historyMode ? 'Order history' : sellerMode ? 'Seller orders' : 'Your orders'}
       />
@@ -232,7 +232,7 @@ function OrderManagementContent({
       {orders.initialLoading && <OrderListSkeleton label="Loading orders" />}
         {orders.error && !orders.data && (
           <StatePanel
-            action={<button className="button button-secondary min-h-11 px-5" onClick={() => void orders.refetch()} type="button">Retry</button>}
+            action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void orders.refetch()} type="button">Retry</button>}
             body={orders.error}
             layout="section"
             title="Orders unavailable"
@@ -281,7 +281,6 @@ function OrderManagementContent({
                   <option value="all">All methods</option>
                   <option value="station_pickup">Station pickup</option>
                   <option value="shop_pickup">Shop pickup</option>
-                  <option value="airport_to_airport">Express delivery</option>
                 </select>
               </label>
               <label className="grid gap-1">
@@ -300,7 +299,7 @@ function OrderManagementContent({
             {!visibleOrders.length ? (
               <StatePanel
                 action={query || method !== 'all'
-                  ? <button className="button button-secondary min-h-11 px-5" onClick={() => { setQuery(''); setMethod('all') }} type="button">Clear filters</button>
+                  ? <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => { setQuery(''); setMethod('all') }} type="button">Clear filters</button>
                   : bucket === 'history' && !sellerMode
                     ? <ButtonLink to="/browse">Browse listings</ButtonLink>
                     : undefined}

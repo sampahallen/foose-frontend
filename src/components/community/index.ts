@@ -1,5 +1,7 @@
 export * from './FinspoAccountSuggestions'
 export * from './FinspoComments'
 export * from './FinspoMasonry'
+export * from './FinspoMediaCarousel'
+export * from './FinspoMediaComposer'
 export * from './PromotedEventCarousel'
 export * from './EventPromotionDialog'

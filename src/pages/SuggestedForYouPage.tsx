@@ -57,10 +57,10 @@ export function SuggestedForYouPage() {
           )}
           <RefreshIndicator active={listings.refreshing} className="mb-4" label="Refreshing personalized suggestions" />
           {listings.loading && !feedListings.length && <ProductGridSkeleton label="Loading your personalized suggestions" />}
-          {listings.error && !feedListings.length && <StatePanel action={<button className="button button-secondary" onClick={listings.refetch} type="button">Try again</button>} body={listings.error} layout="section" title="Your suggestions could not load" tone="error" />}
+          {listings.error && !feedListings.length && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={listings.refetch} type="button">Try again</button>} body={listings.error} layout="section" title="Your suggestions could not load" tone="error" />}
           {listings.error && !!feedListings.length && <InlineNotice action={<button className="font-black text-accent" onClick={listings.refetch} type="button">Retry</button>} tone="warning">Could not refresh your suggestions. Your current picks are still available.</InlineNotice>}
           {!listings.loading && !listings.error && !feedListings.length && (
-            <StatePanel action={<a className="button button-secondary" href={withBasePath('/browse')}>Explore marketplace items</a>} body="Browse, save, and shop a few more pieces to shape this feed." layout="section" title="Your suggestions are warming up" tone="info" />
+            <StatePanel action={<a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath('/browse')}>Explore marketplace items</a>} body="Browse, save, and shop a few more pieces to shape this feed." layout="section" title="Your suggestions are warming up" tone="info" />
           )}
           {!!feedListings.length && (
             <div className={PRODUCT_GRID_CLASS}>

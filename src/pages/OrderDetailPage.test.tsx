@@ -162,45 +162,6 @@ describe('OrderDetailPage lifecycle actions', () => {
     expect((body as FormData).get('billImage')).toBe(bill)
   }, 15_000)
 
-  it('lets a seller optionally add a cargo tracking number for airport-to-airport orders', async () => {
-    const user = userEvent.setup()
-    orderMocks.userId = 'seller-1'
-    orderMocks.order = makeOrder({
-      delivery: {
-        company: 'Passion Air Courier',
-        destination: {
-          recipientName: 'Ama Buyer',
-          recipientPhone: '0240000000',
-          region: 'Greater Accra',
-          town: 'Accra',
-        },
-        method: 'airport_to_airport',
-      },
-      fulfillmentStatus: 'awaiting_seller',
-      workflow: {
-        allowedActions: ['dispatch'],
-        deadline: { at: '2026-07-27T12:00:00.000Z', type: 'seller_action' },
-        nextActor: 'seller',
-        report: null,
-        serverNow: '2026-07-24T12:00:00.000Z',
-        settlementExplanation: 'Payment is held.',
-      },
-    })
-
-    render(<ToastProvider><OrderDetailPage /></ToastProvider>)
-    await user.click(screen.getByRole('button', { name: 'Upload waybill & send' }))
-    await user.type(screen.getByRole('textbox', { name: /Cargo tracking number/ }), 'PAC-9981')
-    const bill = new File(['bill-image'], 'air-waybill.png', { type: 'image/png' })
-    await user.upload(screen.getByLabelText(/Air waybill/), bill)
-    await user.click(screen.getByRole('button', { name: 'Review details' }))
-    await user.click(screen.getByRole('button', { name: 'Mark sent & notify buyer' }))
-
-    await waitFor(() => expect(orderMocks.postOrderAction).toHaveBeenCalled())
-    const [, , body] = orderMocks.postOrderAction.mock.calls[0]
-    expect((body as FormData).get('cargoTrackingNumber')).toBe('PAC-9981')
-    expect((body as FormData).get('billImage')).toBe(bill)
-  }, 15_000)
-
   it('shows pickup coordination details and a direct route to the seller', () => {
     render(<ToastProvider><OrderDetailPage /></ToastProvider>)
 

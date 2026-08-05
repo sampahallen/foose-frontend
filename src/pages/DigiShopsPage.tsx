@@ -64,10 +64,10 @@ export function DigiShopsPage() {
       <SectionHeader title="All shops" eyebrow={`${shops.total} live DigiShops`} />
       <RefreshIndicator active={shops.refreshing} className="mb-4" label="Refreshing DigiShops" />
       {shops.loading && !shops.items.length && <ShopGridSkeleton />}
-      {shops.error && !shops.items.length && <StatePanel action={<button className="button button-secondary" onClick={shops.refetch} type="button">Try again</button>} body={shops.error} layout="section" title="DigiShops could not load" tone="error" />}
+      {shops.error && !shops.items.length && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={shops.refetch} type="button">Try again</button>} body={shops.error} layout="section" title="DigiShops could not load" tone="error" />}
       {shops.error && !!shops.items.length && <InlineNotice action={<button className="font-black text-accent" onClick={shops.refetch} type="button">Retry</button>} tone="warning">Could not refresh DigiShops. The shops already loaded are still available.</InlineNotice>}
       {!shops.loading && !shops.error && !shops.items.length && (
-        <StatePanel action={<a className="button button-secondary" href={withBasePath('/open-shop')}>Open a DigiShop</a>} body="Verified seller shops will appear here as members open them." layout="section" title="No DigiShops yet" tone="empty" />
+        <StatePanel action={<a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath('/open-shop')}>Open a DigiShop</a>} body="Verified seller shops will appear here as members open them." layout="section" title="No DigiShops yet" tone="empty" />
       )}
       {!!shops.items.length && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

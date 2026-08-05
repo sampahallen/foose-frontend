@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { IoArchiveOutline, IoArrowUndoOutline, IoEllipsisVertical } from 'react-icons/io5'
-import { AppShell, ConfirmDialog, FinspoCaption, FinspoFeedSkeleton, FloatingCreateButton, Icon, InlineNotice, LightboxImage, RefreshIndicator, StatePanel, useToast } from '../components'
+import { AppShell, ConfirmDialog, FinspoCaption, FinspoFeedSkeleton, FinspoMediaBadge, FloatingCreateButton, Icon, InlineNotice, LightboxImage, RefreshIndicator, StatePanel, useToast } from '../components'
 import { useApiResource } from '../hooks/useApiResource'
 import { NavigationBackButton } from '../components/navigation'
 import { useImageBatchReady } from '../hooks/useImageBatchReady'
 import { apiDelete, apiPost } from '../lib/api'
 import type { GalleryPost } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
+import { finspoCoverImage, finspoImages } from '../utils/finspoImages'
 import { withBasePath } from '../utils/navigation'
 
 type ArchivedFinspoFeed = {
@@ -154,13 +155,13 @@ export function CommunityFinspoArchivedPage() {
     return !expiresAt || expiresAt.getTime() > now
   })
   const images = useImageBatchReady(
-    archivedPosts.map((post) => post.imageUrl),
+    archivedPosts.map(finspoCoverImage),
     !archived.loading && !archived.error,
   )
   const failedImages = new Set(images.failed)
   const readyPosts = images.ready ? archivedPosts : []
   const pageLoading = archived.initialLoading || (!archived.error && archivedPosts.length > 0 && !images.ready)
-  const previewItems = readyPosts.filter((post) => !failedImages.has(post.imageUrl)).map((post) => ({ alt: post.caption || 'Archived Finspo post', src: post.imageUrl }))
+  const previewItems = readyPosts.filter((post) => !failedImages.has(finspoCoverImage(post))).map((post) => ({ alt: post.caption || 'Archived Finspo post', src: finspoCoverImage(post) }))
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000)
@@ -208,7 +209,7 @@ export function CommunityFinspoArchivedPage() {
     <AppShell active="community" searchPlaceholder="Search Finspo...">
       <header className="mb-6 flex flex-col gap-4 rounded-2xl border border-foose-border bg-foose-surface p-5 shadow-sm sm:p-6 md:flex-row md:items-end md:justify-between">
         <div>
-          <NavigationBackButton className="mb-4" fallback={{ href: '/community?tab=finspo&scope=mine', label: 'My Finspo' }} />
+          <NavigationBackButton className="mb-4" fallback={{ href: '/profile?tab=finspo', label: 'Profile Finspo' }} />
           <div className="flex items-center gap-3">
             <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-accent-light text-accent"><IoArchiveOutline size={25} /></span>
             <div>
@@ -223,11 +224,11 @@ export function CommunityFinspoArchivedPage() {
       <RefreshIndicator active={archived.refreshing} className="mb-4" label="Refreshing archived Finspo" />
       {actionError && <InlineNotice className="mb-4" title="Archive action did not finish" tone="error">{actionError}</InlineNotice>}
       {pageLoading && <FinspoFeedSkeleton count={Math.min(Math.max(archivedPosts.length || 10, 10), 50)} label="Loading archived Finspo posts" showAuthor={false} showMenu />}
-      {!pageLoading && archived.error && !archived.data && <StatePanel action={<button className="button button-secondary" onClick={archived.refetch} type="button">Try again</button>} body={archived.error} layout="section" title="Your Finspo archive could not load" tone="error" />}
+      {!pageLoading && archived.error && !archived.data && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={archived.refetch} type="button">Try again</button>} body={archived.error} layout="section" title="Your Finspo archive could not load" tone="error" />}
       {!pageLoading && archived.error && archived.data && <InlineNotice action={<button className="font-black text-accent" onClick={archived.refetch} type="button">Retry</button>} tone="warning">The archive could not refresh. Showing the posts already loaded.</InlineNotice>}
       {!pageLoading && !archived.error && !archivedPosts.length && (
         <StatePanel
-          action={<a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-5 text-sm font-bold text-white transition hover:bg-accent-hover" href={withBasePath('/community?tab=finspo&scope=mine')}>Return to My Finspo</a>}
+          action={<a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-5 text-sm font-bold text-white transition hover:bg-accent-hover" href={withBasePath('/profile?tab=finspo')}>Return to Profile Finspo</a>}
           body="Posts you archive will stay private here until they are restored or permanently deleted."
           layout="section"
           title="Your archive is empty"
@@ -245,14 +246,15 @@ export function CommunityFinspoArchivedPage() {
               const expiresAt = archiveExpiry(post, retentionDays)
               return (
                 <article className="finspo-tile relative mb-3 break-inside-avoid max-md:mb-2" key={post._id}>
-                  {failedImages.has(post.imageUrl)
+                  <FinspoMediaBadge count={finspoImages(post).length} />
+                  {failedImages.has(finspoCoverImage(post))
                     ? <div className="flex aspect-[4/5] w-full items-center justify-center bg-foose-surface-mid px-3 text-center text-xs font-bold text-foose-muted" role="img" aria-label="Archived Finspo image unavailable">Media unavailable</div>
                     : <LightboxImage
                         alt={post.caption || 'Archived Finspo post'}
                         className="finspo-image overflow-hidden rounded-none [&_img]:h-auto [&_img]:w-full [&_img]:object-contain"
-                        index={previewItems.findIndex((item) => item.src === post.imageUrl)}
+                        index={previewItems.findIndex((item) => item.src === finspoCoverImage(post))}
                         items={previewItems}
-                        src={post.imageUrl}
+                        src={finspoCoverImage(post)}
                       />}
                   <ArchivedPostMenu
                     busy={busyPostId === post._id}

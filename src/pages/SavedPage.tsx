@@ -1,5 +1,5 @@
 import { useState, type MouseEvent } from 'react'
-import { AppShell, FavoriteButton, FinspoCaption, FinspoFeedSkeleton, FinspoLikeButton, InlineNotice, ProductCard, RefreshIndicator, SectionHeader, StatePanel } from '../components'
+import { AppShell, FavoriteButton, FinspoCaption, FinspoFeedSkeleton, FinspoLikeButton, FinspoMediaBadge, InlineNotice, ProductCard, RefreshIndicator, SectionHeader, StatePanel } from '../components'
 import { EventGridSkeleton, ProductGridSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { DiscoveryImage } from '../components/feedback/DiscoveryMedia'
 import { useApiResource } from '../hooks/useApiResource'
@@ -9,6 +9,7 @@ import type { FavoriteCollections, GalleryPost } from '../types/api'
 import { getNavigationSnapshot } from '../stores/navigationMemoryStore'
 import { formatDate } from '../utils/format'
 import { Icon } from '../components/icons/Icon'
+import { finspoCoverImage, finspoImages } from '../utils/finspoImages'
 import { cacheFinspoPreview, captureNavigationTrigger, navigateTo, withBasePath } from '../utils/navigation'
 
 type SavedTab = 'events' | 'finspos' | 'items'
@@ -67,7 +68,7 @@ export function SavedPage() {
     ? refreshSavedFinspoOrder(restoredFinspos, data.finspos)
     : restoredFinspos
   const finspoMedia = useImageBatchReady(
-    finspoItems.map((post) => post.imageUrl),
+    finspoItems.map(finspoCoverImage),
     activeTab === 'finspos' && (!favorites.loading || Boolean(finspoItems.length)),
   )
   const failedFinspoImages = new Set([...(restoredSnapshot?.failedImages || []), ...finspoMedia.failed])
@@ -108,13 +109,13 @@ export function SavedPage() {
       {favorites.initialLoading && activeTab === 'items' && <ProductGridSkeleton label="Loading favorite marketplace items" />}
       {favorites.initialLoading && activeTab === 'events' && <EventGridSkeleton count={4} label="Loading saved community events" />}
       {favorites.initialLoading && activeTab === 'finspos' && !finspoItems.length && <FinspoFeedSkeleton label="Loading liked Finspo posts" />}
-      {favorites.error && !data && !finspoItems.length && <StatePanel action={<button className="button button-secondary" onClick={favorites.refetch} type="button">Try again</button>} body={favorites.error} layout="section" title="Saved collections could not load" tone="error" />}
+      {favorites.error && !data && !finspoItems.length && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={favorites.refetch} type="button">Try again</button>} body={favorites.error} layout="section" title="Saved collections could not load" tone="error" />}
       {favorites.error && (data || finspoItems.length > 0) && <InlineNotice action={<button className="font-black text-accent" onClick={favorites.refetch} type="button">Retry</button>} tone="warning">Saved collections could not refresh. Your current collection remains visible.</InlineNotice>}
 
       {!favorites.loading && !favorites.error && data && activeTab === 'items' && (
         <section>
           <SectionHeader title="Favorite items" eyebrow={`${data.listings.length} saved`} />
-          {!data.listings.length && <StatePanel action={<a className="button button-secondary" href={withBasePath('/browse')}>Find marketplace items</a>} body="Tap the heart on a listing to collect it here." layout="section" title="No favorite items yet" tone="empty" />}
+          {!data.listings.length && <StatePanel action={<a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath('/browse')}>Find marketplace items</a>} body="Tap the heart on a listing to collect it here." layout="section" title="No favorite items yet" tone="empty" />}
           {!!data.listings.length && (
             <div className="product-grid grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {data.listings.map((listing) => (
@@ -128,7 +129,7 @@ export function SavedPage() {
       {!favorites.loading && !favorites.error && data && activeTab === 'events' && (
         <section>
           <SectionHeader title="Saved events" eyebrow={`${data.events.length} saved`} />
-          {!data.events.length && <StatePanel action={<a className="button button-secondary" href={withBasePath('/community?tab=events')}>Explore events</a>} body="Save public events from Community to revisit them here." layout="section" title="No saved events yet" tone="empty" />}
+          {!data.events.length && <StatePanel action={<a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath('/community?tab=events')}>Explore events</a>} body="Save public events from Community to revisit them here." layout="section" title="No saved events yet" tone="empty" />}
           {!!data.events.length && (
             <div className="event-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {data.events.map((event) => (
@@ -165,11 +166,12 @@ export function SavedPage() {
       {(!favorites.loading || finspoItems.length > 0) && activeTab === 'finspos' && (
         <section>
           <SectionHeader title="Liked Finspo" eyebrow={`${finspoItems.length} liked`} />
-          {!favorites.error && !finspoItems.length && <StatePanel action={<a className="button button-secondary" href={withBasePath('/community?tab=finspo')}>Explore Finspo</a>} body="Like Finspo posts in Community to collect them here." layout="section" title="No liked Finspo yet" tone="empty" />}
+          {!favorites.error && !finspoItems.length && <StatePanel action={<a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath('/community?tab=finspo')}>Explore Finspo</a>} body="Like Finspo posts in Community to collect them here." layout="section" title="No liked Finspo yet" tone="empty" />}
           {!!finspoItems.length && (
             <div className="finspo-masonry columns-2 gap-2 md:columns-3 lg:columns-5 max-md:columns-2 max-md:gap-2">
               {finspoItems.map((post) => (
                 <article className="finspo-tile relative mb-3 break-inside-avoid max-md:mb-2" key={post._id}>
+                  <FinspoMediaBadge count={finspoImages(post).length} />
                   <a
                     aria-label={post.caption || `Finspo by ${authorName(post)}`}
                     className="finspo-image block overflow-hidden rounded-none border-0 bg-transparent [&_img]:h-auto [&_img]:w-full [&_img]:object-contain finspo-tile-link"
@@ -177,7 +179,7 @@ export function SavedPage() {
                     id={`finspo-saved-${post._id}`}
                     onClick={(event) => openFinspo(event, post)}
                   >
-                    <DiscoveryImage alt={post.caption || `Finspo by ${authorName(post)}`} fallbackClassName="aspect-[4/5] w-full" src={failedFinspoImages.has(post.imageUrl) ? undefined : post.imageUrl} />
+                    <DiscoveryImage alt={post.caption || `Finspo by ${authorName(post)}`} fallbackClassName="aspect-[4/5] w-full" src={failedFinspoImages.has(finspoCoverImage(post)) ? undefined : finspoCoverImage(post)} />
                   </a>
                   <FinspoCaption caption={post.caption} />
                   <a className="finspo-author-link mt-1 flex items-center gap-2 text-xs font-semibold text-foose-muted" href={authorHref(post)}>

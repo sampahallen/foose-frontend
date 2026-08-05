@@ -3,6 +3,7 @@ import { formatMoney, getListingImage, getShopName } from '../../utils/format'
 import { captureNavigationTrigger, navigateTo, withBasePath } from '../../utils/navigation'
 import { isActiveTopPick, recordPromotionMetric } from '../../utils/promotions'
 import { FavoriteButton } from '../ui/FavoriteButton'
+import { Icon } from '../icons/Icon'
 import { MdVerified } from 'react-icons/md'
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 
@@ -15,11 +16,13 @@ export function ProductCard({
   imageFailed = false,
   imageLoading = 'lazy',
   listing,
+  manageHref,
 }: {
   className?: string
   imageFailed?: boolean
   imageLoading?: 'eager' | 'lazy'
   listing: Listing
+  manageHref?: string
 }) {
   const image = getListingImage(listing)
   const [failedImageUrl, setFailedImageUrl] = useState('')
@@ -103,7 +106,13 @@ export function ProductCard({
       <a className="product-card-link flex flex-1 flex-col" href={withBasePath(`/listing/${listing._id}`)} id={`listing-card-${listing._id}`} onClick={openListing}>
         {content}
       </a>
-      <FavoriteButton className="floating-round inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-text shadow transition hover:bg-accent-light hover:text-accent absolute right-1.5 top-1.5 z-10 favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />
+      {manageHref ? (
+        <a aria-label={`Edit ${listing.title}`} className="absolute right-1.5 top-1.5 z-10 inline-flex size-8 items-center justify-center rounded-full border border-white/70 bg-white/95 text-accent shadow transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" href={withBasePath(manageHref)}>
+          <Icon name="pencil" size={15} />
+        </a>
+      ) : (
+        <FavoriteButton className="floating-round inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-text shadow transition hover:bg-accent-light hover:text-accent absolute right-1.5 top-1.5 z-10 favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />
+      )}
     </article>
   )
 }

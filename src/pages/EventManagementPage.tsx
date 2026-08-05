@@ -83,7 +83,7 @@ export function EventManagementPage() {
     setDeleteBusy(true)
     try {
       await apiDelete(`/community/events/${eventId}`)
-      navigateWithFlash('/community?tab=events&scope=mine', { message: 'The event was removed from your event list.', title: 'Event deleted', tone: 'success' })
+      navigateWithFlash('/profile?tab=events', { message: 'The event was removed from your event list.', title: 'Event deleted', tone: 'success' })
     } catch (err) {
       setDeleteError(getErrorMessage(err, 'Could not delete this event'))
     } finally {
@@ -117,15 +117,15 @@ export function EventManagementPage() {
     <AppShell active="community" searchPlaceholder="Search events...">
       <div className="dashboard-head mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:md:text-4xl [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted [&_p]:md:text-base max-md:[&_h1]:text-2xl">
         <div>
-          <NavigationBackButton className="mb-6" fallback={{ href: '/community?tab=events&scope=mine', label: 'My events' }} />
+          <NavigationBackButton className="mb-6" fallback={{ href: '/profile?tab=events', label: 'Profile events' }} />
           <h1>{event?.title || 'Event management'}</h1>
           {event && <p>{eventTimeLabel(event)} - {eventTypeLabel(event)}</p>}
         </div>
       </div>
 
-      {!eventId && <StatePanel action={<ButtonLink to="/community?tab=events&scope=mine">View my events</ButtonLink>} body="This management link is missing an event id." layout="page" title="Event unavailable" tone="unavailable" />}
+      {!eventId && <StatePanel action={<ButtonLink to="/profile?tab=events">View profile events</ButtonLink>} body="This management link is missing an event id." layout="page" title="Event unavailable" tone="unavailable" />}
       {eventResource.initialLoading && <ManagementSkeleton label="Loading event workspace" />}
-      {eventResource.error && !eventResource.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void eventResource.refetch()} type="button">Retry</button>} body={eventResource.error} layout="page" title="Event unavailable" tone="unavailable" />}
+      {eventResource.error && !eventResource.data && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void eventResource.refetch()} type="button">Retry</button>} body={eventResource.error} layout="page" title="Event unavailable" tone="unavailable" />}
       {actionError && <InlineNotice title="Event action failed" tone="error">{actionError}</InlineNotice>}
       {actionStatus && <InlineNotice tone="success">{actionStatus}</InlineNotice>}
 
@@ -204,7 +204,7 @@ export function EventManagementPage() {
                 </button>
               </div>
               {sellerListings.initialLoading && <ManagementSkeleton label="Loading your pop-up catalog" />}
-              {sellerListings.error && !sellerListings.data && <StatePanel action={<button className="button button-secondary min-h-11 px-5" onClick={() => void sellerListings.refetch()} type="button">Retry</button>} body={sellerListings.error} layout="section" title="Catalog unavailable" tone="error" />}
+              {sellerListings.error && !sellerListings.data && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void sellerListings.refetch()} type="button">Retry</button>} body={sellerListings.error} layout="section" title="Catalog unavailable" tone="error" />}
               {!catalogListings.length && <StatePanel body="Attach an existing listing or use the plus button to create one for this online pop-up." layout="section" title="No pop-up listings yet" tone="empty" />}
               {!!catalogListings.length && <div className="event-catalog-grid grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">{catalogListings.map(renderCatalogCard)}</div>}
             </section>

@@ -36,10 +36,10 @@ export function FreshDropsPage() {
       />
       <RefreshIndicator active={listings.refreshing} className="mb-4" label="Refreshing fresh drops" />
       {listings.initialLoading && <ProductGridSkeleton label="Loading fresh drops" />}
-      {listings.error && !displayItems.length && <StatePanel action={<button className="button button-secondary" onClick={listings.refetch} type="button">Try again</button>} body={listings.error} layout="section" title="Fresh drops could not load" tone="error" />}
+      {listings.error && !displayItems.length && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={listings.refetch} type="button">Try again</button>} body={listings.error} layout="section" title="Fresh drops could not load" tone="error" />}
       {listings.error && !!displayItems.length && <InlineNotice action={<button className="font-black text-accent" onClick={listings.refetch} type="button">Retry</button>} tone="warning">Fresh drops could not refresh. Showing the most recently loaded items.</InlineNotice>}
       {!listings.loading && !listings.error && !displayItems.length && (
-        <StatePanel action={<a className="button button-secondary" href={withBasePath('/browse')}>Browse all items</a>} body="Fresh listings will appear here as sellers publish them." layout="section" title="No fresh drops yet" tone="empty" />
+        <StatePanel action={<a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath('/browse')}>Browse all items</a>} body="Fresh listings will appear here as sellers publish them." layout="section" title="No fresh drops yet" tone="empty" />
       )}
       {!!displayItems.length && (
         <div className="grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">

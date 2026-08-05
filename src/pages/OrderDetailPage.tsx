@@ -13,7 +13,6 @@ import {
   SafeImage,
   StatePanel,
   SubmitButton,
-  TextField,
   useToast,
 } from '../components'
 import { OrderDetailSkeleton } from '../components/operational/OperationalStates'
@@ -42,18 +41,10 @@ import {
 } from '../utils/orderStatus'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
 
-type DispatchFields = {
-  cargoTrackingNumber: string
-}
-
 type OrderEventsResponse = {
   events: OrderEvent[]
   hasMore?: boolean
   nextCursor?: string | null
-}
-
-const emptyDispatchFields: DispatchFields = {
-  cargoTrackingNumber: '',
 }
 
 function orderIdFromPath() {
@@ -141,7 +132,6 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   const [pendingConfirmation, setPendingConfirmation] = useState<Exclude<OrderAllowedAction, 'report' | 'dispatch'> | null>(null)
   const [selectedItem, setSelectedItem] = useState<Order['items'][number] | null>(null)
   const [dispatchOpen, setDispatchOpen] = useState(false)
-  const [dispatchFields, setDispatchFields] = useState<DispatchFields>(emptyDispatchFields)
   const [billImage, setBillImage] = useState<File | null>(null)
   const [billPreviewUrl, setBillPreviewUrl] = useState('')
   const [dispatchAttempted, setDispatchAttempted] = useState(false)
@@ -256,9 +246,6 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   async function confirmDispatch() {
     if (!order || !billImage) return
     const body = new FormData()
-    if (dispatchFields.cargoTrackingNumber.trim()) {
-      body.set('cargoTrackingNumber', dispatchFields.cargoTrackingNumber.trim())
-    }
     body.set('billImage', billImage)
 
     setActionId('dispatch')
@@ -272,7 +259,6 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       setDispatchOpen(false)
       setDispatchReviewing(false)
       setDispatchAttempted(false)
-      setDispatchFields(emptyDispatchFields)
       setBillImage(null)
       billReadRevisionRef.current += 1
       setBillPreviewUrl('')
@@ -376,7 +362,6 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     || transit?.lastStopLocation
     || transit?.driverPhone
     || transit?.parcelNumber
-    || transit?.cargoTrackingNumber
     || transit?.billImage,
   )
   const billAvailable = Boolean(transit?.billImage)
@@ -393,7 +378,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
 
       {!orderId && (
         <StatePanel
-          action={<a className="button button-secondary min-h-11 px-5" href={withBasePath('/orders')}>View orders</a>}
+          action={<a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" href={withBasePath('/orders')}>View orders</a>}
           body="This order link is missing an order id."
           layout="page"
           title="Order unavailable"
@@ -403,7 +388,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       {orderResource.initialLoading && <OrderDetailSkeleton />}
       {orderResource.error && !orderResource.data && (
         <StatePanel
-          action={<button className="button button-secondary min-h-11 px-5" onClick={() => void orderResource.refetch()} type="button">Retry</button>}
+          action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void orderResource.refetch()} type="button">Retry</button>}
           body={orderResource.error}
           layout="page"
           title="Order unavailable"
@@ -458,6 +443,11 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
               <a className="font-black text-accent underline underline-offset-2" href={withBasePath(`/orders/${order._id}/report`)}>
                 View submitted report
               </a>
+            </InlineNotice>
+          )}
+          {order.reportResolution?.awardedTo && (
+            <InlineNotice title="Order report resolved" tone="success">
+              Foose settled this report for the {order.reportResolution.awardedTo}. {order.workflow?.settlementExplanation}
             </InlineNotice>
           )}
           {order.settlementStatus === 'refund_attention' && (
@@ -533,7 +523,6 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
               {transitAvailable && transit && (
                 <>
                   <DetailRow label="Company" value={company || 'Not provided'} />
-                  {transit.cargoTrackingNumber && <DetailRow label="Cargo tracking number" value={transit.cargoTrackingNumber} />}
                 </>
               )}
             </dl>
@@ -665,9 +654,6 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             </InlineNotice>
             <dl className="divide-y divide-foose-border rounded-xl border border-foose-border px-3">
               {company && <DetailRow label="Company" value={company} />}
-              {order?.delivery?.method === 'airport_to_airport' && dispatchFields.cargoTrackingNumber.trim() && (
-                <DetailRow label="Cargo tracking number" value={dispatchFields.cargoTrackingNumber.trim()} />
-              )}
               <DetailRow label="Private waybill" value={billImage?.name} />
             </dl>
             <div className="overflow-hidden rounded-2xl border border-foose-border bg-foose-surface-low p-3">
@@ -694,24 +680,13 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             You will review this before the buyer is notified and the 36-hour confirmation window begins.
           </InlineNotice>
           {company && <InlineNotice tone="info">Company: {company}</InlineNotice>}
-          {order?.delivery?.method === 'airport_to_airport' && (
-            <TextField
-              hint="If Passion Air Courier issued one."
-              id="dispatch-cargo-tracking"
-              label="Cargo tracking number"
-              onChange={(event) => setDispatchFields((current) => ({ ...current, cargoTrackingNumber: event.target.value }))}
-              optional
-              placeholder="Optional"
-              value={dispatchFields.cargoTrackingNumber}
-            />
-          )}
           <ImagePreviewInput
             accept="image/jpeg,image/png,image/webp"
             aspect="wide"
             error={dispatchAttempted && !billImage ? 'Add a clear image of the waybill.' : undefined}
             hint="JPEG, PNG or WebP only. Maximum 5 MB. This image stays private to order participants and authorized staff."
             id="dispatch-bill"
-            label={order?.delivery?.method === 'airport_to_airport' ? 'Air waybill / receipt' : 'Bus waybill'}
+            label="Bus waybill"
             maxBytes={5 * 1024 * 1024}
             maxFiles={1}
             name="billImage"
