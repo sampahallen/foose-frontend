@@ -3,10 +3,13 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '../components/feedback/ToastProvider'
+import { ImagePreviewModal } from '../components/ui/ImagePreviewModal'
+import { useImagePreviewStore } from '../stores/imagePreviewStore'
 import type { Order } from '../types/api'
 import { OrderDetailPage } from './OrderDetailPage'
 
 const orderMocks = vi.hoisted(() => ({
+  apiGet: vi.fn(),
   order: null as Order | null,
   postOrderAction: vi.fn(),
   refetchEvents: vi.fn(),
@@ -42,6 +45,10 @@ vi.mock('../hooks/useApiResource', () => ({
 vi.mock('../lib/orderActions', async (importOriginal) => ({
   ...await importOriginal<typeof import('../lib/orderActions')>(),
   postOrderAction: orderMocks.postOrderAction,
+}))
+vi.mock('../lib/api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../lib/api')>(),
+  apiGet: orderMocks.apiGet,
 }))
 
 function makeOrder(overrides: Partial<Order> = {}): Order {
@@ -87,6 +94,7 @@ describe('OrderDetailPage lifecycle actions', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/orders/order-12345678')
     orderMocks.order = makeOrder()
+    orderMocks.apiGet.mockReset()
     orderMocks.userId = 'buyer-1'
     orderMocks.postOrderAction.mockReset()
     orderMocks.postOrderAction.mockResolvedValue({ order: orderMocks.order })
@@ -94,6 +102,7 @@ describe('OrderDetailPage lifecycle actions', () => {
     orderMocks.refetchEvents.mockResolvedValue(undefined)
     orderMocks.refetchOrder.mockReset()
     orderMocks.refetchOrder.mockResolvedValue(undefined)
+    useImagePreviewStore.getState().closePreview()
   })
 
   it('renders only server-authorized buyer actions and warns before releasing funds', async () => {
@@ -148,7 +157,9 @@ describe('OrderDetailPage lifecycle actions', () => {
     expect(screen.getAllByText('Add a clear image of the waybill.')[0]).toBeVisible()
 
     const bill = new File(['bill-image'], 'station-bill.png', { type: 'image/png' })
-    await user.upload(screen.getByLabelText(/Bus waybill/), bill)
+    await user.upload(screen.getByLabelText(/^Waybill/), bill)
+    await user.type(screen.getByLabelText(/Driver phone number/), '+233 24 111 2222')
+    await user.type(screen.getByLabelText(/Parcel number/), 'PKG-7788')
     await user.click(screen.getByRole('button', { name: 'Review details' }))
 
     expect(screen.getByRole('dialog', { name: 'Review dispatch details' })).toHaveTextContent('Intercity STC')
@@ -160,6 +171,8 @@ describe('OrderDetailPage lifecycle actions', () => {
     expect(action).toBe('dispatch')
     expect(body).toBeInstanceOf(FormData)
     expect((body as FormData).get('billImage')).toBe(bill)
+    expect((body as FormData).get('driverPhone')).toBe('0241112222')
+    expect((body as FormData).get('parcelNumber')).toBe('PKG-7788')
   }, 15_000)
 
   it('shows pickup coordination details and a direct route to the seller', () => {
@@ -221,5 +234,38 @@ describe('OrderDetailPage lifecycle actions', () => {
       'href',
       '/orders/order-12345678/report',
     )
+  })
+
+  it('opens the private waybill in the Zustand preview and closes it with X or backdrop', async () => {
+    const user = userEvent.setup()
+    orderMocks.order = makeOrder({
+      delivery: {
+        company: 'Intercity STC',
+        method: 'station_pickup',
+        transit: {
+          billImage: { originalName: 'waybill.png' },
+          parcelNumber: 'PKG-123',
+        },
+      },
+      fulfillmentStatus: 'in_transit',
+    })
+    orderMocks.apiGet.mockResolvedValue({ url: 'https://private.example/waybill.png' })
+
+    render(<ToastProvider><OrderDetailPage /><ImagePreviewModal /></ToastProvider>)
+    await user.click(screen.getByRole('button', { name: 'View private waybill' }))
+
+    expect(orderMocks.apiGet).toHaveBeenCalledWith('/orders/order-12345678/attachments/transit-bill')
+    await screen.findByRole('dialog', { name: 'Private waybill for order 12345678' })
+    expect(screen.getByRole('img', { name: 'Private waybill for order 12345678' })).toHaveAttribute(
+      'src',
+      'https://private.example/waybill.png',
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Close preview' }))
+    expect(screen.queryByRole('dialog', { name: 'Private waybill for order 12345678' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'View private waybill' }))
+    await user.click(await screen.findByRole('dialog', { name: 'Private waybill for order 12345678' }))
+    expect(screen.queryByRole('dialog', { name: 'Private waybill for order 12345678' })).not.toBeInTheDocument()
   })
 })

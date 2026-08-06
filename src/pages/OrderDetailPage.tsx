@@ -13,6 +13,7 @@ import {
   SafeImage,
   StatePanel,
   SubmitButton,
+  TextField,
   useToast,
 } from '../components'
 import { OrderDetailSkeleton } from '../components/operational/OperationalStates'
@@ -23,8 +24,10 @@ import { useOrderAutoRefresh } from '../hooks/useOrderAutoRefresh'
 import { useOrderRealtimeRefresh } from '../hooks/useOrderRealtimeRefresh'
 import { ApiError, apiGet } from '../lib/api'
 import { createOrderIdempotencyKey, postOrderAction } from '../lib/orderActions'
+import { useImagePreviewStore } from '../stores/imagePreviewStore'
 import type { Listing, Order, OrderAllowedAction, OrderEvent, User } from '../types/api'
 import { formatDateTime, formatMoney, getListingImage } from '../utils/format'
+import { normalizePhone } from '../utils/formValidation'
 import {
   deliveryMethodLabel,
   orderActionCopy,
@@ -134,12 +137,15 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   const [dispatchOpen, setDispatchOpen] = useState(false)
   const [billImage, setBillImage] = useState<File | null>(null)
   const [billPreviewUrl, setBillPreviewUrl] = useState('')
+  const [driverPhone, setDriverPhone] = useState('')
+  const [parcelNumber, setParcelNumber] = useState('')
   const [dispatchAttempted, setDispatchAttempted] = useState(false)
   const [dispatchReviewing, setDispatchReviewing] = useState(false)
   const [billLoading, setBillLoading] = useState(false)
   const [additionalEvents, setAdditionalEvents] = useState<OrderEvent[]>([])
   const [nextEventsCursor, setNextEventsCursor] = useState<string | null | undefined>(undefined)
   const [eventsLoadingMore, setEventsLoadingMore] = useState(false)
+  const openImagePreview = useImagePreviewStore((state) => state.openPreview)
   const actionKeysRef = useRef(new Map<OrderAllowedAction, string>())
   const billReadRevisionRef = useRef(0)
   const visibleEvents = useMemo(() => {
@@ -222,7 +228,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     event.preventDefault()
     if (!order) return
     setDispatchAttempted(true)
-    if (!billImage) return
+    if (!billImage || !/^0\d{9}$/.test(normalizePhone(driverPhone))) return
     setActionError('')
     setDispatchReviewing(true)
   }
@@ -244,9 +250,12 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   }
 
   async function confirmDispatch() {
-    if (!order || !billImage) return
+    const normalizedDriverPhone = normalizePhone(driverPhone)
+    if (!order || !billImage || !/^0\d{9}$/.test(normalizedDriverPhone)) return
     const body = new FormData()
     body.set('billImage', billImage)
+    body.set('driverPhone', normalizedDriverPhone)
+    body.set('parcelNumber', parcelNumber.trim())
 
     setActionId('dispatch')
     setActionError('')
@@ -260,6 +269,8 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       setDispatchReviewing(false)
       setDispatchAttempted(false)
       setBillImage(null)
+      setDriverPhone('')
+      setParcelNumber('')
       billReadRevisionRef.current += 1
       setBillPreviewUrl('')
       showToast({
@@ -286,12 +297,6 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
 
   async function openTransitBill() {
     if (!order || billLoading) return
-    const previewWindow = window.open('about:blank', '_blank')
-    if (!previewWindow) {
-      setActionError('Your browser blocked the private bill viewer. Allow pop-ups for Foose, then try again.')
-      return
-    }
-    previewWindow.opener = null
     setBillLoading(true)
     setActionError('')
     try {
@@ -300,9 +305,14 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       )
       const url = attachment.signedUrl || attachment.url
       if (!url) throw new Error('The private bill link could not be created')
-      previewWindow.location.replace(url)
+      openImagePreview([
+        {
+          alt: `Private waybill for order ${order._id.slice(-8).toUpperCase()}`,
+          src: url,
+          type: 'image',
+        },
+      ])
     } catch (error) {
-      previewWindow.close()
       setActionError(error instanceof Error ? error.message : 'Unable to open the private bus bill')
     } finally {
       setBillLoading(false)
@@ -358,13 +368,13 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   const company = order?.delivery?.company || transit?.serviceName || transit?.transitServiceName
   const transitAvailable = Boolean(
     company
-    || transit?.busNumber
-    || transit?.lastStopLocation
     || transit?.driverPhone
     || transit?.parcelNumber
     || transit?.billImage,
   )
   const billAvailable = Boolean(transit?.billImage)
+  const normalizedDriverPhone = normalizePhone(driverPhone)
+  const driverPhoneInvalid = dispatchAttempted && !/^0\d{9}$/.test(normalizedDriverPhone)
   const confirmCopy = pendingConfirmation ? orderActionCopy(pendingConfirmation) : null
 
   return (
@@ -523,6 +533,8 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
               {transitAvailable && transit && (
                 <>
                   <DetailRow label="Company" value={company || 'Not provided'} />
+                  <DetailRow label="Driver phone" value={transit.driverPhone || 'Not provided'} />
+                  {transit.parcelNumber && <DetailRow label="Parcel number" value={transit.parcelNumber} />}
                 </>
               )}
             </dl>
@@ -654,6 +666,8 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             </InlineNotice>
             <dl className="divide-y divide-foose-border rounded-xl border border-foose-border px-3">
               {company && <DetailRow label="Company" value={company} />}
+              <DetailRow label="Driver phone" value={normalizedDriverPhone} />
+              <DetailRow label="Parcel number" value={parcelNumber.trim() || 'Not provided'} />
               <DetailRow label="Private waybill" value={billImage?.name} />
             </dl>
             <div className="overflow-hidden rounded-2xl border border-foose-border bg-foose-surface-low p-3">
@@ -670,9 +684,12 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         ) : (
         <form className="grid gap-5" id="dispatch-order-form" noValidate onSubmit={reviewDispatch}>
           {actionError && <InlineNotice title="Waybill was not saved" tone="error">{actionError}</InlineNotice>}
-          {dispatchAttempted && !billImage && (
+          {dispatchAttempted && (!billImage || driverPhoneInvalid) && (
             <ErrorSummary
-              errors={[{ fieldId: 'dispatch-bill', message: 'Add a clear image of the waybill.' }]}
+              errors={[
+                ...(!billImage ? [{ fieldId: 'dispatch-bill', message: 'Add a clear image of the waybill.' }] : []),
+                ...(driverPhoneInvalid ? [{ fieldId: 'dispatch-driver-phone', message: 'Enter a valid 10-digit driver phone number.' }] : []),
+              ]}
               focus
             />
           )}
@@ -680,13 +697,39 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             You will review this before the buyer is notified and the 36-hour confirmation window begins.
           </InlineNotice>
           {company && <InlineNotice tone="info">Company: {company}</InlineNotice>}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              autoComplete="tel"
+              error={driverPhoneInvalid ? 'Enter a valid 10-digit driver phone number.' : undefined}
+              id="dispatch-driver-phone"
+              inputMode="tel"
+              label="Driver phone number"
+              name="driverPhone"
+              onBlur={() => setDriverPhone((current) => normalizePhone(current))}
+              onChange={(event) => setDriverPhone(event.target.value)}
+              placeholder="0240000000"
+              required
+              type="tel"
+              value={driverPhone}
+            />
+            <TextField
+              id="dispatch-parcel-number"
+              label="Parcel number"
+              maxLength={120}
+              name="parcelNumber"
+              onChange={(event) => setParcelNumber(event.target.value)}
+              optional
+              placeholder="e.g. PKG-12345"
+              value={parcelNumber}
+            />
+          </div>
           <ImagePreviewInput
             accept="image/jpeg,image/png,image/webp"
             aspect="wide"
             error={dispatchAttempted && !billImage ? 'Add a clear image of the waybill.' : undefined}
             hint="JPEG, PNG or WebP only. Maximum 5 MB. This image stays private to order participants and authorized staff."
             id="dispatch-bill"
-            label="Bus waybill"
+            label="Waybill"
             maxBytes={5 * 1024 * 1024}
             maxFiles={1}
             name="billImage"

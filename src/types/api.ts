@@ -230,11 +230,8 @@ export type PrivateOrderAsset = string | {
 }
 
 export type OrderTransit = {
-  /** Legacy free-text transit fields, retained for display on pre-redesign orders. */
   serviceName?: string
   transitServiceName?: string
-  busNumber?: string
-  lastStopLocation?: string
   driverPhone?: string
   parcelNumber?: string
   cargoTrackingNumber?: string
