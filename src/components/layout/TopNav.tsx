@@ -134,16 +134,10 @@ export function TopNav({
                       </a>
                       <span className="profile-dropdown-spacer h-3" />
                       <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
-                        Profile settings
+                        Profile
                       </a>
-                      <a href={withBasePath('/security/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
-                        Security
-                      </a>
-                      <a href={withBasePath('/preferences/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
-                        Preferences
-                      </a>
-                      <a href={withBasePath('/account/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
-                        Account settings
+                      <a href={withBasePath('/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        Settings
                       </a>
                       <a href={withBasePath('/inbox?support=true')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                         Help and support
@@ -244,16 +238,10 @@ export function TopNav({
                         </a>
                         <span className="profile-dropdown-spacer h-3" />
                         <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
-                          Profile settings
+                          Profile
                         </a>
-                        <a href={withBasePath('/security/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
-                          Security
-                        </a>
-                        <a href={withBasePath('/preferences/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
-                          Preferences
-                        </a>
-                        <a href={withBasePath('/account/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
-                          Account settings
+                        <a href={withBasePath('/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                          Settings
                         </a>
                         <a href={withBasePath('/inbox?support=true')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                           Help and support

@@ -6,8 +6,7 @@ const allRoutes: AppRoute[] = [
   'adminDisputes', 'adminOverview', 'newListing', 'editListing', 'browse', 'search',
   'suggestedForYou', 'freshDrops', 'digishops', 'bales', 'topPicks', 'shop', 'retailDetail',
   'community', 'eventDetail', 'eventManage', 'communityEventForm', 'communityFinspoArchived',
-  'communityFinspoDetail', 'communityFinspoForm', 'saved', 'accountSettings', 'securitySettings',
-  'preferencesSettings', 'profileSettings',
+  'communityFinspoDetail', 'communityFinspoForm', 'saved', 'settings', 'profileSettings',
   'profile', 'inbox', 'cart', 'checkout', 'orderConfirmed', 'orderReport', 'orderDetail', 'orderHistory',
   'orderManagement', 'promotionReturn', 'listingPromotions', 'kyc', 'openShop', 'wallet',
   'manageShop', 'shopDrafts', 'sellerListings', 'sellerSold', 'shopSettings', 'home', 'notFound',
@@ -46,8 +45,10 @@ describe('route feedback registry', () => {
     expect(resolveRoute('/orders/order-123/report', '')).toBe('orderReport')
   })
 
-  it('resolves the security and preferences settings pages', () => {
-    expect(resolveRoute('/security/settings', '')).toBe('securitySettings')
-    expect(resolveRoute('/preferences/settings', '')).toBe('preferencesSettings')
+  it('resolves settings pages, including legacy paths, to the unified settings route', () => {
+    expect(resolveRoute('/settings', '')).toBe('settings')
+    expect(resolveRoute('/security/settings', '')).toBe('settings')
+    expect(resolveRoute('/preferences/settings', '')).toBe('settings')
+    expect(resolveRoute('/account/settings', '')).toBe('settings')
   })
 })

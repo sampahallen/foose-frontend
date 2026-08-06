@@ -5,7 +5,6 @@ import {
   AdminKycDetailPage,
   AdminKycPage,
   AdminOverviewPage,
-  AccountSettingsPage,
   AuthCallbackPage,
   BaleWholesalePage,
   BrowsePage,
@@ -33,7 +32,6 @@ import {
   OrderReportPage,
   OrderManagementPage,
   PromotionReturnPage,
-  PreferencesSettingsPage,
   ProfilePage,
   ProfileSettingsPage,
   RegisterPage,
@@ -42,10 +40,10 @@ import {
   RetailDetailPage,
   SavedPage,
   SearchPage,
-  SecuritySettingsPage,
   SellerOverviewPage,
   SellerListingsPage,
   SellerSoldListingsPage,
+  SettingsPage,
   ShopDraftListingsPage,
   ShopSettingsPage,
   ShopPage,
@@ -187,13 +185,6 @@ function App() {
         </AuthRequired>
       )
       break
-    case 'accountSettings':
-      page = (
-        <AuthRequired>
-          <AccountSettingsPage />
-        </AuthRequired>
-      )
-      break
     case 'profileSettings':
       page = (
         <AuthRequired>
@@ -201,17 +192,10 @@ function App() {
         </AuthRequired>
       )
       break
-    case 'securitySettings':
+    case 'settings':
       page = (
         <AuthRequired>
-          <SecuritySettingsPage />
-        </AuthRequired>
-      )
-      break
-    case 'preferencesSettings':
-      page = (
-        <AuthRequired>
-          <PreferencesSettingsPage />
+          <SettingsPage />
         </AuthRequired>
       )
       break

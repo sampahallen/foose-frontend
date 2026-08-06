@@ -121,7 +121,7 @@ export function ProfileSettingsPage() {
         )}
         description="Update the public identity shoppers and sellers see across Foose."
         eyebrow={<NavigationBackButton fallback={{ href: '/profile', label: 'Profile' }} />}
-        title="Profile settings"
+        title="Profile"
         width="standard"
       >
         <form className="space-y-5" noValidate onSubmit={(event) => void handleSubmit(event)}>

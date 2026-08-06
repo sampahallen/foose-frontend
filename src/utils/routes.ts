@@ -27,9 +27,7 @@ export type AppRoute =
   | 'communityFinspoDetail'
   | 'communityFinspoForm'
   | 'saved'
-  | 'accountSettings'
-  | 'securitySettings'
-  | 'preferencesSettings'
+  | 'settings'
   | 'profileSettings'
   | 'profile'
   | 'inbox'
@@ -93,7 +91,6 @@ const IMMERSIVE = ['immersive', 'page', 'compact'] as const
 const PANE = ['pane', 'section', 'compact'] as const
 
 export const routeStateRegistry = {
-  accountSettings: { defaultScene: 'form', family: 'profile', supportedLayouts: PAGE },
   adminDisputes: { defaultScene: 'admin', family: 'admin', supportedLayouts: PAGE },
   adminKyc: { defaultScene: 'admin', family: 'admin', supportedLayouts: PAGE },
   adminKycDetail: { defaultScene: 'detail', family: 'admin', supportedLayouts: PAGE },
@@ -127,7 +124,6 @@ export const routeStateRegistry = {
   orderDetail: { defaultScene: 'detail', family: 'detail', supportedLayouts: PAGE },
   orderHistory: { defaultScene: 'orders', family: 'commerce', supportedLayouts: PAGE },
   orderManagement: { defaultScene: 'orders', family: 'management', supportedLayouts: PAGE },
-  preferencesSettings: { defaultScene: 'form', family: 'profile', supportedLayouts: PAGE },
   profile: { defaultScene: 'profile', family: 'profile', supportedLayouts: PAGE },
   profileSettings: { defaultScene: 'form', family: 'profile', supportedLayouts: PAGE },
   promotionReturn: { defaultScene: 'spinner', family: 'status', supportedLayouts: IMMERSIVE },
@@ -137,9 +133,9 @@ export const routeStateRegistry = {
   retailDetail: { defaultScene: 'detail', family: 'detail', supportedLayouts: PAGE },
   saved: { defaultScene: 'cards', family: 'discovery', supportedLayouts: PAGE },
   search: { defaultScene: 'cards', family: 'discovery', supportedLayouts: PAGE },
-  securitySettings: { defaultScene: 'form', family: 'profile', supportedLayouts: PAGE },
   sellerListings: { defaultScene: 'cards', family: 'management', supportedLayouts: PAGE },
   sellerSold: { defaultScene: 'cards', family: 'management', supportedLayouts: PAGE },
+  settings: { defaultScene: 'form', family: 'profile', supportedLayouts: PAGE },
   shop: { defaultScene: 'detail', family: 'detail', supportedLayouts: PAGE },
   shopDrafts: { defaultScene: 'cards', family: 'management', supportedLayouts: PAGE },
   shopSettings: { defaultScene: 'form', family: 'management', supportedLayouts: PAGE },
@@ -154,7 +150,6 @@ export const routeStateRegistry = {
  * links, reloads with stale history, and entries opened from outside Foose.
  */
 export const routeNavigationRegistry = {
-  accountSettings: { kind: 'nested', label: 'Account settings', fallback: { href: '/profile', label: 'Profile' } },
   adminDisputes: { kind: 'root', label: 'Disputes' },
   adminKyc: { kind: 'root', label: 'KYC queue' },
   adminKycDetail: { kind: 'nested', label: 'KYC review', fallback: { href: '/admin/kyc', label: 'KYC queue' } },
@@ -188,9 +183,8 @@ export const routeNavigationRegistry = {
   orderDetail: { kind: 'nested', label: 'Order', fallback: { href: '/orders/history', label: 'Orders' } },
   orderHistory: { kind: 'root', label: 'Orders' },
   orderManagement: { kind: 'root', label: 'Order management' },
-  preferencesSettings: { kind: 'nested', label: 'Preferences', fallback: { href: '/profile', label: 'Profile' } },
   profile: { kind: 'root', label: 'Profile' },
-  profileSettings: { kind: 'nested', label: 'Profile settings', fallback: { href: '/profile', label: 'Profile' } },
+  profileSettings: { kind: 'nested', label: 'Profile', fallback: { href: '/profile', label: 'Profile' } },
   promotionReturn: { kind: 'terminal', label: 'Promotion confirmation' },
   register: { kind: 'nested', label: 'Register', fallback: { href: '/', label: 'Home' } },
   resetPassword: { kind: 'nested', label: 'Reset password', fallback: { href: '/login', label: 'Log in' } },
@@ -198,9 +192,9 @@ export const routeNavigationRegistry = {
   retailDetail: { kind: 'nested', label: 'Listing', fallback: { href: '/browse', label: 'Browse' } },
   saved: { kind: 'root', label: 'Saved' },
   search: { kind: 'root', label: 'Explore' },
-  securitySettings: { kind: 'nested', label: 'Security', fallback: { href: '/profile', label: 'Profile' } },
   sellerListings: { kind: 'root', label: 'Active listings' },
   sellerSold: { kind: 'root', label: 'Sold items' },
+  settings: { kind: 'nested', label: 'Settings', fallback: { href: '/profile', label: 'Profile' } },
   shop: { kind: 'nested', label: 'DigiShop', fallback: { href: '/digishops', label: 'DigiShops' } },
   shopDrafts: { kind: 'nested', label: 'Draft listings', fallback: { href: '/manage-shop/listings', label: 'Active listings' } },
   shopSettings: { kind: 'root', label: 'Shop settings' },
@@ -240,10 +234,10 @@ export function resolveRoute(pathname: string, search: string): AppRoute {
   if (/^\/community\/finspo\/[^/]+/.test(pathname)) return 'communityFinspoDetail'
   if (pathname.startsWith('/community')) return 'community'
   if (pathname.startsWith('/saved')) return 'saved'
-  if (pathname.startsWith('/account/settings')) return 'accountSettings'
-  if (pathname.startsWith('/profile') && searchParams.get('panel') === 'account') return 'accountSettings'
-  if (pathname.startsWith('/security/settings')) return 'securitySettings'
-  if (pathname.startsWith('/preferences/settings')) return 'preferencesSettings'
+  if (pathname.startsWith('/settings')) return 'settings'
+  if (pathname.startsWith('/account/settings')) return 'settings'
+  if (pathname.startsWith('/security/settings')) return 'settings'
+  if (pathname.startsWith('/preferences/settings')) return 'settings'
   if (pathname.startsWith('/profile/settings')) return 'profileSettings'
   if (pathname.startsWith('/profile')) return 'profile'
   if (pathname.startsWith('/inbox')) return 'inbox'
