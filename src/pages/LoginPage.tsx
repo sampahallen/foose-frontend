@@ -1,7 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
 import blueLogo from '../assets/foose-logo-blue.png'
 import { AppShell, Dialog, InlineNotice, PasswordField, SubmitButton, SuccessState, TextField } from '../components'
-import { FaApple } from 'react-icons/fa'
 import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../hooks/useAuth'
 import { apiPost } from '../lib/api'
@@ -151,12 +150,9 @@ export function LoginPage() {
           <img alt="Foose" className="h-auto w-32" src={blueLogo} />
           {user && <p className="accent-text font-bold text-accent">You are already logged in.</p>}
           {verificationNotice && <InlineNotice tone="success">{verificationNotice}</InlineNotice>}
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3">
             <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light" onClick={() => startOAuth('google', redirectTarget)} type="button">
               <FcGoogle size={20} /> Sign in with Gmail
-            </button>
-            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light" onClick={() => startOAuth('apple', redirectTarget)} type="button">
-              <FaApple size={20} /> Sign in with iCloud
             </button>
           </div>
           {visibleError && <div ref={errorRef} tabIndex={-1}><InlineNotice tone="error">{visibleError}</InlineNotice></div>}

@@ -308,7 +308,7 @@ export function SettingsPage() {
               return (
                 <a
                   aria-current={active ? 'page' : undefined}
-                  className={`inline-flex min-h-12 min-w-0 items-center justify-center whitespace-nowrap border-b-2 px-1 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent sm:px-3 sm:text-sm ${active ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:border-accent/40 hover:text-accent'}`}
+                  className={`inline-flex min-h-12 min-w-0 items-center justify-center whitespace-nowrap border-b-2 px-1 text-xs font-black transition focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent sm:px-3 sm:text-sm ${active ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:border-accent/40 hover:text-accent'}`}
                   href={withBasePath(settingsPageHref(tab.value))}
                   id={`settings-tab-${tab.value}`}
                   key={tab.value}

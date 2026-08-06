@@ -1,6 +1,6 @@
 import { getApiBaseUrl } from '../config/env'
 
-export type OAuthProvider = 'google' | 'apple'
+export type OAuthProvider = 'google'
 
 export function startOAuth(provider: OAuthProvider, redirectTarget: string) {
   const base = getApiBaseUrl()
