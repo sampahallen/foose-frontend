@@ -38,7 +38,7 @@ export function EventPromotionDialog({ event, onClose }: { event: Event | null; 
       dismissible={!busy}
       footer={(
         <>
-          <button className="rounded-xl border border-foose-border bg-white px-5 py-2.5 text-sm font-bold" disabled={busy} onClick={onClose} type="button">Not now</button>
+          <button className="rounded-xl border border-foose-border bg-foose-surface px-5 py-2.5 text-sm font-bold" disabled={busy} onClick={onClose} type="button">Not now</button>
           <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-black text-white disabled:opacity-60" disabled={busy} onClick={() => void pay()} type="button">
             <IoMegaphone /> {busy ? 'Opening Paystack…' : `Pay ${formatMoney(3000)}`}
           </button>

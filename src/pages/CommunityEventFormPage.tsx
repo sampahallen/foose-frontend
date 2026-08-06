@@ -65,7 +65,7 @@ function TypedTimeField({ error, id, label, name, onPeriodChange, onTimeChange, 
         <span className="text-xs font-bold text-foose-muted">AM / PM</span>
         <SelectControl
           aria-label={`${label} AM or PM`}
-          className="h-12 rounded-xl border border-foose-border bg-white px-3 text-sm font-black text-foose-text"
+          className="h-12 rounded-xl border border-foose-border bg-foose-surface px-3 text-sm font-black text-foose-text"
           id={`${id}-period`}
           name={`${name}Period`}
           onChange={(input) => onPeriodChange(input.target.value as Meridiem)}
@@ -234,7 +234,7 @@ export function CommunityEventFormPage() {
             <UnsavedChangesGuard when={dirty && !submitting} />
             {draft.hasRecoverableDraft && (
               <InlineNotice
-                action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-white" onClick={() => draft.resumeDraft()} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-white" onClick={() => draft.discardDraft()} type="button">Discard</button></div>}
+                action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-accent-light" onClick={() => draft.resumeDraft()} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-foose-surface-low" onClick={() => draft.discardDraft()} type="button">Discard</button></div>}
                 title="Continue your event draft?"
               >Event details were saved on this device. Choose the cover image again if needed.</InlineNotice>
             )}
@@ -286,7 +286,7 @@ export function CommunityEventFormPage() {
 
             {activeType === 'online-pop-up' && (
               <div className="info-card flex flex-col gap-4 rounded-2xl border border-accent/25 bg-accent-light/60 p-4 shadow-sm md:flex-row md:p-5">
-                <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-accent">
+                <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-foose-surface text-accent">
                   <Icon name="store" />
                 </span>
                 <div className="space-y-2">

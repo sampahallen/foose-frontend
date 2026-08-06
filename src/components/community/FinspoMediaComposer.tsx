@@ -108,7 +108,7 @@ export function FinspoMediaComposer({ items, onChange }: FinspoMediaComposerProp
               <span className="absolute left-1 top-1 grid size-6 place-items-center rounded-full bg-black/70 text-[10px] font-black text-white">{index + 1}</span>
               <button aria-label={`Remove image ${index + 1}`} className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-black/70 text-white hover:bg-foose-danger" onClick={() => removeItem(item.id)} type="button"><Icon name="close" size={14} /></button>
               {items.length > 1 && (
-                <div className="grid grid-cols-2 border-t border-foose-border bg-white/95">
+                <div className="grid grid-cols-2 border-t border-foose-border bg-foose-surface/95">
                   <button aria-label={`Move image ${index + 1} earlier`} className="min-h-9 text-sm font-black text-foose-muted hover:text-accent disabled:opacity-25" disabled={index === 0} onClick={() => reorder(index, index - 1)} type="button">←</button>
                   <button aria-label={`Move image ${index + 1} later`} className="min-h-9 text-sm font-black text-foose-muted hover:text-accent disabled:opacity-25" disabled={index === items.length - 1} onClick={() => reorder(index, index + 1)} type="button">→</button>
                 </div>

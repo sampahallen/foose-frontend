@@ -87,7 +87,7 @@ function ShopDraftListingsPageBody() {
       {deleteError && <InlineNotice title="Draft was not deleted" tone="error">{deleteError}</InlineNotice>}
       {drafts.error && drafts.data && (
         <InlineNotice
-          action={<button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-white" onClick={drafts.refetch} type="button">Retry</button>}
+          action={<button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-accent-light" onClick={drafts.refetch} type="button">Retry</button>}
           title="Drafts could not refresh"
           tone="warning"
         >
@@ -139,7 +139,7 @@ function ShopDraftListingsPageBody() {
 
         {drafts.data && total === 0 && hasActiveFilters && (
           <StatePanel
-            action={<button className="inline-flex min-h-11 items-center justify-center rounded-lg border border-foose-border bg-white px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={clearFilters} type="button">Clear filters</button>}
+            action={<button className="inline-flex min-h-11 items-center justify-center rounded-lg border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={clearFilters} type="button">Clear filters</button>}
             body="Try a broader title, product detail, listing type, or date range."
             layout="section"
             title="No drafts match"
@@ -155,7 +155,7 @@ function ShopDraftListingsPageBody() {
                 actions={(
                   <button
                     aria-label={deletingId === listing._id ? `Deleting ${listing.title}` : `Delete ${listing.title}`}
-                    className="inline-flex items-center justify-center rounded-lg border border-foose-border bg-white text-foose-danger transition hover:border-foose-danger hover:bg-foose-danger-bg disabled:pointer-events-none disabled:opacity-50"
+                    className="inline-flex items-center justify-center rounded-lg border border-foose-border bg-foose-surface text-foose-danger transition hover:border-foose-danger hover:bg-foose-danger-bg disabled:pointer-events-none disabled:opacity-50"
                     disabled={deletingId === listing._id}
                     onClick={() => setPendingDeleteId(listing._id)}
                     type="button"
@@ -177,13 +177,13 @@ function ShopDraftListingsPageBody() {
               Page {drafts.data.page} of {drafts.data.pages} · {total} drafts
             </span>
             <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex sm:w-auto">
-              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-white px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">
+              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-foose-surface px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">
                 Previous
               </button>
               <span className="font-bold text-foose-text">
                 {drafts.data.page} / {drafts.data.pages}
               </span>
-              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-white px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page >= drafts.data.pages} onClick={() => setPage((value) => value + 1)} type="button">
+              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-foose-surface px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page >= drafts.data.pages} onClick={() => setPage((value) => value + 1)} type="button">
                 Next
               </button>
             </div>

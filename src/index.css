@@ -16,6 +16,10 @@
   --color-foose-muted: #5e5f5c;
   --color-foose-faint: #757688;
   --color-foose-border: #c5c5da;
+  /* Fixed dark ink, intentionally not overridden for dark mode: for icons on
+     white/near-white chips that float over photos and must stay legible
+     regardless of the active site theme (favorite buttons, carousel arrows). */
+  --color-foose-ink: #1a1b25;
   --color-foose-danger: #ba1a1a;
   --color-foose-danger-bg: #ffdad6;
   --color-foose-warning: #891e00;
@@ -24,6 +28,29 @@
   --color-foose-success-bg: #dff7e7;
   --font-display: 'Clash Display', 'DM Serif Display', Georgia, serif;
   --font-sans: Inter, system-ui, sans-serif;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-accent: #6b7dff;
+  --color-accent-strong: #8a99ff;
+  --color-accent-hover: #5a6ef5;
+  --color-accent-light: #232a5c;
+  --color-foose-bg: #121218;
+  --color-foose-surface: #1b1b24;
+  --color-foose-surface-low: #232430;
+  --color-foose-surface-mid: #2b2c3a;
+  --color-foose-surface-high: #383a4c;
+  --color-foose-text: #f1f1f6;
+  --color-foose-muted: #b4b5c4;
+  --color-foose-faint: #85869a;
+  --color-foose-border: #3a3c50;
+  --color-foose-danger: #ff8a80;
+  --color-foose-danger-bg: #3a1a1a;
+  --color-foose-warning: #ffb59e;
+  --color-foose-warning-bg: #3a2416;
+  --color-foose-success: #6fe3a0;
+  --color-foose-success-bg: #123a25;
 }
 
 :root {

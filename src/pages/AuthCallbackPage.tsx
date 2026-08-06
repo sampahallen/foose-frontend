@@ -60,7 +60,7 @@ export function AuthCallbackPage() {
   return (
     <AppShell flush>
       <section className="fixed inset-0 z-100 flex items-center justify-center bg-black/45 p-4">
-        <div className="w-full max-w-sm rounded-2xl border border-accent/20 bg-white p-6 text-center shadow-2xl shadow-black/20">
+        <div className="w-full max-w-sm rounded-2xl border border-accent/20 bg-foose-surface p-6 text-center shadow-2xl shadow-black/20">
           {error ? (
             <StatePanel
               action={<ButtonLink to="/login">Back to login</ButtonLink>}

@@ -114,7 +114,7 @@ function SellerListingsPageBody() {
         {listings.data && total === 0 && !hasActiveFilters && <StatePanel body="Publish a listing with the round + button to start filling your active shop inventory. Saved drafts live on the Drafts page." layout="section" title="No active listings yet" tone="empty" visual={<Icon name="grid" size={26} />} />}
         {listings.data && total === 0 && hasActiveFilters && (
           <StatePanel
-            action={<button className="inline-flex min-h-11 items-center justify-center rounded-lg border border-foose-border bg-white px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={clearFilters} type="button">Clear filters</button>}
+            action={<button className="inline-flex min-h-11 items-center justify-center rounded-lg border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={clearFilters} type="button">Clear filters</button>}
             body="Try a broader search, another listing type, or a wider date range."
             layout="section"
             title="No active listings match"
@@ -128,12 +128,12 @@ function SellerListingsPageBody() {
               <ManagementListingRow
                 actions={(
                   <>
-                    <a aria-label={`Edit ${listing.title}`} className="inline-flex items-center justify-center rounded-lg border border-foose-border bg-white text-accent transition hover:border-accent hover:bg-accent hover:text-white" href={withBasePath(`/listings/${listing._id}/edit`)}>
+                    <a aria-label={`Edit ${listing.title}`} className="inline-flex items-center justify-center rounded-lg border border-foose-border bg-foose-surface text-accent transition hover:border-accent hover:bg-accent hover:text-white" href={withBasePath(`/listings/${listing._id}/edit`)}>
                       <Icon name="pencil" size={16} />
                     </a>
                     <button
                       aria-label={deletingId === listing._id ? `Removing ${listing.title}` : `Remove ${listing.title}`}
-                      className="inline-flex items-center justify-center rounded-lg border border-foose-border bg-white text-foose-danger transition hover:border-foose-danger hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50"
+                      className="inline-flex items-center justify-center rounded-lg border border-foose-border bg-foose-surface text-foose-danger transition hover:border-foose-danger hover:bg-foose-danger-bg disabled:pointer-events-none disabled:opacity-50"
                       disabled={deletingId === listing._id}
                       onClick={() => setPendingDeleteId(listing._id)}
                       type="button"
@@ -155,13 +155,13 @@ function SellerListingsPageBody() {
               Page {listings.data.page} of {listings.data.pages} · {total} listings
             </span>
             <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex sm:w-auto">
-              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-white px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">
+              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-foose-surface px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">
                 Previous
               </button>
               <span className="font-bold text-foose-text">
                 {listings.data.page} / {listings.data.pages}
               </span>
-              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-white px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page >= listings.data.pages} onClick={() => setPage((value) => value + 1)} type="button">
+              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-foose-surface px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page >= listings.data.pages} onClick={() => setPage((value) => value + 1)} type="button">
                 Next
               </button>
             </div>

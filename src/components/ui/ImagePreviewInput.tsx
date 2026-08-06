@@ -301,7 +301,7 @@ export function ImagePreviewInput({
         <p className="text-sm font-black text-foose-text">Drop {multiple ? 'images' : 'an image'} here</p>
         <p className="mt-1 text-xs leading-5 text-foose-muted">or choose from your device</p>
         <button
-          className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-white px-4 py-2 text-sm font-black text-accent transition hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:border-foose-border disabled:text-foose-faint"
+          className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-foose-surface px-4 py-2 text-sm font-black text-accent transition hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:border-foose-border disabled:text-foose-faint"
           disabled={remainingSlots <= 0}
           onClick={() => inputRef.current?.click()}
           type="button"
@@ -319,7 +319,7 @@ export function ImagePreviewInput({
       {!stripPresentation && (keptImages.length > 0 || visibleFiles.length > 0) && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="image-preview-grid">
           {keptImages.map((image, index) => (
-            <article className="overflow-hidden rounded-xl border border-foose-border bg-white" key={`${image}-${index}`}>
+            <article className="overflow-hidden rounded-xl border border-foose-border bg-foose-surface" key={`${image}-${index}`}>
               <div className={`overflow-hidden bg-foose-surface-mid ${aspectClass}`} style={aspectStyle}>
                 <LightboxImage alt={`Current upload ${index + 1}`} className={`h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover ${aspect === 'original' ? '[&_img]:h-auto' : ''}`} index={index} items={previewItems} src={image} />
               </div>
@@ -348,7 +348,7 @@ export function ImagePreviewInput({
             </article>
           ))}
           {visibleFiles.map((file, index) => (
-            <article className="overflow-hidden rounded-xl border border-foose-border bg-white" key={file.id}>
+            <article className="overflow-hidden rounded-xl border border-foose-border bg-foose-surface" key={file.id}>
               <div className={`overflow-hidden bg-foose-surface-mid ${aspectClass}`} style={aspectStyle}>
                 <LightboxImage alt={file.name || `Selected upload ${index + 1}`} className={`h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover ${aspect === 'original' ? '[&_img]:h-auto' : ''}`} index={keptImages.length + index} items={previewItems} src={file.url} />
               </div>

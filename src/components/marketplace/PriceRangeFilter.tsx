@@ -38,8 +38,8 @@ export function PriceRangeFilter({
   const minimumPercent = (minimumHandle / rangeMaximum) * 100
   const maximumPercent = (maximumHandle / rangeMaximum) * 100
   const inputClass = variant === 'compact'
-    ? 'h-9 min-w-0 rounded-lg border border-foose-border bg-white px-2 text-xs font-bold text-foose-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/15'
-    : 'h-11 min-w-0 rounded-xl border border-foose-border bg-white px-3 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
+    ? 'h-9 min-w-0 rounded-lg border border-foose-border bg-foose-surface px-2 text-xs font-bold text-foose-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/15'
+    : 'h-11 min-w-0 rounded-xl border border-foose-border bg-foose-surface px-3 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
   const thumbClass = 'pointer-events-none absolute inset-0 h-6 w-full appearance-none bg-transparent outline-none [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:size-5 [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-accent [&::-moz-range-thumb]:shadow-md [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:mt-[-7px] [&::-webkit-slider-thumb]:size-5 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:shadow-md active:[&::-moz-range-thumb]:cursor-grabbing active:[&::-webkit-slider-thumb]:cursor-grabbing'
 
   return (

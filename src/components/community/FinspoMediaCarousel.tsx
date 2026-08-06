@@ -243,12 +243,12 @@ export function FinspoMediaCarousel({
       {hasNavigation && (
         <>
           {shouldShowArrows && activeIndex > 0 && (
-            <button aria-label="Previous Finspo image" className="absolute left-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-foose-text shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent lg:inline-flex" onClick={() => selectImage(activeIndex - 1)} type="button">
+            <button aria-label="Previous Finspo image" className="absolute left-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-foose-ink shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent lg:inline-flex" onClick={() => selectImage(activeIndex - 1)} type="button">
               <span className="rotate-180"><Icon name="chevron" /></span>
             </button>
           )}
           {shouldShowArrows && activeIndex < sources.length - 1 && (
-            <button aria-label="Next Finspo image" className="absolute right-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-foose-text shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent lg:inline-flex" onClick={() => selectImage(activeIndex + 1)} type="button">
+            <button aria-label="Next Finspo image" className="absolute right-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-foose-ink shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent lg:inline-flex" onClick={() => selectImage(activeIndex + 1)} type="button">
               <Icon name="chevron" />
             </button>
           )}

@@ -96,7 +96,7 @@ function FinspoResultCard({ failed, post }: { failed: boolean; post: GalleryPost
         <SafeImage alt="" className="block h-auto w-full object-contain" fallback="Image unavailable" fallbackClassName="aspect-[4/5] text-sm" src={failed ? undefined : finspoCoverImage(post)} />
       </a>
       <FinspoLikeButton
-        className="favorite-button absolute right-2 top-2 z-10 inline-flex size-8 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-text shadow transition hover:bg-accent-light hover:text-accent [&.is-active]:bg-accent [&.is-active]:text-white"
+        className="favorite-button absolute right-2 top-2 z-10 inline-flex size-8 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-ink shadow transition hover:bg-accent-light hover:text-accent [&.is-active]:bg-accent [&.is-active]:text-white"
         initialCount={post.likes?.length}
         initialLiked={user ? post.likes?.some((id) => String(id) === user._id) : undefined}
         targetId={post._id}

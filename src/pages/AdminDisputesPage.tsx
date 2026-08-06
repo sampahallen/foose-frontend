@@ -128,7 +128,7 @@ export function AdminDisputesPage() {
                   </dl>
 
                   {(report?.summary || report?.detailedAccount || report?.details) && (
-                    <div className="mt-4 rounded-xl border border-foose-border bg-white p-4 text-sm leading-6">
+                    <div className="mt-4 rounded-xl border border-foose-border bg-foose-surface p-4 text-sm leading-6">
                       {report.summary && <strong className="mb-1 block">{report.summary}</strong>}
                       {(report.detailedAccount || report.details) && (
                         <p className="whitespace-pre-wrap text-foose-muted">{report.detailedAccount || report.details}</p>

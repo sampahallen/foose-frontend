@@ -136,15 +136,17 @@ export function TopNav({
                       <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                         Profile settings
                       </a>
+                      <a href={withBasePath('/security/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        Security
+                      </a>
+                      <a href={withBasePath('/preferences/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        Preferences
+                      </a>
                       <a href={withBasePath('/account/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                         Account settings
                       </a>
                       <a href={withBasePath('/inbox?support=true')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                         Help and support
-                      </a>
-                      <span className="profile-dropdown-spacer h-6" />
-                      <a href={withBasePath('/account/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
-                        Account settings
                       </a>
                     </div>
                     <hr />
@@ -244,15 +246,17 @@ export function TopNav({
                         <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                           Profile settings
                         </a>
+                        <a href={withBasePath('/security/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                          Security
+                        </a>
+                        <a href={withBasePath('/preferences/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                          Preferences
+                        </a>
                         <a href={withBasePath('/account/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                           Account settings
                         </a>
                         <a href={withBasePath('/inbox?support=true')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                           Help and support
-                        </a>
-                        <span className="profile-dropdown-spacer h-6" />
-                        <a href={withBasePath('/account/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
-                          Account settings
                         </a>
                       </div>
                       <hr />

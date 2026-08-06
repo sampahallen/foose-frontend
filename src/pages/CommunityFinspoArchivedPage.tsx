@@ -87,7 +87,7 @@ function ArchivedPostMenu({
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`${open ? 'Close' : 'Open'} options for ${post.caption || 'archived Finspo post'}`}
-        className="inline-flex size-8 items-center justify-center rounded-full border border-white/60 bg-white/90 text-foose-text shadow-md backdrop-blur transition hover:bg-white hover:text-accent disabled:pointer-events-none disabled:opacity-60"
+        className="inline-flex size-8 items-center justify-center rounded-full border border-white/60 bg-white/90 text-foose-ink shadow-md backdrop-blur transition hover:bg-white hover:text-accent disabled:pointer-events-none disabled:opacity-60"
         disabled={busy}
         onClick={onToggle}
         type="button"

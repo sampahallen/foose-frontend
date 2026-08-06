@@ -91,7 +91,7 @@ export function ListingCategoryPicker({
       <button
         aria-expanded={open}
         aria-haspopup="menu"
-        className={`${variant === 'filter' ? 'h-11 rounded-xl' : 'h-12 rounded-lg'} flex w-full items-center justify-between gap-3 border border-foose-border bg-white px-3 text-left text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 ${className}`}
+        className={`${variant === 'filter' ? 'h-11 rounded-xl' : 'h-12 rounded-lg'} flex w-full items-center justify-between gap-3 border border-foose-border bg-foose-surface px-3 text-left text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15 ${className}`}
         id={id}
         onClick={() => {
           if (open) setOpen(false)
@@ -106,7 +106,7 @@ export function ListingCategoryPicker({
       </button>
       {open && createPortal(
         <div
-          className="fixed z-[1400] rounded-xl border border-foose-border bg-white p-1 shadow-2xl"
+          className="fixed z-[1400] rounded-xl border border-foose-border bg-foose-surface p-1 shadow-2xl"
           ref={menuRef}
           role="menu"
           style={{ left: menuPosition.left, top: menuPosition.top, width: menuPosition.width }}
@@ -142,7 +142,7 @@ export function ListingCategoryPicker({
                 </button>
                 {hasSubcategories && expanded && (
                   <div
-                    className="absolute left-full z-10 ml-1 max-h-[70vh] overflow-y-auto rounded-xl border border-foose-border bg-white p-1 shadow-2xl [scrollbar-width:thin]"
+                    className="absolute left-full z-10 ml-1 max-h-[70vh] overflow-y-auto rounded-xl border border-foose-border bg-foose-surface p-1 shadow-2xl [scrollbar-width:thin]"
                     role="menu"
                     style={{ top: -(index + 1) * 44, width: menuPosition.width }}
                   >

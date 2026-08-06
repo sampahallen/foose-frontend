@@ -88,7 +88,7 @@ function WalletActivityCard({ entry }: { entry: WalletLedgerEntry }) {
   const order = entry.order
 
   return (
-    <article className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-5">
+    <article className="rounded-2xl border border-foose-border bg-foose-surface p-4 shadow-sm sm:p-5">
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -112,7 +112,7 @@ function WalletActivityCard({ entry }: { entry: WalletLedgerEntry }) {
                   </p>
                 </div>
                 <a
-                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-xl border border-foose-border bg-white px-3 text-xs font-black text-accent transition hover:border-accent"
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-xl border border-foose-border bg-foose-surface px-3 text-xs font-black text-accent transition hover:border-accent"
                   href={withBasePath(`/orders/${order.id}`)}
                 >
                   View order
@@ -230,7 +230,7 @@ function WalletPageBody() {
             <label className="grid gap-1 text-xs font-black uppercase tracking-wide text-foose-faint">
               Activity type
               <select
-                className="min-h-11 rounded-xl border border-foose-border bg-white px-3 text-sm font-bold normal-case tracking-normal text-foose-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
+                className="min-h-11 rounded-xl border border-foose-border bg-foose-surface px-3 text-sm font-bold normal-case tracking-normal text-foose-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
                 onChange={(event) => setFilter(event.target.value as ActivityFilter)}
                 value={filter}
               >
@@ -274,7 +274,7 @@ function WalletPageBody() {
         {user?.hasShop && nextCursor && (
           <div className="mt-5 flex justify-center">
             <button
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-60"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-60"
               disabled={loadingMore}
               onClick={() => void loadMore()}
               type="button"

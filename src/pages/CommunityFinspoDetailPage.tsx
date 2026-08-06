@@ -69,7 +69,7 @@ function renderImageTile(post: GalleryPost, currentUserId?: string, mediaFailed 
           : <img alt="" src={post.imageUrl} />}
       </a>
       <FinspoLikeButton
-        className="favorite-button floating-round absolute right-2 top-2 z-10 inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-white/90 text-current shadow transition hover:bg-accent-light hover:text-accent [&_svg]:size-4 [&.is-active]:bg-accent [&.is-active]:text-white"
+        className="favorite-button floating-round absolute right-2 top-2 z-10 inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-ink shadow transition hover:bg-accent-light hover:text-accent [&_svg]:size-4 [&.is-active]:bg-accent [&.is-active]:text-white"
         initialCount={post.likes?.length}
         initialLiked={currentUserId ? post.likes?.some((userId) => String(userId) === currentUserId) : undefined}
         targetId={post._id}

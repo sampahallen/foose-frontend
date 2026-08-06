@@ -154,7 +154,7 @@ export function CommunityFinspoFormPage() {
   }
 
   const stepAside = (
-    <ol className="grid gap-3 rounded-2xl border border-foose-border bg-white p-4 shadow-sm" aria-label="Finspo publishing steps">
+    <ol className="grid gap-3 rounded-2xl border border-foose-border bg-foose-surface p-4 shadow-sm" aria-label="Finspo publishing steps">
       <li className={`flex items-center gap-3 rounded-xl p-3 ${step === 'media' ? 'bg-accent-light text-accent' : 'text-foose-muted'}`}>
         <span className="grid size-8 place-items-center rounded-full bg-current/10 font-black">1</span>
         <span><strong className="block text-sm">Choose photos</strong><small className="text-xs">Select and arrange up to eight.</small></span>
@@ -184,7 +184,7 @@ export function CommunityFinspoFormPage() {
             <UnsavedChangesGuard when={!submitting && dirty} />
             {draft.hasRecoverableDraft && (
               <InlineNotice
-                action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-white" onClick={() => draft.resumeDraft()} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-white" onClick={() => draft.discardDraft()} type="button">Discard</button></div>}
+                action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-accent-light" onClick={() => draft.resumeDraft()} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-foose-surface-low" onClick={() => draft.discardDraft()} type="button">Discard</button></div>}
                 title="Continue your Finspo draft?"
               >Caption and hashtags were saved on this device. New photos must be selected again after a reload.</InlineNotice>
             )}

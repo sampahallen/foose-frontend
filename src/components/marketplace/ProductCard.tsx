@@ -111,7 +111,7 @@ export function ProductCard({
           <Icon name="pencil" size={15} />
         </a>
       ) : (
-        <FavoriteButton className="floating-round inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-text shadow transition hover:bg-accent-light hover:text-accent absolute right-1.5 top-1.5 z-10 favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />
+        <FavoriteButton className="floating-round inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-ink shadow transition hover:bg-accent-light hover:text-accent absolute right-1.5 top-1.5 z-10 favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />
       )}
     </article>
   )

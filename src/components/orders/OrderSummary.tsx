@@ -11,6 +11,7 @@ export function OrderSummary({
   href,
   items,
   onAction,
+  pendingFees = false,
   serviceFee = 0,
   submit = false,
 }: {
@@ -23,6 +24,8 @@ export function OrderSummary({
   href?: string
   items: CartItem[]
   onAction?: () => void
+  /** Delivery and service fees aren't known yet (cart, before checkout) — show subtotal only. */
+  pendingFees?: boolean
   serviceFee?: number
   /** Use inside a `<form>` to trigger submit (e.g. checkout). */
   submit?: boolean
@@ -49,34 +52,39 @@ export function OrderSummary({
   return (
     <aside className="order-summary rounded-2xl border border-foose-border/80 bg-foose-surface p-4 shadow-sm md:p-6 [&_h2]:mb-1 [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-semibold max-lg:[&>.button]:sticky max-lg:[&>.button]:bottom-[calc(5rem+env(safe-area-inset-bottom))] max-lg:[&>.button]:z-20">
       <h2>Order summary</h2>
-      <p className="mb-4 text-sm leading-6 text-foose-muted">Review the costs before continuing.</p>
-      <div className="summary-row flex flex-wrap items-center gap-3 justify-between border-b border-foose-border py-3">
-        <span>Subtotal</span>
-        <strong>{formatMoney(subtotal)}</strong>
-      </div>
-      <div className="summary-row flex flex-wrap items-center gap-3 justify-between border-b border-foose-border py-3">
-        <span>
-          Delivery
-          {deliveryParcelCount && deliveryParcelCount > 1 ? ` (${deliveryParcelCount} seller parcels)` : ''}
-        </span>
-        <strong>{deliveryLabel}</strong>
-      </div>
-      <div className="summary-row flex flex-wrap items-center gap-3 justify-between border-b border-foose-border py-3">
-        <span>Service Fee</span>
-        <strong>{formatMoney(serviceFee)}</strong>
-      </div>
-      <div aria-live="polite" className="summary-total flex flex-wrap items-center gap-3 [&_strong]:font-display [&_strong]:text-xl [&_strong]:font-bold [&_strong]:text-accent [&_strong]:md:text-2xl justify-between border-b border-foose-border py-3">
-        <span>Total</span>
-        <strong>{formatMoney(total)}</strong>
-      </div>
-      {deliveryFee === null && <p className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Total updates when the delivery estimate is ready.</p>}
-      <div aria-label="Promo codes coming soon" className="promo-field mt-5 rounded-xl border border-dashed border-foose-border bg-foose-surface-low p-3">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold text-foose-muted">Promo code</span>
-          <span className="rounded-full bg-foose-surface px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-foose-faint">Coming soon</span>
-        </div>
-        <p className="mt-1 text-xs leading-5 text-foose-faint">Discount codes are not available yet.</p>
-      </div>
+      {pendingFees ? (
+        <>
+          <p className="mb-4 text-sm leading-6 text-foose-muted">Delivery and fees are added at checkout.</p>
+          <div aria-live="polite" className="summary-total flex flex-wrap items-center gap-3 [&_strong]:font-display [&_strong]:text-xl [&_strong]:font-bold [&_strong]:text-accent [&_strong]:md:text-2xl justify-between border-b border-foose-border py-3">
+            <span>Items total</span>
+            <strong>{formatMoney(subtotal)}</strong>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="mb-4 text-sm leading-6 text-foose-muted">Review the costs before continuing.</p>
+          <div className="summary-row flex flex-wrap items-center gap-3 justify-between border-b border-foose-border py-3">
+            <span>Subtotal</span>
+            <strong>{formatMoney(subtotal)}</strong>
+          </div>
+          <div className="summary-row flex flex-wrap items-center gap-3 justify-between border-b border-foose-border py-3">
+            <span>
+              Delivery
+              {deliveryParcelCount && deliveryParcelCount > 1 ? ` (${deliveryParcelCount} seller parcels)` : ''}
+            </span>
+            <strong>{deliveryLabel}</strong>
+          </div>
+          <div className="summary-row flex flex-wrap items-center gap-3 justify-between border-b border-foose-border py-3">
+            <span>Service Fee</span>
+            <strong>{formatMoney(serviceFee)}</strong>
+          </div>
+          <div aria-live="polite" className="summary-total flex flex-wrap items-center gap-3 [&_strong]:font-display [&_strong]:text-xl [&_strong]:font-bold [&_strong]:text-accent [&_strong]:md:text-2xl justify-between border-b border-foose-border py-3">
+            <span>Total</span>
+            <strong>{formatMoney(total)}</strong>
+          </div>
+          {deliveryFee === null && <p className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Total updates when the delivery estimate is ready.</p>}
+        </>
+      )}
       {href ? (
         <ButtonLink className="full mt-5" to={href}>
           {actionContent}

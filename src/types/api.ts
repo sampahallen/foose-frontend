@@ -79,8 +79,22 @@ export type User = {
   }
   kycId?: KycRecord | string | null
   following?: string[]
+  preferences?: UserPreferences
+  pendingEmail?: string
   createdAt?: string
   updatedAt?: string
+}
+
+export type NotificationCategory = 'order' | 'chat' | 'review' | 'system'
+
+export type UserPreferences = {
+  theme: 'light' | 'dark' | 'system'
+  notifications: {
+    order: { email: boolean }
+    chat: { email: boolean }
+    review: { email: boolean }
+    system: { email: boolean; inApp: boolean }
+  }
 }
 
 export type Shop = {

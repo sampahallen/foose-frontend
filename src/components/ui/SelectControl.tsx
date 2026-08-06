@@ -359,7 +359,7 @@ function SelectControlState({
 
       {open && position && createPortal(
         <div
-          className={`fixed overflow-y-auto overscroll-contain border border-foose-border bg-white shadow-2xl [scrollbar-width:thin] ${sortVariant ? 'rounded-lg p-1.5' : 'rounded-xl p-1 sm:p-1.5'}`}
+          className={`fixed overflow-y-auto overscroll-contain border border-foose-border bg-foose-surface shadow-2xl [scrollbar-width:thin] ${sortVariant ? 'rounded-lg p-1.5' : 'rounded-xl p-1 sm:p-1.5'}`}
           id={listboxId}
           ref={menuRef}
           role="listbox"
@@ -394,7 +394,7 @@ function SelectControlState({
                   <span className="break-words">{option.label}</span>
                 </span>
                 {filterVariant && (
-                  <span className={`size-4 shrink-0 rounded border ${active ? 'border-accent bg-accent' : 'border-foose-border bg-white'}`} />
+                  <span className={`size-4 shrink-0 rounded border ${active ? 'border-accent bg-accent' : 'border-foose-border bg-foose-surface'}`} />
                 )}
               </button>
             )

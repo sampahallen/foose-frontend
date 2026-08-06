@@ -195,7 +195,7 @@ function OrderManagementContent({
     }
     return (
       <button
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent sm:w-auto"
+        className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent sm:w-auto"
         onClick={() => {
           setReviewingOrder(order)
           setReviewComment('')
@@ -248,7 +248,7 @@ function OrderManagementContent({
                 {bucketOptions.map((option) => (
                   <button
                     aria-current={bucket === option.value ? 'page' : undefined}
-                    className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-sm font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${bucket === option.value ? 'bg-accent text-white shadow-sm' : 'text-foose-muted hover:bg-white hover:text-foose-text'}`}
+                    className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-sm font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${bucket === option.value ? 'bg-accent text-white shadow-sm' : 'text-foose-muted hover:bg-foose-surface hover:text-foose-text'}`}
                     key={option.value}
                     onClick={() => setBucket(option.value)}
                     type="button"
@@ -259,12 +259,12 @@ function OrderManagementContent({
               </div>
             </nav>
 
-            <section aria-label="Filter orders" className="mb-6 grid gap-3 rounded-2xl border border-foose-border bg-white p-3 shadow-sm sm:grid-cols-[minmax(0,1fr)_180px_180px] sm:p-4">
+            <section aria-label="Filter orders" className="mb-6 grid gap-3 rounded-2xl border border-foose-border bg-foose-surface p-3 shadow-sm sm:grid-cols-[minmax(0,1fr)_180px_180px] sm:p-4">
               <label className="relative min-w-0">
                 <span className="sr-only">Search orders</span>
                 <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-foose-faint"><Icon name="search" size={18} /></span>
                 <input
-                  className="min-h-11 w-full rounded-xl border border-foose-border bg-white py-2 pl-10 pr-3 text-base text-foose-text outline-none placeholder:text-foose-faint focus:border-accent focus:ring-2 focus:ring-accent/15 sm:text-sm"
+                  className="min-h-11 w-full rounded-xl border border-foose-border bg-foose-surface py-2 pl-10 pr-3 text-base text-foose-text outline-none placeholder:text-foose-faint focus:border-accent focus:ring-2 focus:ring-accent/15 sm:text-sm"
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search item titles"
                   type="search"
@@ -274,7 +274,7 @@ function OrderManagementContent({
               <label className="grid gap-1">
                 <span className="sr-only">Fulfilment method</span>
                 <select
-                  className="min-h-11 rounded-xl border border-foose-border bg-white px-3 text-sm font-bold text-foose-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
+                  className="min-h-11 rounded-xl border border-foose-border bg-foose-surface px-3 text-sm font-bold text-foose-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
                   onChange={(event) => setMethod(event.target.value as typeof method)}
                   value={method}
                 >
@@ -286,7 +286,7 @@ function OrderManagementContent({
               <label className="grid gap-1">
                 <span className="sr-only">Sort orders</span>
                 <select
-                  className="min-h-11 rounded-xl border border-foose-border bg-white px-3 text-sm font-bold text-foose-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
+                  className="min-h-11 rounded-xl border border-foose-border bg-foose-surface px-3 text-sm font-bold text-foose-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
                   onChange={(event) => setSort(event.target.value as typeof sort)}
                   value={sort}
                 >
@@ -333,7 +333,7 @@ function OrderManagementContent({
             {effectiveCursor && (
               <div className="mt-6 flex justify-center">
                 <button
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-60"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-60"
                   disabled={loadingMore}
                   onClick={() => void loadMore()}
                   type="button"
@@ -353,7 +353,7 @@ function OrderManagementContent({
         footer={(
           <>
             <button
-              className="rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text"
+              className="rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text"
               disabled={reviewBusy}
               onClick={() => setReviewingOrder(null)}
               type="button"

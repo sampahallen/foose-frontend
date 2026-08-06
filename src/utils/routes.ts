@@ -28,6 +28,8 @@ export type AppRoute =
   | 'communityFinspoForm'
   | 'saved'
   | 'accountSettings'
+  | 'securitySettings'
+  | 'preferencesSettings'
   | 'profileSettings'
   | 'profile'
   | 'inbox'
@@ -125,6 +127,7 @@ export const routeStateRegistry = {
   orderDetail: { defaultScene: 'detail', family: 'detail', supportedLayouts: PAGE },
   orderHistory: { defaultScene: 'orders', family: 'commerce', supportedLayouts: PAGE },
   orderManagement: { defaultScene: 'orders', family: 'management', supportedLayouts: PAGE },
+  preferencesSettings: { defaultScene: 'form', family: 'profile', supportedLayouts: PAGE },
   profile: { defaultScene: 'profile', family: 'profile', supportedLayouts: PAGE },
   profileSettings: { defaultScene: 'form', family: 'profile', supportedLayouts: PAGE },
   promotionReturn: { defaultScene: 'spinner', family: 'status', supportedLayouts: IMMERSIVE },
@@ -134,6 +137,7 @@ export const routeStateRegistry = {
   retailDetail: { defaultScene: 'detail', family: 'detail', supportedLayouts: PAGE },
   saved: { defaultScene: 'cards', family: 'discovery', supportedLayouts: PAGE },
   search: { defaultScene: 'cards', family: 'discovery', supportedLayouts: PAGE },
+  securitySettings: { defaultScene: 'form', family: 'profile', supportedLayouts: PAGE },
   sellerListings: { defaultScene: 'cards', family: 'management', supportedLayouts: PAGE },
   sellerSold: { defaultScene: 'cards', family: 'management', supportedLayouts: PAGE },
   shop: { defaultScene: 'detail', family: 'detail', supportedLayouts: PAGE },
@@ -184,6 +188,7 @@ export const routeNavigationRegistry = {
   orderDetail: { kind: 'nested', label: 'Order', fallback: { href: '/orders/history', label: 'Orders' } },
   orderHistory: { kind: 'root', label: 'Orders' },
   orderManagement: { kind: 'root', label: 'Order management' },
+  preferencesSettings: { kind: 'nested', label: 'Preferences', fallback: { href: '/profile', label: 'Profile' } },
   profile: { kind: 'root', label: 'Profile' },
   profileSettings: { kind: 'nested', label: 'Profile settings', fallback: { href: '/profile', label: 'Profile' } },
   promotionReturn: { kind: 'terminal', label: 'Promotion confirmation' },
@@ -193,6 +198,7 @@ export const routeNavigationRegistry = {
   retailDetail: { kind: 'nested', label: 'Listing', fallback: { href: '/browse', label: 'Browse' } },
   saved: { kind: 'root', label: 'Saved' },
   search: { kind: 'root', label: 'Explore' },
+  securitySettings: { kind: 'nested', label: 'Security', fallback: { href: '/profile', label: 'Profile' } },
   sellerListings: { kind: 'root', label: 'Active listings' },
   sellerSold: { kind: 'root', label: 'Sold items' },
   shop: { kind: 'nested', label: 'DigiShop', fallback: { href: '/digishops', label: 'DigiShops' } },
@@ -236,6 +242,8 @@ export function resolveRoute(pathname: string, search: string): AppRoute {
   if (pathname.startsWith('/saved')) return 'saved'
   if (pathname.startsWith('/account/settings')) return 'accountSettings'
   if (pathname.startsWith('/profile') && searchParams.get('panel') === 'account') return 'accountSettings'
+  if (pathname.startsWith('/security/settings')) return 'securitySettings'
+  if (pathname.startsWith('/preferences/settings')) return 'preferencesSettings'
   if (pathname.startsWith('/profile/settings')) return 'profileSettings'
   if (pathname.startsWith('/profile')) return 'profile'
   if (pathname.startsWith('/inbox')) return 'inbox'

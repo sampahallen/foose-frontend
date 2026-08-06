@@ -62,7 +62,7 @@ function OtherReactions({ reactions }: { reactions: ChatReaction[] }) {
         const option = reactionOption(reaction.reaction)
         return `${option?.label || 'Reaction'} from ${userName(reaction.userId)}`
       }).join(', ')}
-      className="pointer-events-auto inline-flex h-7 items-center gap-0.5 rounded-full border border-foose-border bg-white px-1.5 text-sm shadow-sm"
+      className="pointer-events-auto inline-flex h-7 items-center gap-0.5 rounded-full border border-foose-border bg-foose-surface px-1.5 text-sm shadow-sm"
     >
       {reactions.map((reaction, index) => {
         const option = reactionOption(reaction.reaction)
@@ -105,7 +105,7 @@ function ReactionControl({
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={currentReaction ? `${currentReaction.label} reaction. Change or remove reaction` : 'Add reaction'}
-        className={`inline-flex size-7 items-center justify-center rounded-full border text-sm shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:hover:translate-y-0 ${currentReaction ? 'border-accent/20 bg-white' : 'border-foose-border bg-white text-foose-muted hover:text-accent'}`}
+        className={`inline-flex size-7 items-center justify-center rounded-full border text-sm shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:hover:translate-y-0 ${currentReaction ? 'border-accent/20 bg-foose-surface' : 'border-foose-border bg-foose-surface text-foose-muted hover:text-accent'}`}
         onClick={() => setOpen((current) => !current)}
         title={currentReaction ? 'Change or remove reaction' : 'Add reaction'}
         type="button"
@@ -115,7 +115,7 @@ function ReactionControl({
       {open && (
         <div
           aria-label="Choose a reaction"
-          className={`message-reaction-picker absolute bottom-9 z-30 flex items-center gap-0.5 rounded-full border border-foose-border bg-white p-1.5 shadow-xl ${incoming ? 'left-0 origin-bottom-left' : 'right-0 origin-bottom-right'}`}
+          className={`message-reaction-picker absolute bottom-9 z-30 flex items-center gap-0.5 rounded-full border border-foose-border bg-foose-surface p-1.5 shadow-xl ${incoming ? 'left-0 origin-bottom-left' : 'right-0 origin-bottom-right'}`}
           role="menu"
         >
           {reactionOptions.map((option) => {
@@ -217,13 +217,13 @@ export function Message({
       {!incoming && replyButton}
       <div className={`message relative flex max-w-[82%] flex-col gap-2 rounded-2xl px-4 py-3 text-sm shadow-sm [&.incoming]:rounded-bl-sm [&.incoming]:bg-foose-surface-high [&.incoming]:text-foose-text [&.outgoing]:rounded-br-sm [&.outgoing]:bg-accent [&.outgoing]:text-white [&_time]:block [&_time]:text-xs [&_time]:opacity-70 max-md:max-w-[86%] ${incoming ? 'incoming' : 'outgoing'}`}>
       {replyText && (
-        <div className={`rounded-xl border-l-4 px-3 py-2 text-xs ${incoming ? 'border-accent bg-white/80 text-foose-muted' : 'border-white bg-white/15 text-white/85'}`}>
+        <div className={`rounded-xl border-l-4 px-3 py-2 text-xs ${incoming ? 'border-accent bg-foose-surface/80 text-foose-muted' : 'border-white bg-white/15 text-white/85'}`}>
           <strong className="block truncate">{replySender}</strong>
           <span className="line-clamp-2">{replyText}</span>
         </div>
       )}
       {listingTitle(listing) && (
-        <div className="grid grid-cols-[48px_minmax(0,1fr)] items-center gap-3 rounded-xl bg-white/90 p-2 text-foose-text shadow-sm">
+        <div className="grid grid-cols-[48px_minmax(0,1fr)] items-center gap-3 rounded-xl bg-foose-surface/90 p-2 text-foose-text shadow-sm">
           {listingImage(listing) ? <img alt="" className="size-12 rounded-lg object-cover" src={listingImage(listing)} /> : <span className="size-12 rounded-lg bg-foose-surface-mid" />}
           <span className="min-w-0">
             <strong className="block truncate text-xs font-black">{listingTitle(listing)}</strong>

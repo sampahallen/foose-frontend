@@ -32,7 +32,7 @@ export function StepIndicator({
               <button
                 aria-current={active ? 'step' : undefined}
                 aria-label={`${step}${complete ? ', completed' : active ? ', current step' : ', upcoming step'}`}
-                className={`relative z-10 inline-flex size-11 shrink-0 items-center justify-center rounded-full border text-sm font-black transition ${active ? 'border-accent bg-accent text-white shadow-md shadow-accent/25 ring-4 ring-accent-light' : complete ? 'border-accent bg-accent text-white' : 'border-foose-border bg-white text-foose-faint'} ${enabled ? 'cursor-pointer hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:hover:translate-y-0' : 'cursor-default'}`}
+                className={`relative z-10 inline-flex size-11 shrink-0 items-center justify-center rounded-full border text-sm font-black transition ${active ? 'border-accent bg-accent text-white shadow-md shadow-accent/25 ring-4 ring-accent-light' : complete ? 'border-accent bg-accent text-white' : 'border-foose-border bg-foose-surface text-foose-faint'} ${enabled ? 'cursor-pointer hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:hover:translate-y-0' : 'cursor-default'}`}
                 disabled={!enabled}
                 onClick={() => onStepChange?.(index)}
                 type="button"

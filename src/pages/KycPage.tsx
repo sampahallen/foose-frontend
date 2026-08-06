@@ -184,7 +184,7 @@ function KycForm({ kyc, onSaved, user }: { kyc: KycRecord; onSaved: () => Promis
         )}
 
         <FormActions sticky>
-          {step > 0 && <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" disabled={submitting} onClick={() => goToStep(step - 1)} type="button">Back</button>}
+          {step > 0 && <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" disabled={submitting} onClick={() => goToStep(step - 1)} type="button">Back</button>}
           {step === 0 && <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-accent bg-accent px-5 text-sm font-bold text-white hover:bg-accent-hover" onClick={continueFromIdentity} type="button">Continue to documents</button>}
           {step === 1 && <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-accent bg-accent px-5 text-sm font-bold text-white hover:bg-accent-hover" onClick={continueFromDocuments} type="button">Review details</button>}
           {step === 2 && <SubmitButton loading={submitting} loadingLabel="Submitting verification…">{isResubmit ? 'Resubmit verification' : 'Submit verification'}</SubmitButton>}

@@ -205,7 +205,7 @@ export function RetailDetailPage() {
             <section className="space-y-3 lg:sticky lg:top-24">
               <div className="relative">
                 <ListingImageSlider images={listingImages} key={listing._id} title={listing.title} />
-                {!isOwner && <FavoriteButton className="absolute right-3 top-3 z-10 inline-flex size-10 items-center justify-center rounded-full border border-foose-border bg-white/95 text-foose-text shadow transition hover:bg-accent hover:text-white [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />}
+                {!isOwner && <FavoriteButton className="absolute right-3 top-3 z-10 inline-flex size-10 items-center justify-center rounded-full border border-foose-border bg-white/95 text-foose-ink shadow transition hover:bg-accent hover:text-white [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />}
               </div>
             </section>
 
@@ -287,10 +287,10 @@ export function RetailDetailPage() {
                     <ButtonLink className="h-11 rounded-md" to={`/listings/${listing._id}/edit`}>Manage listing</ButtonLink>
                   </div>
                 ) : <div className="mt-5 grid gap-2">
-                  <button className="inline-flex h-11 items-center justify-center rounded-md border border-foose-text bg-foose-text px-4 text-sm font-black text-white transition hover:bg-black disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleBuyNow} type="button">
+                  <button className="inline-flex h-11 items-center justify-center rounded-md border border-accent bg-accent px-4 text-sm font-black text-white transition hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleBuyNow} type="button">
                     Buy now
                   </button>
-                  <button className="inline-flex h-11 items-center justify-center rounded-md border border-foose-text bg-white px-4 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleAddToCart} type="button">
+                  <button className="inline-flex h-11 items-center justify-center rounded-md border border-foose-border bg-foose-surface px-4 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleAddToCart} type="button">
                     Add to cart
                   </button>
                   <ButtonLink to={askQuestionHref} className="h-11 rounded-md" variant="secondary">
@@ -369,7 +369,7 @@ export function RetailDetailPage() {
         >
           <button
             aria-label="Close listing details"
-            className="absolute right-3 top-3 z-20 inline-flex size-10 items-center justify-center rounded-full border border-foose-border bg-white text-foose-text shadow transition hover:border-accent hover:text-accent"
+            className="absolute right-3 top-3 z-20 inline-flex size-10 items-center justify-center rounded-full border border-foose-border bg-white text-foose-ink shadow transition hover:border-accent hover:text-accent"
             onClick={closeListing}
             type="button"
           >

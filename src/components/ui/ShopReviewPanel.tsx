@@ -186,7 +186,7 @@ export function ShopReviewPanel({
                   <button
                     aria-checked={star === rating}
                     aria-label={`${star} star rating`}
-                    className={star <= rating ? 'inline-flex size-11 items-center justify-center rounded-full text-accent transition hover:bg-accent-light [&_svg]:fill-current' : 'inline-flex size-11 items-center justify-center rounded-full text-foose-border transition hover:bg-white hover:text-accent'}
+                    className={star <= rating ? 'inline-flex size-11 items-center justify-center rounded-full text-accent transition hover:bg-accent-light [&_svg]:fill-current' : 'inline-flex size-11 items-center justify-center rounded-full text-foose-border transition hover:bg-accent-light hover:text-accent'}
                     key={star}
                     onClick={() => setRating(star)}
                     role="radio"
@@ -201,7 +201,7 @@ export function ShopReviewPanel({
               Review <span className="sr-only">Optional</span>
             <textarea
               aria-describedby="shop-review-comment-count"
-              className="min-h-24 w-full resize-y rounded-xl border border-foose-border bg-white p-3 text-sm text-foose-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+              className="min-h-24 w-full resize-y rounded-xl border border-foose-border bg-foose-surface p-3 text-sm text-foose-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
               id="shop-review-comment"
               maxLength={500}
               onChange={(event) => setComment(event.target.value)}
@@ -290,7 +290,7 @@ export function ShopReviewPanel({
                     <span className="ml-auto inline-flex items-center gap-1">
                       <button
                         aria-label="Edit review"
-                        className="inline-flex size-11 items-center justify-center rounded-full border border-accent/20 bg-white text-accent transition hover:bg-accent hover:text-white"
+                        className="inline-flex size-11 items-center justify-center rounded-full border border-accent/20 bg-foose-surface text-accent transition hover:bg-accent hover:text-white"
                         onClick={() => startEdit(review)}
                         type="button"
                       >
@@ -298,7 +298,7 @@ export function ShopReviewPanel({
                       </button>
                       <button
                         aria-label="Delete review"
-                        className="inline-flex size-11 items-center justify-center rounded-full border border-red-100 bg-red-50 text-foose-danger transition hover:border-foose-danger hover:bg-foose-danger hover:text-white disabled:pointer-events-none disabled:opacity-60"
+                        className="inline-flex size-11 items-center justify-center rounded-full border border-foose-danger/20 bg-foose-danger-bg text-foose-danger transition hover:border-foose-danger hover:bg-foose-danger hover:text-white disabled:pointer-events-none disabled:opacity-60"
                         disabled={deletingId === review._id}
                         onClick={() => setPendingDelete(review)}
                         type="button"
@@ -319,7 +319,7 @@ export function ShopReviewPanel({
         dismissible={!submitting}
         footer={(
           <>
-            <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" disabled={submitting} onClick={() => setEditingReview(null)} type="button">
+            <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" disabled={submitting} onClick={() => setEditingReview(null)} type="button">
               Cancel
             </button>
             <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-accent bg-accent px-4 text-sm font-bold text-white hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-60" disabled={submitting} form="edit-shop-review-form" type="submit">

@@ -69,7 +69,7 @@ function ForgotPasswordDialog({
             <TextField autoComplete="email" autoFocus error={error && !canSubmit ? error : ''} label="Email" onChange={(event) => { setEmail(event.target.value); setError('') }} required type="email" value={email} />
             {error && <InlineNotice tone="error">{error}</InlineNotice>}
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" onClick={onClose} type="button">
+              <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" onClick={onClose} type="button">
                 Cancel
               </button>
               <SubmitButton loading={submitting} loadingLabel="Sending…">Send reset email</SubmitButton>
@@ -152,10 +152,10 @@ export function LoginPage() {
           {user && <p className="accent-text font-bold text-accent">You are already logged in.</p>}
           {verificationNotice && <InlineNotice tone="success">{verificationNotice}</InlineNotice>}
           <div className="grid gap-3 sm:grid-cols-2">
-            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light" onClick={() => startOAuth('google', redirectTarget)} type="button">
+            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light" onClick={() => startOAuth('google', redirectTarget)} type="button">
               <FcGoogle size={20} /> Sign in with Gmail
             </button>
-            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light" onClick={() => startOAuth('apple', redirectTarget)} type="button">
+            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light" onClick={() => startOAuth('apple', redirectTarget)} type="button">
               <FaApple size={20} /> Sign in with iCloud
             </button>
           </div>

@@ -2,6 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem('foose-theme') || 'system'
+          var dark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+        } catch (error) {}
+      })()
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon-blue.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta

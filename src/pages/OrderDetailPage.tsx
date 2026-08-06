@@ -324,8 +324,8 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     const base = primary
       ? 'border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover focus-visible:outline-accent'
       : action === 'report' || copy.tone === 'destructive'
-        ? 'border-foose-danger/35 bg-white text-foose-danger hover:bg-foose-danger-bg focus-visible:outline-foose-danger'
-        : 'border-foose-border bg-white text-foose-text hover:border-accent hover:text-accent focus-visible:outline-accent'
+        ? 'border-foose-danger/35 bg-foose-surface text-foose-danger hover:bg-foose-danger-bg focus-visible:outline-foose-danger'
+        : 'border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent focus-visible:outline-accent'
 
     if (action === 'report') {
       return (
@@ -408,7 +408,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
 
       {order && (
         <div className="mx-auto max-w-3xl space-y-5 pb-28 sm:pb-10">
-          <header className="rounded-2xl border border-foose-border bg-white p-5 shadow-sm sm:p-6">
+          <header className="rounded-2xl border border-foose-border bg-foose-surface p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
@@ -471,7 +471,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             </InlineNotice>
           )}
 
-          <section className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-6">
+          <section className="rounded-2xl border border-foose-border bg-foose-surface p-4 shadow-sm sm:p-6">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="font-display text-lg font-semibold text-foose-text">Order contents</h2>
               <span className="text-xs font-bold text-foose-faint">{order.items.length} {order.items.length === 1 ? 'item' : 'items'}</span>
@@ -479,7 +479,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             <div className="divide-y divide-foose-border overflow-hidden rounded-xl border border-foose-border">
               {order.items.map((item, index) => (
                 <button
-                  className="flex min-w-0 w-full items-center gap-3 bg-white p-3 text-left transition hover:bg-accent-light/30 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent sm:p-4"
+                  className="flex min-w-0 w-full items-center gap-3 bg-foose-surface p-3 text-left transition hover:bg-accent-light/30 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent sm:p-4"
                   key={itemId(item, index)}
                   onClick={() => setSelectedItem(item)}
                   type="button"
@@ -506,7 +506,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             </dl>
           </section>
 
-          <section className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-6">
+          <section className="rounded-2xl border border-foose-border bg-foose-surface p-4 shadow-sm sm:p-6">
             <h2 className="mb-1 font-display text-lg font-semibold text-foose-text">{order.delivery?.method === 'shop_pickup' ? 'Pickup details' : 'Delivery details'}</h2>
             <dl className="divide-y divide-foose-border">
               <DetailRow label={sellerMode ? 'Buyer' : 'Seller'} value={sellerMode ? participantName(order.buyerId, 'Buyer') : shopName(order)} />
@@ -542,7 +542,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             {order.delivery?.method === 'shop_pickup' && !sellerMode && typeof order.shopId === 'object' && (
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 {order.shopId.slug && (
-                  <a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-black text-foose-text hover:border-accent hover:text-accent sm:flex-1" href={withBasePath(`/shops/${order.shopId.slug}`)}>
+                  <a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-black text-foose-text hover:border-accent hover:text-accent sm:flex-1" href={withBasePath(`/shops/${order.shopId.slug}`)}>
                     View seller shop
                   </a>
                 )}
@@ -556,7 +556,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
 
             {billAvailable && (
               <button
-                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-black text-accent transition hover:border-accent hover:bg-accent-light disabled:opacity-60 sm:w-auto"
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-black text-accent transition hover:border-accent hover:bg-accent-light disabled:opacity-60 sm:w-auto"
                 disabled={billLoading}
                 onClick={() => void openTransitBill()}
                 type="button"
@@ -566,13 +566,13 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             )}
           </section>
 
-          <section className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-6">
+          <section className="rounded-2xl border border-foose-border bg-foose-surface p-4 shadow-sm sm:p-6">
             <h2 className="mb-3 font-display text-lg font-semibold text-foose-text">Order timeline</h2>
             {eventsResource.error && <InlineNotice tone="warning">Live activity could not refresh. The saved order timestamps are shown instead.</InlineNotice>}
             <OrderTimeline events={visibleEvents} fallbackOrder={order} />
             {eventsCursor && (
               <button
-                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-60 sm:w-auto"
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:opacity-60 sm:w-auto"
                 disabled={eventsLoadingMore}
                 onClick={() => void loadMoreEvents()}
                 type="button"
@@ -585,7 +585,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
           {allowedActions.length > 0 && (
             <section
               aria-label="Available order actions"
-              className="fixed inset-x-0 bottom-0 z-30 border-t border-foose-border bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-2 sm:rounded-2xl sm:border sm:p-4 sm:shadow-sm"
+              className="fixed inset-x-0 bottom-0 z-30 border-t border-foose-border bg-foose-surface/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-2 sm:rounded-2xl sm:border sm:p-4 sm:shadow-sm"
             >
               <div className="mx-auto flex max-w-3xl flex-col-reverse gap-2 sm:mx-0 sm:flex-row sm:flex-wrap sm:justify-end">
                 {allowedActions.map((action, index) => actionButton(action, index === 0))}
@@ -619,7 +619,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
           dispatchReviewing ? (
             <>
               <button
-                className="rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text"
+                className="rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text"
                 disabled={actionId === 'dispatch'}
                 onClick={() => setDispatchReviewing(false)}
                 type="button"
@@ -640,7 +640,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
           ) : (
             <>
               <button
-                className="rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text"
+                className="rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text"
                 onClick={() => setDispatchOpen(false)}
                 type="button"
               >
@@ -674,7 +674,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
               <p className="mb-2 text-xs font-black uppercase tracking-wide text-foose-faint">Waybill preview</p>
               <SafeImage
                 alt={`Preview of ${billImage?.name || 'waybill'}`}
-                className="max-h-80 w-full rounded-xl bg-white object-contain"
+                className="max-h-80 w-full rounded-xl bg-foose-surface object-contain"
                 fallback="Preparing waybill preview…"
                 fallbackClassName="min-h-40 text-sm font-bold"
                 src={billPreviewUrl}

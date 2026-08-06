@@ -186,7 +186,7 @@ export function SavedPage() {
                     {authorName(post)}
                   </a>
                   <FinspoLikeButton
-                    className="floating-round inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent absolute right-2 top-2 z-10 bg-white/90 shadow favorite-button [&.is-active]:bg-accent [&.is-active]:text-white"
+                    className="floating-round inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-foose-ink transition hover:bg-accent-light hover:text-accent absolute right-2 top-2 z-10 bg-white/90 shadow favorite-button [&.is-active]:bg-accent [&.is-active]:text-white"
                     initialCount={post.likes?.length}
                     initialLiked
                     onChange={(liked) => {

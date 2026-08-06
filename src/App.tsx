@@ -33,6 +33,7 @@ import {
   OrderReportPage,
   OrderManagementPage,
   PromotionReturnPage,
+  PreferencesSettingsPage,
   ProfilePage,
   ProfileSettingsPage,
   RegisterPage,
@@ -41,6 +42,7 @@ import {
   RetailDetailPage,
   SavedPage,
   SearchPage,
+  SecuritySettingsPage,
   SellerOverviewPage,
   SellerListingsPage,
   SellerSoldListingsPage,
@@ -196,6 +198,20 @@ function App() {
       page = (
         <AuthRequired>
           <ProfileSettingsPage />
+        </AuthRequired>
+      )
+      break
+    case 'securitySettings':
+      page = (
+        <AuthRequired>
+          <SecuritySettingsPage />
+        </AuthRequired>
+      )
+      break
+    case 'preferencesSettings':
+      page = (
+        <AuthRequired>
+          <PreferencesSettingsPage />
         </AuthRequired>
       )
       break

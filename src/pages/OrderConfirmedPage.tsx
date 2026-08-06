@@ -132,8 +132,8 @@ export function OrderConfirmedPage() {
 
         {!!displayedOrders.length && (
           <div className="mx-auto w-full max-w-4xl">
-            <div className="overflow-hidden rounded-3xl border border-foose-border bg-white shadow-xl">
-              <div className="bg-gradient-to-br from-accent-light via-white to-foose-surface-low px-5 py-8 text-center sm:px-8 sm:py-10">
+            <div className="overflow-hidden rounded-3xl border border-foose-border bg-foose-surface shadow-xl">
+              <div className="bg-gradient-to-br from-accent-light via-foose-surface to-foose-surface-low px-5 py-8 text-center sm:px-8 sm:py-10">
                 <SuccessState
                   layout="compact"
                   message={cashPickup
@@ -153,7 +153,7 @@ export function OrderConfirmedPage() {
                   {displayedOrders.map((order) => {
                     const deadline = order.workflow?.deadline
                     return (
-                      <article className="rounded-2xl border border-foose-border bg-white p-4 shadow-sm sm:p-5" key={order._id}>
+                      <article className="rounded-2xl border border-foose-border bg-foose-surface p-4 shadow-sm sm:p-5" key={order._id}>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
                             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -178,7 +178,7 @@ export function OrderConfirmedPage() {
                           </div>
                         )}
                         <a
-                          className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-accent bg-white px-4 text-sm font-black text-accent transition hover:bg-accent-light sm:w-auto"
+                          className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-accent bg-foose-surface px-4 text-sm font-black text-accent transition hover:bg-accent-light sm:w-auto"
                           href={withBasePath(`/orders/${order._id}`)}
                         >
                           View this order <Icon name="arrow" size={16} />

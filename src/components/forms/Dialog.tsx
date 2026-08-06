@@ -104,7 +104,7 @@ export function Dialog({
         aria-describedby={description ? descriptionId : undefined}
         aria-labelledby={titleId}
         aria-modal="true"
-        className={`flex max-h-[min(92dvh,52rem)] min-w-0 w-full flex-col overflow-hidden rounded-t-2xl border border-foose-border bg-white shadow-2xl sm:max-h-[min(90dvh,52rem)] sm:rounded-3xl ${sizeClass} ${className}`}
+        className={`flex max-h-[min(92dvh,52rem)] min-w-0 w-full flex-col overflow-hidden rounded-t-2xl border border-foose-border bg-foose-surface shadow-2xl sm:max-h-[min(90dvh,52rem)] sm:rounded-3xl ${sizeClass} ${className}`}
         ref={panelRef}
         role="dialog"
         tabIndex={-1}
@@ -163,7 +163,7 @@ export function ConfirmDialog({
       footer={(
         <>
           <button
-            className="rounded-xl border border-foose-border bg-white px-5 py-2.5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+            className="rounded-xl border border-foose-border bg-foose-surface px-5 py-2.5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
             disabled={busy}
             onClick={onCancel}
             ref={cancelRef}
@@ -173,7 +173,7 @@ export function ConfirmDialog({
           </button>
           <button
             aria-busy={busy || undefined}
-            className={`inline-flex items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-black text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${tone === 'destructive' ? 'border-foose-danger bg-foose-danger hover:bg-red-800 focus-visible:outline-foose-danger' : 'border-accent bg-accent hover:bg-accent-hover focus-visible:outline-accent'}`}
+            className={`inline-flex items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-black text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${tone === 'destructive' ? 'border-foose-danger bg-foose-danger hover:brightness-95 focus-visible:outline-foose-danger' : 'border-accent bg-accent hover:bg-accent-hover focus-visible:outline-accent'}`}
             disabled={busy}
             onClick={onConfirm}
             ref={confirmRef}

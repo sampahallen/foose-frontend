@@ -24,3 +24,17 @@ class ResizeObserverMock implements ResizeObserver {
 vi.stubGlobal('IntersectionObserver', IntersectionObserverMock)
 vi.stubGlobal('ResizeObserver', ResizeObserverMock)
 Object.defineProperty(window, 'scrollTo', { configurable: true, value: vi.fn() })
+
+// jsdom does not implement matchMedia; individual tests can still override
+// this with their own vi.stubGlobal for a specific `matches` value. Kept as a
+// plain function (not vi.fn) so restoreMocks doesn't reset it between tests.
+vi.stubGlobal('matchMedia', (query: string) => ({
+  addEventListener: () => {},
+  addListener: () => {},
+  dispatchEvent: () => false,
+  matches: false,
+  media: query,
+  onchange: null,
+  removeEventListener: () => {},
+  removeListener: () => {},
+}))

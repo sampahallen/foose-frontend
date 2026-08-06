@@ -664,7 +664,7 @@ export function FinspoComments({ className = '', commentCount, focusCommentId = 
             <textarea
               aria-describedby={`finspo-comment-counter-${postId}`}
               aria-invalid={Boolean(mutationError && mutationContext !== 'like') || undefined}
-              className="min-h-24 w-full resize-none rounded-xl border border-foose-border bg-white px-4 py-3 text-sm text-foose-text outline-none transition placeholder:text-foose-faint focus:border-accent focus:ring-2 focus:ring-accent/15 aria-invalid:border-foose-danger aria-invalid:ring-2 aria-invalid:ring-foose-danger/15 md:min-h-12"
+              className="min-h-24 w-full resize-none rounded-xl border border-foose-border bg-foose-surface px-4 py-3 text-sm text-foose-text outline-none transition placeholder:text-foose-faint focus:border-accent focus:ring-2 focus:ring-accent/15 aria-invalid:border-foose-danger aria-invalid:ring-2 aria-invalid:ring-foose-danger/15 md:min-h-12"
               id={`finspo-comment-input-${postId}`}
               maxLength={1000}
               onChange={(event) => setBody(event.target.value)}

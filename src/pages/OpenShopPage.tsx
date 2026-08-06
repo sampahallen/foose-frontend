@@ -187,8 +187,8 @@ export function OpenShopPage() {
             <InlineNotice
               action={(
                 <div className="flex gap-2">
-                  <button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-white" onClick={() => draft.resumeDraft()} type="button">Resume</button>
-                  <button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-white" onClick={() => draft.discardDraft()} type="button">Discard</button>
+                  <button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-accent-light" onClick={() => draft.resumeDraft()} type="button">Resume</button>
+                  <button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-foose-surface-low" onClick={() => draft.discardDraft()} type="button">Discard</button>
                 </div>
               )}
               title="Continue setting up your shop?"
@@ -306,7 +306,7 @@ export function OpenShopPage() {
             {error && <InlineNotice title="DigiShop was not created" tone="error">{error}</InlineNotice>}
             <FormActions sticky>
               {step === 0 ? <ButtonLink to="/" variant="secondary">Cancel</ButtonLink> : (
-                <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={() => setStep((current) => Math.max(0, current - 1))} type="button">Back</button>
+                <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={() => setStep((current) => Math.max(0, current - 1))} type="button">Back</button>
               )}
               {step < 3 ? (
                 <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-black text-white shadow-md shadow-accent/15 hover:bg-accent-hover" onClick={continueSetup} type="button">Continue <Icon name="arrow" /></button>

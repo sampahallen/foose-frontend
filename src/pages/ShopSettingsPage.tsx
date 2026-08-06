@@ -137,7 +137,7 @@ function ShopSettingsForm({
     return (
       <button
         aria-label={editing ? `Save ${label} changes` : `Edit ${label}`}
-        className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition disabled:cursor-wait disabled:opacity-60 ${editing ? 'bg-accent text-white hover:bg-accent-hover' : 'text-accent hover:bg-white'}`}
+        className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition disabled:cursor-wait disabled:opacity-60 ${editing ? 'bg-accent text-white hover:bg-accent-hover' : 'text-accent hover:bg-accent-light'}`}
         disabled={Boolean(savingSection)}
         onClick={() => { if (!editing) unlockFields(fields) }}
         type={editing ? 'submit' : 'button'}
@@ -286,7 +286,7 @@ function ShopSettingsForm({
           <h2 className="text-xl font-black text-foose-text">Brand assets</h2>
         </header>
         <div className="space-y-4 p-3 sm:p-4">
-          <article className="overflow-hidden rounded-2xl border border-foose-border bg-white shadow-sm" data-testid="shop-brand-preview">
+          <article className="overflow-hidden rounded-2xl border border-foose-border bg-foose-surface shadow-sm" data-testid="shop-brand-preview">
             <div className="relative aspect-[5/2] overflow-hidden bg-foose-surface-mid">
               <SafeImage
                 alt={`${shop.shopName} banner preview`}

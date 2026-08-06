@@ -160,7 +160,7 @@ function ProfileCardMenu({ items, label }: { items: ProfileCardMenuItem[]; label
 
   return (
     <div className="absolute right-2 top-2 z-30" ref={menuRef}>
-      <button aria-expanded={open} aria-haspopup="menu" aria-label={`${open ? 'Close' : 'Open'} options for ${label}`} className="inline-flex size-9 items-center justify-center rounded-full border border-white/70 bg-white/95 text-foose-text shadow-md transition hover:bg-white hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={() => setOpen((current) => !current)} type="button">
+      <button aria-expanded={open} aria-haspopup="menu" aria-label={`${open ? 'Close' : 'Open'} options for ${label}`} className="inline-flex size-9 items-center justify-center rounded-full border border-white/70 bg-white/95 text-foose-ink shadow-md transition hover:bg-white hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={() => setOpen((current) => !current)} type="button">
         <IoEllipsisVertical size={19} />
       </button>
       {open && (
@@ -391,7 +391,7 @@ function FinspoProfilePanel({ isOwnProfile, username, viewerId }: { isOwnProfile
                 label={post.caption || 'Finspo post'}
               />
             ) : (
-              <FinspoLikeButton className="absolute right-2 top-2 z-10 inline-flex size-9 items-center justify-center rounded-full bg-white/90 text-foose-text shadow transition hover:bg-accent hover:text-white [&.is-active]:bg-accent [&.is-active]:text-white" initialCount={post.likes?.length} initialLiked={viewerId ? post.likes?.some((id) => String(id) === viewerId) : undefined} targetId={post._id} />
+              <FinspoLikeButton className="absolute right-2 top-2 z-10 inline-flex size-9 items-center justify-center rounded-full bg-white/90 text-foose-ink shadow transition hover:bg-accent hover:text-white [&.is-active]:bg-accent [&.is-active]:text-white" initialCount={post.likes?.length} initialLiked={viewerId ? post.likes?.some((id) => String(id) === viewerId) : undefined} targetId={post._id} />
             )}
             <FinspoCaption caption={post.caption} />
           </article>

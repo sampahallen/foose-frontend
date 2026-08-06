@@ -35,7 +35,7 @@ function ConfirmModal({
       footer={(
         <>
           <button
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-60"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-60"
             disabled={busy}
             onClick={onClose}
             type="button"
@@ -128,7 +128,7 @@ export function AccountSettingsPage() {
 
         {error && <InlineNotice className="mb-5" title="Account action failed" tone="error">{error}</InlineNotice>}
 
-        <section className="rounded-2xl border border-foose-danger/25 bg-white p-4 shadow-sm sm:p-6 md:p-8">
+        <section className="rounded-2xl border border-foose-danger/25 bg-foose-surface p-4 shadow-sm sm:p-6 md:p-8">
           <div className="flex flex-col gap-2 border-b border-foose-border pb-5">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-foose-danger">Account actions</span>
             <h2 className="font-display text-2xl font-bold text-foose-text">Deactivate or delete account</h2>
@@ -140,7 +140,7 @@ export function AccountSettingsPage() {
               <h3 className="text-base font-bold text-foose-text">Deactivate account</h3>
               <p className="mt-2 text-sm leading-6 text-foose-muted">Hide your account for now. You can come back later.</p>
               <button
-                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text transition hover:border-foose-danger hover:text-foose-danger disabled:pointer-events-none disabled:bg-foose-surface-mid disabled:text-foose-faint"
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text transition hover:border-foose-danger hover:text-foose-danger disabled:pointer-events-none disabled:bg-foose-surface-mid disabled:text-foose-faint"
                 disabled={busyAction !== null}
                 onClick={() => openModal('deactivate')}
                 type="button"

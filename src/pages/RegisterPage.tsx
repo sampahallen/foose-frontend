@@ -193,10 +193,10 @@ export function RegisterPage() {
           >
             <img alt="Foose" className="h-auto w-32" src={blueLogo} />
             <div className="grid gap-3 sm:grid-cols-2">
-              <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={() => startOAuth('google', redirectTarget)} type="button">
+              <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={() => startOAuth('google', redirectTarget)} type="button">
                 <FcGoogle size={20} /> Sign up with Gmail
               </button>
-              <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={() => startOAuth('apple', redirectTarget)} type="button">
+              <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={() => startOAuth('apple', redirectTarget)} type="button">
                 <FaApple size={20} /> Sign up with iCloud
               </button>
             </div>

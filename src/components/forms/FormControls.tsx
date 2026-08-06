@@ -51,7 +51,7 @@ export function ChoiceCardGroup<Value extends string = string>({
           const active = selected === option.value
           return (
             <label
-              className={`group relative flex min-h-16 min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border p-3 outline-none transition focus-within:ring-2 focus-within:ring-accent/20 sm:min-h-20 sm:gap-3 sm:p-4 ${active ? 'border-accent bg-accent-light/55 shadow-sm' : 'border-foose-border bg-white hover:border-accent/60 hover:bg-accent-light/20'} ${(disabled || option.disabled) ? 'cursor-not-allowed opacity-55' : ''}`}
+              className={`group relative flex min-h-16 min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border p-3 outline-none transition focus-within:ring-2 focus-within:ring-accent/20 sm:min-h-20 sm:gap-3 sm:p-4 ${active ? 'border-accent bg-accent-light/55 shadow-sm' : 'border-foose-border bg-foose-surface hover:border-accent/60 hover:bg-accent-light/20'} ${(disabled || option.disabled) ? 'cursor-not-allowed opacity-55' : ''}`}
               htmlFor={optionId}
               key={option.value}
             >
@@ -71,7 +71,7 @@ export function ChoiceCardGroup<Value extends string = string>({
                 type="radio"
                 value={option.value}
               />
-              {option.visual && <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-lg bg-white text-accent sm:size-9">{option.visual}</span>}
+              {option.visual && <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-lg bg-foose-surface text-accent sm:size-9">{option.visual}</span>}
               <span className="min-w-0">
                 <span className="block text-sm font-bold text-foose-text" id={`${optionId}-label`}>{option.label}</span>
                 {option.description && <span className="mt-1 block text-sm leading-5 text-foose-muted" id={`${optionId}-description`}>{option.description}</span>}

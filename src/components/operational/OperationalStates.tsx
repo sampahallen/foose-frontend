@@ -130,7 +130,7 @@ export function ShopSettingsSkeleton({ label = 'Loading shop settings' }: { labe
           </section>
         </aside>
       </div>
-      <div className="sticky bottom-[var(--foose-bottom-nav-inset)] z-20 -mx-3 mt-5 border-t border-foose-border bg-white/95 px-3 py-3 backdrop-blur md:-mx-6 md:px-6 lg:static lg:mx-0 lg:bg-transparent lg:px-0">
+      <div className="sticky bottom-[var(--foose-bottom-nav-inset)] z-20 -mx-3 mt-5 border-t border-foose-border bg-foose-surface/95 px-3 py-3 backdrop-blur md:-mx-6 md:px-6 lg:static lg:mx-0 lg:bg-transparent lg:px-0">
         <SkeletonBlock className="h-12 w-full rounded-xl sm:ml-auto sm:w-40" />
       </div>
     </LoadingRegion>

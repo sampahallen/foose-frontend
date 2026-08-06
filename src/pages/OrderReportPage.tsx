@@ -212,7 +212,7 @@ function OrderReportContent({ orderId }: { orderId: string }) {
               : 'Automatic settlement is paused. The buyer’s report and evidence are read-only while Foose reviews the order.'}
             title={viewerIsBuyer ? 'Funds frozen — awaiting review' : 'Buyer report — funds frozen'}
           />
-          <div className="mt-5 rounded-2xl border border-foose-border bg-white p-5 shadow-sm">
+          <div className="mt-5 rounded-2xl border border-foose-border bg-foose-surface p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <OrderStatusBadge order={order} />
               <span className="text-xs font-black uppercase tracking-wide text-foose-faint">Order #{order._id.slice(-8).toUpperCase()}</span>
@@ -223,7 +223,7 @@ function OrderReportContent({ orderId }: { orderId: string }) {
             </p>
           </div>
           {activeReport && (
-            <section className="mt-5 rounded-2xl border border-foose-border bg-white p-5 shadow-sm" aria-labelledby="submitted-report-title">
+            <section className="mt-5 rounded-2xl border border-foose-border bg-foose-surface p-5 shadow-sm" aria-labelledby="submitted-report-title">
               <div className="flex flex-col gap-2 border-b border-foose-border pb-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">Submitted report</p>
@@ -265,7 +265,7 @@ function OrderReportContent({ orderId }: { orderId: string }) {
                         : asset.originalName || asset.name || `Evidence ${index + 1}`
                       return (
                         <button
-                          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-black text-accent transition hover:border-accent hover:bg-accent-light disabled:opacity-60"
+                          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-black text-accent transition hover:border-accent hover:bg-accent-light disabled:opacity-60"
                           disabled={evidenceBusyIndex !== null}
                           key={`${name}-${index}`}
                           onClick={() => void openEvidence(index)}
@@ -347,7 +347,7 @@ function OrderReportContent({ orderId }: { orderId: string }) {
                     {order.items.map((item, index) => {
                       const id = itemId(item, index)
                       return (
-                        <label className="flex cursor-pointer items-center gap-3 bg-white p-3 transition hover:bg-accent-light/25 sm:p-4" key={id}>
+                        <label className="flex cursor-pointer items-center gap-3 bg-foose-surface p-3 transition hover:bg-accent-light/25 sm:p-4" key={id}>
                           <input
                             checked={affectedItemIds.includes(id)}
                             className="size-5 shrink-0 accent-accent"
@@ -446,7 +446,7 @@ function OrderReportContent({ orderId }: { orderId: string }) {
                   <div><dt className="text-xs font-black uppercase tracking-wide text-foose-faint">Evidence</dt><dd className="mt-1 font-black text-foose-text">{evidence.length ? `${evidence.length} image${evidence.length === 1 ? '' : 's'}` : 'No images'}</dd></div>
                   <div className="sm:col-span-2"><dt className="text-xs font-black uppercase tracking-wide text-foose-faint">Your account</dt><dd className="mt-1 whitespace-pre-wrap font-semibold leading-6 text-foose-text">{detailedAccount}</dd></div>
                 </dl>
-                <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${attempted && !declarationAccepted ? 'border-foose-danger bg-foose-danger-bg/20' : 'border-foose-border bg-white'}`}>
+                <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${attempted && !declarationAccepted ? 'border-foose-danger bg-foose-danger-bg/20' : 'border-foose-border bg-foose-surface'}`}>
                   <input
                     checked={declarationAccepted}
                     className="mt-0.5 size-5 shrink-0 accent-accent"
@@ -464,7 +464,7 @@ function OrderReportContent({ orderId }: { orderId: string }) {
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
               {step > 0 ? (
                 <button
-                  className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent"
+                  className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent"
                   disabled={submitting}
                   onClick={() => goToStep(step - 1)}
                   type="button"

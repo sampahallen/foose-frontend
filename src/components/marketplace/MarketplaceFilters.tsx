@@ -25,7 +25,7 @@ type FilterOption = { label: string; value: string }
 type DrawerState = 'closed' | 'closing' | 'open' | 'opening'
 
 const transitionMs = 300
-const controlClass = 'h-11 w-full rounded-xl border border-foose-border bg-white px-3 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
+const controlClass = 'h-11 w-full rounded-xl border border-foose-border bg-foose-surface px-3 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
 function availableLocations(options: FilterOption[], selected: string) {
   const defaults = GHANA_REGION_OPTIONS
   if (!selected || defaults.some((option) => option.value === selected)) return defaults
@@ -300,7 +300,7 @@ export function MarketplaceFilters({
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="sr-only" id={`${drawerId}-title`}>Marketplace filters</h2>
               <span className="font-display text-xl font-semibold">Marketplace</span>
-              <button aria-label="Close filters" className="inline-flex size-11 items-center justify-center rounded-full border border-foose-border bg-white text-xl" onClick={closeDrawer} ref={closeButtonRef} type="button">×</button>
+              <button aria-label="Close filters" className="inline-flex size-11 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-xl" onClick={closeDrawer} ref={closeButtonRef} type="button">×</button>
             </div>
             {renderForm('mobile', 'flex w-full flex-col gap-4')}
           </aside>

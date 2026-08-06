@@ -15,7 +15,7 @@ function digishopsPath(page: number) {
 
 function ShopCard({ shop }: { shop: Shop }) {
   return (
-    <article className="overflow-hidden rounded-2xl border border-foose-border bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-accent">
+    <article className="overflow-hidden rounded-2xl border border-foose-border bg-foose-surface shadow-sm transition hover:-translate-y-0.5 hover:border-accent">
       <a className="block" href={withBasePath(`/shops/${shop.slug}`)}>
         <div className="h-28 bg-foose-surface-mid [&_img]:h-full [&_img]:w-full [&_img]:object-cover">
           <DiscoveryImage fallback="DigiShop" fallbackClassName="h-full w-full" src={shop.bannerUrl} />

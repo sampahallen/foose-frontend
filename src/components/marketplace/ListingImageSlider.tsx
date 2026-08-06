@@ -115,7 +115,7 @@ export function ListingImageSlider({
             {activeIndex > 0 && (
               <button
                 aria-label="Previous listing image"
-                className="absolute left-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/95 text-foose-text shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:inline-flex"
+                className="absolute left-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/95 text-foose-ink shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:inline-flex"
                 onClick={() => selectImage(activeIndex - 1)}
                 type="button"
               >
@@ -125,7 +125,7 @@ export function ListingImageSlider({
             {activeIndex < sources.length - 1 && (
               <button
                 aria-label="Next listing image"
-                className="absolute right-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/95 text-foose-text shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:inline-flex"
+                className="absolute right-3 top-1/2 z-20 hidden size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/95 text-foose-ink shadow-lg transition hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:inline-flex"
                 onClick={() => selectImage(activeIndex + 1)}
                 type="button"
               >

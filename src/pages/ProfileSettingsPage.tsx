@@ -113,7 +113,7 @@ export function ProfileSettingsPage() {
     <AppShell active="profile" searchPlaceholder="Search Foose...">
       <FormPage
         aside={(
-          <nav aria-label="Profile settings sections" className="hidden rounded-2xl border border-foose-border bg-white p-3 shadow-sm lg:grid">
+          <nav aria-label="Profile settings sections" className="hidden rounded-2xl border border-foose-border bg-foose-surface p-3 shadow-sm lg:grid">
             <a className="min-h-11 rounded-xl px-3 py-3 text-sm font-bold text-foose-text transition hover:bg-accent-light hover:text-accent" href="#profile-public-identity">Public identity</a>
             <a className="min-h-11 rounded-xl px-3 py-3 text-sm font-bold text-foose-text transition hover:bg-accent-light hover:text-accent" href="#profile-about">About you</a>
             <a className="min-h-11 rounded-xl px-3 py-3 text-sm font-bold text-foose-text transition hover:bg-accent-light hover:text-accent" href="#profile-save">Save changes</a>
@@ -243,7 +243,7 @@ export function ProfileSettingsPage() {
 
           <div id="profile-save">
           <FormActions sticky>
-            <a className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-white px-5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" href={withBasePath('/profile')}>Cancel</a>
+            <a className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" href={withBasePath('/profile')}>Cancel</a>
             <SubmitButton loading={submitting} loadingLabel="Saving profile…">Save profile</SubmitButton>
           </FormActions>
           </div>

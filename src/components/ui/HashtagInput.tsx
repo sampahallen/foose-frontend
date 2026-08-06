@@ -283,7 +283,7 @@ function HashtagInputState({
 
       {suggestionsOpen && query && !atLimit && (
         <div
-          className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-40 max-h-72 overflow-y-auto rounded-xl border border-foose-border bg-white p-1.5 shadow-2xl"
+          className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-40 max-h-72 overflow-y-auto rounded-xl border border-foose-border bg-foose-surface p-1.5 shadow-2xl"
           id={listboxId}
           role="listbox"
         >

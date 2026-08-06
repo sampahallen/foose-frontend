@@ -96,7 +96,7 @@ function SellerSoldListingsPageBody() {
         {listings.data && total === 0 && !hasActiveFilters && <StatePanel body="Sold listings will appear here after checkout." layout="section" title="No sold items yet" tone="empty" visual={<IoReceiptOutline size={26} />} />}
         {listings.data && total === 0 && hasActiveFilters && (
           <StatePanel
-            action={<button className="inline-flex min-h-11 items-center justify-center rounded-lg border border-foose-border bg-white px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={clearFilters} type="button">Clear filters</button>}
+            action={<button className="inline-flex min-h-11 items-center justify-center rounded-lg border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={clearFilters} type="button">Clear filters</button>}
             body="Try a broader search, another listing type, or a wider date range."
             layout="section"
             title="No sold items match"
@@ -134,13 +134,13 @@ function SellerSoldListingsPageBody() {
               Page {listings.data.page} of {listings.data.pages} · {total} sold items
             </span>
             <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex sm:w-auto">
-              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-white px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">
+              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-foose-surface px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">
                 Previous
               </button>
               <span className="font-bold text-foose-text">
                 {listings.data.page} / {listings.data.pages}
               </span>
-              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-white px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page >= listings.data.pages} onClick={() => setPage((value) => value + 1)} type="button">
+              <button className="min-h-11 min-w-11 rounded-lg border border-foose-border bg-foose-surface px-3 py-2 font-bold text-foose-text disabled:opacity-50" disabled={page >= listings.data.pages} onClick={() => setPage((value) => value + 1)} type="button">
                 Next
               </button>
             </div>

@@ -190,7 +190,7 @@ function ListingContextBand({ listing, onDismiss }: { listing?: Listing | string
       {onDismiss && (
         <button
           aria-label="Remove item from this message"
-          className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full border border-foose-border bg-white text-foose-muted transition hover:border-accent hover:text-accent"
+          className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-foose-muted transition hover:border-accent hover:text-accent"
           onClick={onDismiss}
           type="button"
         >
@@ -209,7 +209,7 @@ function ReplyContextBand({ message, onDismiss }: { message: InboxChatMessage; o
       <p className="line-clamp-2 text-foose-text">{text}</p>
       <button
         aria-label="Cancel reply"
-        className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full border border-foose-border bg-white text-foose-muted transition hover:border-accent hover:text-accent"
+        className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-foose-muted transition hover:border-accent hover:text-accent"
         onClick={onDismiss}
         type="button"
       >
@@ -771,7 +771,7 @@ export function InboxPage() {
                   <p className="line-clamp-2 text-sm leading-5 text-foose-muted">{notification.body || 'System update'}</p>
                   {notification.createdAt && <time className="mt-1 block text-xs text-foose-faint">{conversationTimestamp(notification.createdAt)}</time>}
                 </span>
-                {!notification.isRead && <span aria-label="Unread" className="size-2.5 rounded-full bg-red-500" />}
+                {!notification.isRead && <span aria-label="Unread" className="size-2.5 rounded-full bg-foose-danger" />}
               </button>
             ))}
           </section>
@@ -847,7 +847,7 @@ export function InboxPage() {
           {newReactionMessageId && (
             <button
               aria-label="Jump up to the new reaction"
-              className="message-new-reaction absolute left-1/2 top-3 z-30 inline-flex min-h-9 -translate-x-1/2 items-center gap-2 rounded-full border border-accent/20 bg-white px-4 text-xs font-black text-accent shadow-lg transition hover:-translate-y-0.5 hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:hover:translate-y-0"
+              className="message-new-reaction absolute left-1/2 top-3 z-30 inline-flex min-h-9 -translate-x-1/2 items-center gap-2 rounded-full border border-accent/20 bg-foose-surface px-4 text-xs font-black text-accent shadow-lg transition hover:-translate-y-0.5 hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:hover:translate-y-0"
               onClick={jumpToNewReaction}
               type="button"
             >
@@ -861,7 +861,7 @@ export function InboxPage() {
           <ListingContextBand listing={activeComposerListing} onDismiss={() => setDismissedListingId(params.listingId)} />
           <form aria-busy={sending} className={`message-composer sticky bottom-0 flex shrink-0 items-end gap-2 border-t border-foose-border bg-foose-surface/95 p-3 shadow-[0_-8px_24px_rgba(26,27,37,0.04)] backdrop-blur max-md:gap-1.5 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&_input]:h-12 [&_input]:w-full [&_input]:px-4 ${canCompose ? 'single-line' : ''} `} onSubmit={(event) => void sendMessage(event)}>
             {!params.conversationId && !params.receiverId && <input aria-label="Receiver user ID" name="receiverId" placeholder="Receiver user ID" />}
-            <div className="composer-main min-w-0 flex-1 [&_input]:h-12 [&_input]:w-full [&_input]:rounded-full [&_input]:border [&_input]:border-foose-border [&_input]:bg-foose-surface-low [&_input]:px-4 [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:bg-white">
+            <div className="composer-main min-w-0 flex-1 [&_input]:h-12 [&_input]:w-full [&_input]:rounded-full [&_input]:border [&_input]:border-foose-border [&_input]:bg-foose-surface-low [&_input]:px-4 [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:bg-foose-surface">
               <input aria-label="Write message" autoComplete="off" name="content" placeholder={activeComposerListing ? 'Ask a question about this product...' : 'Message'} readOnly={sending} ref={messageInputRef} />
               {!!selectedAttachments.length && (
                 <div className="composer-media-previews flex flex-wrap gap-2">
@@ -918,7 +918,7 @@ export function InboxPage() {
           description={selectedNotification?.body || 'System update'}
           footer={selectedNotification ? (
             <>
-              <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" onClick={() => setSelectedNotification(null)} type="button">
+              <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" onClick={() => setSelectedNotification(null)} type="button">
                 Close
               </button>
               {selectedNotification.link && (

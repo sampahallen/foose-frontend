@@ -94,7 +94,7 @@ export function VerifyEmailPage() {
   return (
     <AppShell flush>
       <section className="fixed inset-0 z-100 flex items-center justify-center bg-black/45 p-4">
-        <div className="w-full max-w-md rounded-2xl border border-accent/20 bg-white p-6 shadow-2xl shadow-black/20 sm:p-8">
+        <div className="w-full max-w-md rounded-2xl border border-accent/20 bg-foose-surface p-6 shadow-2xl shadow-black/20 sm:p-8">
           {state === 'processing' && (
             <LoadingRegion className="grid gap-4" label="Verifying your email" layout="immersive">
               <SkeletonBlock className="mx-auto size-14 rounded-full" />

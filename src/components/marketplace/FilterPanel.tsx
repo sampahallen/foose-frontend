@@ -10,11 +10,11 @@ import { ListingCategoryPicker } from './ListingCategoryPicker'
 import { PriceRangeFilter } from './PriceRangeFilter'
 
 const dropdownControl =
-  'h-12 w-full rounded-xl border border-foose-border bg-white px-3 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
+  'h-12 w-full rounded-xl border border-foose-border bg-foose-surface px-3 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
 const topFilterControl =
-  'inline-flex h-11 min-w-0 items-center justify-between gap-2 rounded-full border-0 bg-white px-3 text-xs font-bold text-foose-text outline-none ring-1 ring-foose-border transition hover:ring-accent focus:ring-2 focus:ring-accent/25'
+  'inline-flex h-11 min-w-0 items-center justify-between gap-2 rounded-full border-0 bg-foose-surface px-3 text-xs font-bold text-foose-text outline-none ring-1 ring-foose-border transition hover:ring-accent focus:ring-2 focus:ring-accent/25'
 const topInputControl =
-  'h-11 min-w-0 rounded-full border-0 bg-white px-3 text-xs font-bold text-foose-text outline-none ring-1 ring-foose-border transition hover:ring-accent focus:ring-2 focus:ring-accent/25'
+  'h-11 min-w-0 rounded-full border-0 bg-foose-surface px-3 text-xs font-bold text-foose-text outline-none ring-1 ring-foose-border transition hover:ring-accent focus:ring-2 focus:ring-accent/25'
 
 type TopFilterOption = {
   label: string
@@ -109,14 +109,14 @@ function TopFilterDropdown({
         <DropdownChevron className="shrink-0 text-xs text-accent" open={isOpen} />
       </button>
       {isOpen && (
-        <div className="absolute left-0 top-11 z-[120] max-h-80 w-full overflow-y-auto rounded-xl border border-foose-border bg-white p-1 shadow-2xl [scrollbar-width:thin] lg:w-56">
+        <div className="absolute left-0 top-11 z-[120] max-h-80 w-full overflow-y-auto rounded-xl border border-foose-border bg-foose-surface p-1 shadow-2xl [scrollbar-width:thin] lg:w-56">
           <a
             className={`flex min-h-10 items-center justify-between gap-3 rounded-lg px-3 text-sm font-semibold text-foose-text transition hover:bg-accent-light ${!selectedValue ? 'bg-accent-light text-accent' : ''}`}
             href={filterHref(actionPath, query, name, '')}
             onClick={closeDropdown}
           >
             <span>{placeholder}</span>
-            <span className={`size-4 rounded border ${!selectedValue ? 'border-accent bg-accent' : 'border-foose-border bg-white'}`} />
+            <span className={`size-4 rounded border ${!selectedValue ? 'border-accent bg-accent' : 'border-foose-border bg-foose-surface'}`} />
           </a>
           {options.map((option) => {
             const active = option.value === selectedValue
@@ -133,7 +133,7 @@ function TopFilterDropdown({
                   )}
                   <span className="truncate">{option.label}</span>
                 </span>
-                <span className={`size-4 rounded border ${active ? 'border-accent bg-accent' : 'border-foose-border bg-white'}`} />
+                <span className={`size-4 rounded border ${active ? 'border-accent bg-accent' : 'border-foose-border bg-foose-surface'}`} />
               </a>
             )
           })}
@@ -323,7 +323,7 @@ export function TopFilterBar({
         query.get(name) && !(hideLocation && name === 'location') ? <input key={name} name={name} type="hidden" value={query.get(name) || ''} /> : null
       ))}
       {showResultLabel && (
-        <span className={resultLabelVariant === 'plain' ? 'shrink-0 px-1 text-sm font-black text-foose-text' : 'shrink-0 rounded-full bg-white px-3 py-2 text-xs font-black text-accent ring-1 ring-accent/20'}>{resultLabel}</span>
+        <span className={resultLabelVariant === 'plain' ? 'shrink-0 px-1 text-sm font-black text-foose-text' : 'shrink-0 rounded-full bg-foose-surface px-3 py-2 text-xs font-black text-accent ring-1 ring-accent/20'}>{resultLabel}</span>
       )}
       {!hideType && (
         <>
@@ -371,7 +371,7 @@ export function TopFilterBar({
       )}
       <label htmlFor={`${idPrefix}-filter-sort`}>Sort</label>
       <TopFilterDropdown actionPath={actionPath} className="w-[116px]" name="sort" options={sortOptions} placeholder="Sort" query={query} value={query.get('sort') || (relevanceSort ? 'relevance' : 'newest')} />
-      <a className="ml-auto inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-white px-3 text-xs font-black text-accent ring-1 ring-accent/20 transition hover:bg-accent hover:text-white" href={withBasePath(actionPath)}>
+      <a className="ml-auto inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-foose-surface px-3 text-xs font-black text-accent ring-1 ring-accent/20 transition hover:bg-accent hover:text-white" href={withBasePath(actionPath)}>
         Clear
       </a>
       </>
@@ -424,7 +424,7 @@ export function TopFilterBar({
           >
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-lg font-black text-foose-text" id={`${drawerId}-title`}>Filters</h2>
-              <button aria-label="Close filters" className="inline-flex size-11 items-center justify-center rounded-full border border-foose-border bg-white text-foose-text" onClick={closeDrawer} ref={drawerCloseButtonRef} type="button">
+              <button aria-label="Close filters" className="inline-flex size-11 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-foose-text" onClick={closeDrawer} ref={drawerCloseButtonRef} type="button">
                 ×
               </button>
             </div>
@@ -458,7 +458,7 @@ export function FilterPanel({
   const availableLocationOptions = locationFilterOptions(locationOptions, selectedLocation)
 
   return (
-    <form action={withBasePath(actionPath)} className="filter-panel sticky top-44 flex max-h-[calc(100dvh-12rem)] flex-col gap-4 overflow-y-auto rounded-2xl border border-foose-border/80 bg-foose-surface p-4 shadow-sm [scrollbar-width:thin] [&_h2]:font-display [&_h2]:text-xl [&_fieldset]:grid [&_fieldset]:gap-2 [&_fieldset]:border-0 [&_fieldset]:p-0 [&_legend]:mb-1 [&_legend]:text-sm [&_legend]:font-semibold [&_legend]:text-foose-text [&_label]:flex [&_label]:min-h-11 [&_label]:items-center [&_label]:gap-3 [&_label]:rounded-xl [&_label]:px-2 [&_label]:py-2 [&_label]:text-sm [&_label]:text-foose-muted [&_label]:transition [&_label]:hover:bg-foose-surface-low [&_input:not([type='radio'])]:h-12 [&_input:not([type='radio'])]:w-full [&_input:not([type='radio'])]:rounded-xl [&_input:not([type='radio'])]:border [&_input:not([type='radio'])]:border-foose-border [&_input:not([type='radio'])]:bg-white [&_input:not([type='radio'])]:px-3 [&_input:not([type='radio'])]:outline-none [&_input:not([type='radio'])]:focus:border-accent [&_input:not([type='radio'])]:focus:ring-2 [&_input:not([type='radio'])]:focus:ring-accent/15 [&_input[type='radio']]:size-4 [&_input[type='radio']]:accent-accent [&_input[type='range']]:w-full [&_input[type='range']]:accent-accent [&_.button]:w-full" method="get">
+    <form action={withBasePath(actionPath)} className="filter-panel sticky top-44 flex max-h-[calc(100dvh-12rem)] flex-col gap-4 overflow-y-auto rounded-2xl border border-foose-border/80 bg-foose-surface p-4 shadow-sm [scrollbar-width:thin] [&_h2]:font-display [&_h2]:text-xl [&_fieldset]:grid [&_fieldset]:gap-2 [&_fieldset]:border-0 [&_fieldset]:p-0 [&_legend]:mb-1 [&_legend]:text-sm [&_legend]:font-semibold [&_legend]:text-foose-text [&_label]:flex [&_label]:min-h-11 [&_label]:items-center [&_label]:gap-3 [&_label]:rounded-xl [&_label]:px-2 [&_label]:py-2 [&_label]:text-sm [&_label]:text-foose-muted [&_label]:transition [&_label]:hover:bg-foose-surface-low [&_input:not([type='radio'])]:h-12 [&_input:not([type='radio'])]:w-full [&_input:not([type='radio'])]:rounded-xl [&_input:not([type='radio'])]:border [&_input:not([type='radio'])]:border-foose-border [&_input:not([type='radio'])]:bg-foose-surface [&_input:not([type='radio'])]:px-3 [&_input:not([type='radio'])]:outline-none [&_input:not([type='radio'])]:focus:border-accent [&_input:not([type='radio'])]:focus:ring-2 [&_input:not([type='radio'])]:focus:ring-accent/15 [&_input[type='radio']]:size-4 [&_input[type='radio']]:accent-accent [&_input[type='range']]:w-full [&_input[type='range']]:accent-accent [&_.button]:w-full" method="get">
       <h2>Filters</h2>
       <fieldset>
         <legend>Listing type</legend>
@@ -535,7 +535,7 @@ export function FilterPanel({
             <DropdownChevron className="text-sm text-accent group-open:hidden" />
             <DropdownChevron className="hidden text-sm text-accent group-open:block" open />
           </summary>
-          <div className="absolute left-0 right-0 top-12 z-20 max-h-72 overflow-y-auto rounded-xl border border-foose-border bg-white p-1 shadow-xl [scrollbar-width:thin]">
+          <div className="absolute left-0 right-0 top-12 z-20 max-h-72 overflow-y-auto rounded-xl border border-foose-border bg-foose-surface p-1 shadow-xl [scrollbar-width:thin]">
             <label className="justify-between rounded-lg px-3 py-2 hover:bg-accent-light">
               <span className="font-semibold text-foose-text">All colors</span>
               <input defaultChecked={!query.get('color')} name="color" type="radio" value="" />

@@ -13,7 +13,7 @@ const DEFAULT_DURATION: Record<ToastTone, number> = {
 
 const toneClasses: Record<ToastTone, string> = {
   error: 'border-foose-danger/25 bg-foose-danger-bg text-foose-danger',
-  info: 'border-accent/20 bg-white text-accent',
+  info: 'border-accent/20 bg-accent-light text-accent',
   success: 'border-foose-success/25 bg-foose-success-bg text-foose-success',
   warning: 'border-foose-warning/25 bg-foose-warning-bg text-foose-warning',
 }
@@ -81,7 +81,7 @@ function ToastCard({ onDismiss, toast }: { onDismiss: (id: string) => void; toas
       </div>
       <button
         aria-label="Dismiss notification"
-        className="-mr-1 grid size-9 shrink-0 place-items-center rounded-full text-foose-muted transition hover:bg-black/5 hover:text-foose-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="-mr-1 grid size-9 shrink-0 place-items-center rounded-full text-foose-muted transition hover:bg-foose-text/10 hover:text-foose-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         onClick={() => onDismiss(toast.id)}
         type="button"
       >

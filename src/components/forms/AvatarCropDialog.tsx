@@ -307,7 +307,7 @@ export function AvatarCropDialog({
   const footer = (
     <>
       <button
-        className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-white px-5 py-2.5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 py-2.5 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
         disabled={applying}
         onClick={cancel}
         type="button"
@@ -357,7 +357,7 @@ export function AvatarCropDialog({
             <p className="mt-4 font-display text-lg font-semibold text-foose-text">Choose your {cropAspectRatio === 1 ? 'best square-friendly image' : `best ${assetLabel}`}</p>
             <p className="mt-1 max-w-sm text-sm leading-6 text-foose-muted">JPEG, PNG, or WebP, up to {formatMegabytes(maxBytes)}. You can reposition and zoom it next.</p>
             <button
-              className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-accent bg-white px-5 py-2.5 text-sm font-black text-accent transition hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-accent bg-foose-surface px-5 py-2.5 text-sm font-black text-accent transition hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               onClick={() => fileInputRef.current?.click()}
               type="button"
             >
@@ -445,7 +445,7 @@ export function AvatarCropDialog({
                 <p className="min-w-0 flex-1 truncate text-xs font-semibold text-foose-muted" title={selectedFile?.name}>{selectedFile?.name}</p>
                 <div className="flex gap-1">
                   <button
-                    className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-bold text-foose-muted transition hover:bg-white hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50"
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-bold text-foose-muted transition hover:bg-accent-light hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50"
                     disabled={!image || applying}
                     onClick={() => {
                       setPan({ x: 0, y: 0 })
@@ -456,7 +456,7 @@ export function AvatarCropDialog({
                     Reset
                   </button>
                   <button
-                    className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-black text-accent transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50"
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-black text-accent transition hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50"
                     disabled={applying}
                     onClick={() => fileInputRef.current?.click()}
                     type="button"

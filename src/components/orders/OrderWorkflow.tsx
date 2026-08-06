@@ -88,7 +88,7 @@ export function OrderWorkflowCard({
   const recipient = orderRecipient(order)
 
   return (
-    <article className="group flex min-w-0 flex-col rounded-2xl border border-foose-border bg-white p-4 shadow-sm transition hover:border-accent/40 hover:shadow-md sm:p-5">
+    <article className="group flex min-w-0 flex-col rounded-2xl border border-foose-border bg-foose-surface p-4 shadow-sm transition hover:border-accent/40 hover:shadow-md sm:p-5">
       <header className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">

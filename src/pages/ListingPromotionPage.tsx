@@ -179,7 +179,7 @@ export function ListingPromotionPage() {
                     >
                       <span className="relative block aspect-[4/5] overflow-hidden rounded-lg bg-foose-surface-low">
                         <SafeImage alt="" className="h-full w-full object-cover" fallback="No image" fallbackClassName="text-xs font-bold" src={getListingImage(listing)} />
-                        <span className={`absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full border text-xs font-black ${active ? 'border-accent bg-accent text-white' : 'border-white bg-white/90 text-foose-muted'}`}>
+                        <span className={`absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full border text-xs font-black ${active ? 'border-accent bg-accent text-white' : 'border-white bg-white/90 text-foose-ink'}`}>
                           {active ? <Icon name="check" size={16} /> : ''}
                         </span>
                         {promoted && <span className="absolute left-2 top-2"><Badge tone="success">Active</Badge></span>}
@@ -196,7 +196,7 @@ export function ListingPromotionPage() {
           {!!eligibleListings.length && (
             <>
               <div aria-hidden="true" className="h-20 lg:hidden" />
-              <div className="fixed inset-x-0 bottom-[var(--foose-bottom-nav-inset)] z-40 border-t border-foose-border bg-white/95 px-3 py-3 shadow-[0_-8px_24px_rgba(15,16,32,0.08)] backdrop-blur lg:hidden">
+              <div className="fixed inset-x-0 bottom-[var(--foose-bottom-nav-inset)] z-40 border-t border-foose-border bg-foose-surface/95 px-3 py-3 shadow-[0_-8px_24px_rgba(15,16,32,0.08)] backdrop-blur lg:hidden">
                 <button
                   className="mx-auto inline-flex min-h-11 w-full max-w-xl items-center justify-center gap-2 rounded-xl border border-accent bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-50"
                   disabled={!selectedIds.length || submitting}
