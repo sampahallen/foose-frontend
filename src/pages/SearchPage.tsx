@@ -26,7 +26,7 @@ import { eventHostName, eventTimeLabel, eventTypeLabel, isOnlinePopUp } from '..
 import { recordFinspoSearchClick } from '../utils/finspoSearchSignals'
 import { finspoCoverImage, finspoImages } from '../utils/finspoImages'
 import { formatMoney, getShopName, initials } from '../utils/format'
-import { cacheFinspoPreview, captureNavigationTrigger, getCurrentAppHref, navigateTo, withBasePath } from '../utils/navigation'
+import { cacheFinspoPreview, captureNavigationTrigger, getCurrentAppHref, isHardPageReload, navigateTo, withBasePath } from '../utils/navigation'
 import { getNavigationSnapshot } from '../stores/navigationMemoryStore'
 
 type SearchNavigationSnapshot = {
@@ -371,7 +371,9 @@ export function SearchPage() {
       ? snapshot
       : null
   })
-  const exploreSeedRef = useRef(String(restoredPage?.explore?.seed || historyState.exploreFeedSeed || createExploreSeed()))
+  const exploreSeedRef = useRef(String(
+    restoredPage?.explore?.seed || (!isHardPageReload() && historyState.exploreFeedSeed) || createExploreSeed(),
+  ))
   const initialNavigationEntry = historyState.fooseNavigationOrigin === 'initial'
   const shouldFocusSearch = !term && (historyState.focusSearch === true || !historyState.fooseNavigation || initialNavigationEntry)
   const trackInitial = useMemo(() => {

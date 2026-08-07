@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import fooseLogo from '../assets/foose-logo-white.png'
 import { ButtonLink, Icon, ImagePreviewInput, InlineNotice, SelectControl, StatePanel, StepIndicator } from '../components'
 import { ChoiceCardGroup, ErrorSummary, SubmitButton } from '../components/forms/FormControls'
 import { FormField, TextAreaField, TextField } from '../components/forms/FormField'
@@ -7,6 +6,7 @@ import { FormActions, FormPage, FormSection } from '../components/forms/FormLayo
 import { UnsavedChangesGuard } from '../components/forms/UnsavedChangesGuard'
 import { useLocalDraft } from '../components/forms/useLocalDraft'
 import { NavigationBackButton } from '../components/navigation'
+import { getAppName } from '../config/env'
 import { useAuth } from '../hooks/useAuth'
 import { apiPost } from '../lib/api'
 import type { Shop } from '../types/api'
@@ -29,33 +29,28 @@ function appendSelectedFile(formData: FormData, form: HTMLFormElement, name: str
   if (file && file.name && file.size > 0) formData.append(name, file)
 }
 
-function HeaderLogo() {
-  return (
-    <a aria-label="Foose home" className="inline-flex shrink-0 items-center" href="/">
-      <img alt="Foose" className="h-8 w-auto sm:h-9" src={fooseLogo} />
-    </a>
-  )
-}
-
 function ShopSetupHeader() {
+  const brand = getAppName()
+
   return (
-    <header className="flow-top grid h-16 grid-cols-[1fr_auto_1fr] items-center bg-accent px-4 text-white md:px-8">
+    <header className="flow-top grid h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-white/15 bg-gradient-to-r from-accent to-accent-strong px-4 text-white shadow-md shadow-accent/15 md:px-8">
       <div className="flex items-center gap-2">
         <NavigationBackButton
           className="bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white focus-visible:ring-white focus-visible:ring-offset-accent"
           fallback={{ href: '/profile', label: 'Profile' }}
           variant="icon"
         />
-        <span className="hidden sm:inline-flex"><HeaderLogo /></span>
+        <a className="hidden font-display text-lg font-semibold sm:inline" href="/">{brand}</a>
       </div>
       <span className="text-center text-sm font-bold sm:text-base">Set up your shop</span>
-      <span aria-hidden className="size-11 justify-self-end" />
+      <span aria-hidden className="grid size-11 place-items-center justify-self-end rounded-full bg-white/10"><Icon name="star" /></span>
     </header>
   )
 }
 
 export function OpenShopPage() {
   const { refreshUser, user } = useAuth()
+  const kycStatus = user?.kycId && typeof user.kycId === 'object' ? user.kycId.status : undefined
   const [error, setError] = useState('')
   const [shopName, setShopName] = useState('')
   const [shopNameTouched, setShopNameTouched] = useState(false)
@@ -161,15 +156,18 @@ export function OpenShopPage() {
   }
 
   if (!user?.isKycVerified) {
+    const kycPending = kycStatus === 'pending'
     return (
       <div className="flow-page min-h-dvh bg-foose-bg">
         <ShopSetupHeader />
         <main className="flow-content mx-auto w-full max-w-5xl px-4 py-8 [&.narrow]:max-w-3xl narrow">
           <StatePanel
-            action={<ButtonLink to="/kyc">Complete KYC</ButtonLink>}
-            body="The server requires approved KYC before you can open a DigiShop."
+            action={<ButtonLink to="/kyc">{kycPending ? 'View status' : 'Get verified'}</ButtonLink>}
+            body={kycPending
+              ? "We're checking your details now — we'll let you know as soon as a decision is ready."
+              : 'We ask sellers to verify their identity first — it builds trust with buyers and helps keep everyone on Foose safe.'}
             layout="page"
-            title="KYC approval required"
+            title={kycPending ? 'Verification in progress' : 'Seller verification required'}
             tone="permission"
           />
         </main>

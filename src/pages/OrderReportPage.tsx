@@ -316,11 +316,11 @@ function OrderReportContent({ orderId }: { orderId: string }) {
 
             {error && <InlineNotice className="mb-4" title="Report was not submitted" tone="error">{error}</InlineNotice>}
 
-            {step === 0 && (
-              <FormSection
-                description="Choose the closest issue, then select every item affected."
-                title="What went wrong?"
-              >
+            <FormSection
+              className={step === 0 ? '' : 'hidden'}
+              description="Choose the closest issue, then select every item affected."
+              title="What went wrong?"
+            >
                 {attempted && (!category || !affectedItemIds.length) && (
                   <ErrorSummary
                     errors={[
@@ -366,14 +366,13 @@ function OrderReportContent({ orderId }: { orderId: string }) {
                   </div>
                   {attempted && !affectedItemIds.length && <p className="text-sm font-bold text-foose-danger">Select at least one affected item.</p>}
                 </fieldset>
-              </FormSection>
-            )}
+            </FormSection>
 
-            {step === 1 && (
-              <FormSection
-                description="Give a factual timeline, including contact attempts, dates, and what you expected to receive."
-                title="Describe what happened"
-              >
+            <FormSection
+              className={step === 1 ? '' : 'hidden'}
+              description="Give a factual timeline, including contact attempts, dates, and what you expected to receive."
+              title="Describe what happened"
+            >
                 {attempted && (!requestedOutcome || detailedAccount.trim().length < 30) && (
                   <ErrorSummary
                     errors={[
@@ -405,14 +404,13 @@ function OrderReportContent({ orderId }: { orderId: string }) {
                   rows={9}
                   value={detailedAccount}
                 />
-              </FormSection>
-            )}
+            </FormSection>
 
-            {step === 2 && (
-              <FormSection
-                description="Evidence is optional but can help. Add clear photos of the parcel, item, station bill, or relevant conversation."
-                title="Add private evidence"
-              >
+            <FormSection
+              className={step === 2 ? '' : 'hidden'}
+              description="Evidence is optional but can help. Add clear photos of the parcel, item, station bill, or relevant conversation."
+              title="Add private evidence"
+            >
                 <ImagePreviewInput
                   accept="image/jpeg,image/png,image/webp"
                   aspect="original"
@@ -428,13 +426,12 @@ function OrderReportContent({ orderId }: { orderId: string }) {
                 <InlineNotice title="Keep original evidence" tone="info">
                   Uploaded copies become part of this report. Keep the originals on your device until the case is resolved.
                 </InlineNotice>
-              </FormSection>
-            )}
+            </FormSection>
 
-            {step === 3 && (
-              <FormSection
-                description="After submission, you cannot edit this report and all automatic settlement windows freeze."
-                title="Review and submit"
+            <FormSection
+              className={step === 3 ? '' : 'hidden'}
+              description="After submission, you cannot edit this report and all automatic settlement windows freeze."
+              title="Review and submit"
               >
                 {attempted && !declarationAccepted && (
                   <ErrorSummary errors={[{ fieldId: 'report-declaration', message: 'Accept the truthful-information declaration.' }]} focus />
@@ -458,8 +455,7 @@ function OrderReportContent({ orderId }: { orderId: string }) {
                     I confirm this account is truthful and complete to the best of my knowledge. I understand the report becomes read-only after submission.
                   </span>
                 </label>
-              </FormSection>
-            )}
+            </FormSection>
 
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
               {step > 0 ? (

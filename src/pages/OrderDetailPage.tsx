@@ -658,8 +658,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         size="lg"
         title={dispatchReviewing ? 'Review dispatch details' : 'Upload waybill'}
       >
-        {dispatchReviewing ? (
-          <div className="grid gap-5">
+        <div className={dispatchReviewing ? 'grid gap-5' : 'hidden'}>
             {actionError && <InlineNotice title="Waybill was not saved" tone="error">{actionError}</InlineNotice>}
             <InlineNotice title="This starts the delivery clock" tone="warning">
               The buyer is notified immediately. Unless they confirm receipt or submit a report, the protected payment releases after 36 hours.
@@ -680,9 +679,8 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                 src={billPreviewUrl}
               />
             </div>
-          </div>
-        ) : (
-        <form className="grid gap-5" id="dispatch-order-form" noValidate onSubmit={reviewDispatch}>
+        </div>
+        <form className={dispatchReviewing ? 'hidden' : 'grid gap-5'} id="dispatch-order-form" noValidate onSubmit={reviewDispatch}>
           {actionError && <InlineNotice title="Waybill was not saved" tone="error">{actionError}</InlineNotice>}
           {dispatchAttempted && (!billImage || driverPhoneInvalid) && (
             <ErrorSummary
@@ -737,7 +735,6 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             required
           />
         </form>
-        )}
       </Dialog>
 
       <Dialog

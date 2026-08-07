@@ -71,11 +71,13 @@ export function FormSection({
 }
 
 export function FormActions({
+  bottomNavInset = true,
   children,
   className = '',
   pageInset = false,
   sticky = false,
 }: {
+  bottomNavInset?: boolean
   children: ReactNode
   className?: string
   pageInset?: boolean
@@ -84,9 +86,15 @@ export function FormActions({
   const mobileInset = pageInset
     ? '-mx-3 px-3 md:-mx-6 md:px-6'
     : '-mx-4 px-4 sm:-mx-6 sm:px-6'
+  // Pages that render their own full-screen header outside AppShell (KycPage, etc.) have
+  // no bottom tab bar, so the sticky bar should sit flush at the true bottom of the screen
+  // instead of leaving a gap for a bottom nav that isn't rendered there.
+  const stickyOffset = bottomNavInset
+    ? 'bottom-[var(--foose-bottom-nav-inset)] py-3'
+    : 'bottom-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3'
 
   return (
-    <div className={`${sticky ? `sticky bottom-[var(--foose-bottom-nav-inset)] z-20 border-t border-foose-border bg-foose-surface/95 py-3 shadow-[0_-8px_24px_rgba(26,27,37,0.06)] backdrop-blur lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:shadow-none ${mobileInset}` : 'pt-2'} flex min-w-0 flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end [&_a]:min-h-11 [&_a]:w-full [&_button]:min-h-11 [&_button]:w-full sm:[&_a]:w-auto sm:[&_button]:w-auto ${className}`}>
+    <div className={`${sticky ? `sticky ${stickyOffset} z-20 border-t border-foose-border bg-foose-surface/95 shadow-[0_-8px_24px_rgba(26,27,37,0.06)] backdrop-blur lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:shadow-none ${mobileInset}` : 'pt-2'} flex min-w-0 flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end [&_a]:min-h-11 [&_a]:w-full [&_button]:min-h-11 [&_button]:w-full sm:[&_a]:w-auto sm:[&_button]:w-auto ${className}`}>
       {children}
     </div>
   )

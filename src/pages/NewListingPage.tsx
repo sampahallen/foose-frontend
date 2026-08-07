@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, HashtagInput, Icon, ImagePreviewInput, InlineNotice, SelectControl, StatePanel, StepIndicator } from '../components'
+import { BsFillSendPlusFill } from 'react-icons/bs'
+import { FaAngleRight } from 'react-icons/fa'
+import { AppShell, ButtonLink, HashtagInput, Icon, ImagePreviewInput, InlineNotice, LightboxImage, SelectControl, StatePanel, StepIndicator } from '../components'
+import { clearDraftImages, loadDraftImages, saveDraftImages } from '../components/forms/draftImageStore'
 import { ErrorSummary, SubmitButton } from '../components/forms/FormControls'
 import { FormField, TextAreaField, TextField } from '../components/forms/FormField'
 import { FormActions, FormPage, FormSection } from '../components/forms/FormLayout'
@@ -108,6 +111,8 @@ export function NewListingPage() {
   const [flawNoteValue, setFlawNoteValue] = useState('')
   const [hashtags, setHashtags] = useState<string[]>(listing?.hashtags || [])
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [selectedPreviews, setSelectedPreviews] = useState<{ file: File; url: string }[]>([])
+  const selectedPreviewsRef = useRef(selectedPreviews)
   const [step, setStep] = useState(0)
   const [validationAttempt, setValidationAttempt] = useState(0)
   const restoredRef = useRef(false)
@@ -211,6 +216,42 @@ export function NewListingPage() {
   const dirty = listing
     ? titleValue !== (listing.title || '') || descriptionValue !== (listing.description || '') || priceValue !== priceInputValue(listing.price) || categoryValue !== storedSelection.category || subcategoryValue !== storedSelection.subcategory || JSON.stringify(attributeValues) !== JSON.stringify(listing.attributes || {}) || selectedFiles.length > 0
     : Boolean(titleValue || descriptionValue || priceValue || selectedCategory || brandValue || selectedCondition || hashtags.length || selectedFiles.length || selectedListingType)
+
+  useEffect(() => {
+    selectedPreviewsRef.current = selectedPreviews
+  }, [selectedPreviews])
+
+  useEffect(() => () => {
+    selectedPreviewsRef.current.forEach((item) => URL.revokeObjectURL(item.url))
+  }, [])
+
+  function handleSelectedFilesChange(files: File[]) {
+    const previousByFile = new Map(selectedPreviews.map((item) => [item.file, item.url]))
+    const nextPreviews = files.map((file) => {
+      const existingUrl = previousByFile.get(file)
+      if (existingUrl) {
+        previousByFile.delete(file)
+        return { file, url: existingUrl }
+      }
+      return { file, url: URL.createObjectURL(file) }
+    })
+    previousByFile.forEach((url) => URL.revokeObjectURL(url))
+    setSelectedPreviews(nextPreviews)
+    setSelectedFiles(files)
+    void saveDraftImages(draft.storageKey, files)
+  }
+
+  function handleResumeDraft() {
+    draft.resumeDraft()
+    void loadDraftImages(draft.storageKey).then((files) => {
+      if (files.length) handleSelectedFilesChange(files)
+    })
+  }
+
+  function handleDiscardDraft() {
+    draft.discardDraft()
+    void clearDraftImages(draft.storageKey)
+  }
 
   useEffect(() => {
     if (!listing || restoredRef.current) return
@@ -369,11 +410,13 @@ export function NewListingPage() {
       if (!editId && eventId && requestedStatus === 'active') {
         await apiPost(`/community/events/${eventId}/listings`, { listingId: data.listing._id })
         draft.clearDraft()
+        void clearDraftImages(draft.storageKey)
         navigateWithFlash(`/community/events/${eventId}/manage`, { message: 'The listing is live and attached to this pop-up.', title: 'Listing published', tone: 'success' })
         return
       }
 
       draft.clearDraft()
+      void clearDraftImages(draft.storageKey)
       navigateWithFlash(
         requestedStatus === 'draft' ? '/manage-shop/drafts' : `/listing/${data.listing._id}`,
         { message: requestedStatus === 'draft' ? 'Your listing draft was saved.' : `Your listing was ${editId ? 'updated' : 'published'}.`, title: requestedStatus === 'draft' ? 'Draft saved' : 'Listing ready', tone: 'success' },
@@ -465,13 +508,13 @@ export function NewListingPage() {
         <form className="space-y-5" encType="multipart/form-data" noValidate onSubmit={(event) => void createListing(event)}>
           <UnsavedChangesGuard when={dirty && !submitting} />
           {draft.hasRecoverableDraft && (
-            <InlineNotice action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-accent-light" onClick={() => draft.resumeDraft()} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-foose-surface-low" onClick={() => draft.discardDraft()} type="button">Discard</button></div>} title="Continue your listing draft?">{null}</InlineNotice>
+            <InlineNotice action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-accent-light" onClick={handleResumeDraft} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-foose-surface-low" onClick={handleDiscardDraft} type="button">Discard</button></div>} title="Continue your listing draft?">{null}</InlineNotice>
           )}
           <ErrorSummary errors={validationAttempt ? validationErrors : []} focus={validationAttempt > 0} />
 
           <FormSection className={!editId && step !== 0 ? 'hidden' : ''} columns={2} description="Add clear photos and the essential information shoppers need to understand the item." title="Details and media">
             <div className="form-field-wide">
-              <ImagePreviewInput accept={ACCEPT_IMAGES} aspect="square" existingImages={listing?.images || []} hint={editId ? 'Images stay in the order added. You can keep, remove, or add up to six.' : 'Images stay in the order added. Save as draft to store selected images securely.'} keptName="keptImages" keptTouchedName="keptImagesTouched" label="Listing images" maxFiles={6} multiple name="images" onFilesChange={setSelectedFiles} presentation="strip" />
+              <ImagePreviewInput accept={ACCEPT_IMAGES} aspect="square" existingImages={listing?.images || []} hint={editId ? 'Images stay in the order added. You can keep, remove, or add up to six.' : 'Images stay in the order added. Save as draft to store selected images securely.'} keptName="keptImages" keptTouchedName="keptImagesTouched" label="Listing images" maxFiles={6} multiple name="images" onFilesChange={handleSelectedFilesChange} presentation="strip" />
             </div>
             <TextField error={titleInvalid ? 'Enter at least 2 characters.' : undefined} id="listing-title" label="Title" name="title" onBlur={() => setTouched((current) => ({ ...current, title: true }))} onChange={(event) => setTitleValue(event.target.value)} placeholder="Vintage bomber jacket" required value={titleValue} wrapperClassName="form-field-wide" />
             <TextAreaField id="listing-description" label="Description" maxLength={LISTING_DESCRIPTION_MAX} name="description" onChange={(event) => setDescriptionValue(event.target.value)} optional placeholder="Condition, fit, measurements, and pickup notes" rows={5} value={descriptionValue} wrapperClassName="form-field-wide" />
@@ -532,7 +575,7 @@ export function NewListingPage() {
             {listingType === 'wholesale' && <TextField id="listing-weight" label="Bulk weight" name="bulkWeight" onChange={(event) => setBulkWeightValue(event.target.value)} optional placeholder="25kg" value={bulkWeightValue} />}
           </FormSection>
 
-          {!editId && <FormSection className={step !== 2 ? 'hidden' : ''} description="Check the core details before publishing. You can go back without losing your entries." title="Review and publish"><div className="rounded-2xl bg-accent-light/50 p-5"><h3 className="font-display text-2xl font-semibold text-foose-text">{titleValue || 'Untitled listing'}</h3><p className="mt-2 text-xl font-black text-accent">{priceValue ? `GHS ${priceValue}` : 'Price missing'}</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="font-bold text-foose-faint">Format</dt><dd className="mt-1 font-semibold capitalize text-foose-text">{listingType}</dd></div><div><dt className="font-bold text-foose-faint">Category</dt><dd className="mt-1 font-semibold text-foose-text">{categoryValue || 'Not specified'}{subcategoryValue ? ` ← ${subcategoryValue}` : ''}</dd></div>{Object.entries(pruneListingAttributes(categoryValue, attributeValues, subcategoryValue, listingType)).map(([name, value]) => <div key={name}><dt className="font-bold text-foose-faint">{optionLabel(name)}</dt><dd className="mt-1 font-semibold text-foose-text">{optionLabel(String(value))}</dd></div>)}<div><dt className="font-bold text-foose-faint">Images selected</dt><dd className="mt-1 font-semibold text-foose-text">{selectedFiles.length}</dd></div><div><dt className="font-bold text-foose-faint">Hashtags</dt><dd className="mt-1 font-semibold text-foose-text">{hashtags.length}</dd></div></dl></div></FormSection>}
+          {!editId && <FormSection className={step !== 2 ? 'hidden' : ''} description="Check the core details before publishing. You can go back without losing your entries." title="Review and publish"><div className="rounded-2xl bg-accent-light/50 p-5"><h3 className="font-display text-2xl font-semibold text-foose-text">{titleValue || 'Untitled listing'}</h3><p className="mt-2 text-xl font-black text-accent">{priceValue ? `GHS ${priceValue}` : 'Price missing'}</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="font-bold text-foose-faint">Format</dt><dd className="mt-1 font-semibold capitalize text-foose-text">{listingType}</dd></div><div><dt className="font-bold text-foose-faint">Category</dt><dd className="mt-1 flex items-center gap-1 font-semibold text-foose-text">{categoryValue || 'Not specified'}{subcategoryValue && <><FaAngleRight aria-hidden className="shrink-0 text-foose-faint" size={12} />{subcategoryValue}</>}</dd></div>{Object.entries(pruneListingAttributes(categoryValue, attributeValues, subcategoryValue, listingType)).map(([name, value]) => <div key={name}><dt className="font-bold text-foose-faint">{optionLabel(name)}</dt><dd className="mt-1 font-semibold text-foose-text">{optionLabel(String(value))}</dd></div>)}<div className="sm:col-span-2"><dt className="font-bold text-foose-faint">Images selected</dt><dd className="mt-1">{selectedPreviews.length ? <div className="flex flex-wrap gap-2">{selectedPreviews.map((item, index) => <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-foose-border bg-foose-surface-mid sm:size-20 [&_img]:h-full [&_img]:w-full [&_img]:object-cover" key={item.url}><LightboxImage alt={`Listing photo ${index + 1}`} index={index} items={selectedPreviews.map((preview, previewIndex) => ({ alt: `Listing photo ${previewIndex + 1}`, src: preview.url }))} src={item.url} /></div>)}</div> : <span className="font-semibold text-foose-text">No images selected</span>}</dd></div><div className="sm:col-span-2"><dt className="font-bold text-foose-faint">Hashtags</dt><dd className="mt-1">{hashtags.length ? <div className="flex flex-wrap gap-2">{hashtags.map((tag) => <span className="rounded-full bg-accent-light px-3 py-1.5 text-xs font-bold text-accent" key={tag}>#{tag}</span>)}</div> : <span className="font-semibold text-foose-text">No hashtags added</span>}</dd></div></dl></div></FormSection>}
 
           {error && <InlineNotice title="Listing was not saved" tone="error">{error}</InlineNotice>}
 
@@ -540,7 +583,7 @@ export function NewListingPage() {
             {!editId && step > 0 ? <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={() => setStep((current) => Math.max(0, current - 1))} type="button">Back</button> : <ButtonLink to={eventId ? `/community/events/${eventId}/manage` : shopReturnPath} variant="secondary">Cancel</ButtonLink>}
             {!editId && step < 2 ? <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-black text-white shadow-md shadow-accent/15 hover:bg-accent-hover" onClick={continueListingStep} type="button">Continue <Icon name="arrow" /></button> : <>
               <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-black text-foose-text hover:border-accent hover:text-accent disabled:opacity-50" data-status="draft" disabled={submitting} type="submit">{submitting && submittingAction === 'draft' ? 'Saving draft…' : 'Save as draft'}</button>
-              <SubmitButton loading={submitting && submittingAction === 'active'} loadingLabel="Saving listing…">{editId ? 'Save item' : 'Post item'} <Icon name="plus" /></SubmitButton>
+              <SubmitButton loading={submitting && submittingAction === 'active'} loadingLabel="Saving listing…"><span className="flex flex-row items-center gap-2">{editId ? 'Save item' : 'Post'} <BsFillSendPlusFill /></span></SubmitButton>
             </>}
           </FormActions>
         </form>

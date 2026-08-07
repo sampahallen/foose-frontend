@@ -103,7 +103,7 @@ function App() {
       )
       break
     case 'browse':
-      page = <BrowsePage />
+      page = <BrowsePage key={search} />
       break
     case 'search':
       page = <SearchPage key={search} />
@@ -122,7 +122,7 @@ function App() {
       page = <DigiShopsPage />
       break
     case 'bales':
-      page = <BaleWholesalePage />
+      page = <BaleWholesalePage key={search} />
       break
     case 'topPicks':
       page = <TopPicksPage />

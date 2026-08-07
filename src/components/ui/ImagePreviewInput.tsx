@@ -28,7 +28,7 @@ export type ImagePreviewInputProps = {
   multiple?: boolean
   name: string
   onFilesChange?: (files: File[]) => void
-  presentation?: 'dropzone' | 'strip'
+  presentation?: 'dropzone' | 'strip' | 'preview'
   required?: boolean
 }
 
@@ -106,6 +106,11 @@ export function ImagePreviewInput({
     : undefined
   const aspectClass = aspect === 'original' ? '' : aspect === 'wide' ? 'aspect-[16/9]' : aspect === 'square' ? 'aspect-square' : 'aspect-square'
   const stripPresentation = presentation === 'strip'
+  // Opt-in only: callers using this must read files via `onFilesChange` state, not native
+  // form-collected `input.files` — once an image is chosen, the file input unmounts.
+  const previewPresentation = presentation === 'preview'
+  const hasAnyImage = keptImages.length > 0 || visibleFiles.length > 0
+  const showCompactPreview = previewPresentation && hasAnyImage
 
   function syncInputFiles(nextFiles: PreviewFile[]) {
     const input = inputRef.current
@@ -269,7 +274,7 @@ export function ImagePreviewInput({
         </div>
       )}
 
-      {!stripPresentation && <div
+      {!stripPresentation && !showCompactPreview && <div
         className={`relative flex min-h-36 flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${dragging ? 'border-accent bg-accent-light/65 shadow-inner' : 'border-foose-border bg-foose-surface-low/60 hover:border-accent/60 hover:bg-accent-light/25'} ${remainingSlots <= 0 ? 'opacity-70' : ''}`}
         onDragEnter={(event) => {
           event.preventDefault()
@@ -313,10 +318,44 @@ export function ImagePreviewInput({
         </p>
       </div>}
 
+      {showCompactPreview && (
+        <div className="mx-auto w-full max-w-[240px]">
+          {keptImages.map((image, index) => (
+            <div className={`group relative overflow-hidden rounded-2xl ${aspectClass}`} key={`${image}-${index}`} style={aspectStyle}>
+              <LightboxImage alt={`Current upload ${index + 1}`} className="h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover" index={index} items={previewItems} src={image} />
+              <button
+                aria-label={`Remove current upload ${index + 1}`}
+                className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-black/65 text-white shadow-sm transition hover:bg-foose-danger focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white"
+                onClick={() => {
+                  setKeptImages((images) => images.filter((_, imageIndex) => imageIndex !== index))
+                  setLocalErrors([])
+                }}
+                type="button"
+              >
+                <Icon name="close" size={16} />
+              </button>
+            </div>
+          ))}
+          {visibleFiles.map((file, index) => (
+            <div className={`group relative overflow-hidden rounded-2xl ${aspectClass}`} key={file.id} style={aspectStyle}>
+              <LightboxImage alt={file.name || `Selected upload ${index + 1}`} className="h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover" index={keptImages.length + index} items={previewItems} src={file.url} />
+              <button
+                aria-label={`Remove selected upload ${index + 1}`}
+                className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-black/65 text-white shadow-sm transition hover:bg-foose-danger focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white"
+                onClick={() => removeSelectedFile(file.id)}
+                type="button"
+              >
+                <Icon name="close" size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {keptName && keptImages.map((image) => <input key={image} name={keptName} type="hidden" value={image} />)}
       {keptTouchedName && hasExistingImages && <input name={keptTouchedName} type="hidden" value="1" />}
 
-      {!stripPresentation && (keptImages.length > 0 || visibleFiles.length > 0) && (
+      {!stripPresentation && !previewPresentation && (keptImages.length > 0 || visibleFiles.length > 0) && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="image-preview-grid">
           {keptImages.map((image, index) => (
             <article className="overflow-hidden rounded-xl border border-foose-border bg-foose-surface" key={`${image}-${index}`}>
@@ -375,7 +414,7 @@ export function ImagePreviewInput({
           {localErrors.map((message) => <p key={message}>{message}</p>)}
         </div>
       )}
-      {maxFiles && !localErrors.length && (
+      {maxFiles && !localErrors.length && !showCompactPreview && (
         <p className="mt-2 text-sm leading-6 text-foose-muted">
           {remainingSlots > 0 ? `${remainingSlots} image slot${remainingSlots === 1 ? '' : 's'} remaining.` : `Maximum of ${maxFiles} image${maxFiles === 1 ? '' : 's'} reached.`}
         </p>

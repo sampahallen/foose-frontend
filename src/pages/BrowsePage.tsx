@@ -1,22 +1,32 @@
 /* eslint-disable react-hooks/refs -- the infinite-resource hook exposes reactive state through a stable facade */
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { AppShell, BrowseSearchCombobox, InlineNotice, ListingTypeToggle, MarketplaceFilters, MarketplaceSortControl, ProductCard, RefreshIndicator, StatePanel } from '../components'
 import { PRODUCT_GRID_CLASS } from '../components/marketplace/ProductCard'
 import { AppendFeedback, ProductGridSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { useAuth } from '../hooks/useAuth'
-import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
+import { useInfiniteApiResource, type InfiniteResourceSnapshot } from '../hooks/useInfiniteApiResource'
+import { usePageNavigationSnapshot } from '../hooks/usePageNavigationSnapshot'
 import { scrollRevealStateClass, scrollRevealTransitionClass, useScrollRevealBand } from '../hooks/useScrollRevealBand'
-import type { PaginatedListings } from '../types/api'
+import { getNavigationSnapshot } from '../stores/navigationMemoryStore'
+import type { Listing, PaginatedListings } from '../types/api'
 import { withoutOwnListings } from '../utils/listingOwnership'
-import { withBasePath } from '../utils/navigation'
+import { createRandomSeed, withBasePath } from '../utils/navigation'
 
-function searchPath(page: number, search: string) {
+type BrowseNavigationSnapshot = {
+  listings: InfiniteResourceSnapshot<Listing, PaginatedListings>
+  search: string
+  seed: string
+  version: 1
+}
+
+function searchPath(page: number, search: string, seed: string) {
   const query = new URLSearchParams(search)
   if (!query.has('page')) query.set('page', '1')
   if (!query.has('limit')) query.set('limit', '85')
   if (!query.has('type')) query.set('type', 'retail')
   if (!query.has('sort')) query.set('sort', 'relevance')
   query.set('page', String(page))
+  query.set('seed', seed)
   return `/recommendations/feed?${query.toString()}`
 }
 
@@ -25,9 +35,19 @@ export function BrowsePage() {
   const search = window.location.search
   const query = useMemo(() => new URLSearchParams(search), [search])
   const activeMode = query.get('type') === 'wholesale' ? 'wholesale' : 'retail'
-  const buildPath = useCallback((page: number) => searchPath(page, search), [search])
+  const [restoredBrowse] = useState<BrowseNavigationSnapshot | null>(() => {
+    const snapshot = getNavigationSnapshot<BrowseNavigationSnapshot>('browse')?.data
+    return snapshot?.version === 1 && snapshot.search === search ? snapshot : null
+  })
+  const seedRef = useRef(restoredBrowse?.seed || createRandomSeed())
+  const buildPath = useCallback((page: number) => searchPath(page, search, seedRef.current), [search])
   const extractListings = useCallback((data: PaginatedListings) => data.results || [], [])
-  const listings = useInfiniteApiResource(buildPath, extractListings, [search])
+  const listings = useInfiniteApiResource(buildPath, extractListings, [search], restoredBrowse?.listings ?? null)
+  usePageNavigationSnapshot<BrowseNavigationSnapshot>({
+    capture: () => ({ listings: listings.navigationSnapshot, search, seed: seedRef.current, version: 1 }),
+    namespace: 'browse',
+    ready: !listings.loading,
+  })
   const filterBandVisible = useScrollRevealBand()
   const feedListings = useMemo(() => withoutOwnListings(listings.items, user), [listings.items, user])
   const hasSearchQuery = Boolean(query.get('q')?.trim())

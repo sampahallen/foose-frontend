@@ -117,6 +117,18 @@ export function createNavigationState(
   }
 }
 
+export function createRandomSeed() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+}
+
+export function isHardPageReload() {
+  if (typeof window === 'undefined' || typeof performance === 'undefined') return false
+  const [navigationEntry] = performance.getEntriesByType?.('navigation') as PerformanceNavigationTiming[] || []
+  if (navigationEntry) return navigationEntry.type === 'reload'
+  return performance.navigation?.type === 1
+}
+
 export function getAppBasePath() {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '')
   return base === '' || base === '/' ? '' : base

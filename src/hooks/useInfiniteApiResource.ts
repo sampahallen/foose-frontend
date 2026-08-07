@@ -13,6 +13,7 @@ export type InfiniteState<T, R extends PageMeta> = {
   loadingMore: boolean
   loadMoreError: string
   loadMoreErrorMeta: ResourceErrorMeta | null
+  navigationSnapshot: InfiniteResourceSnapshot<T, R>
   refetch: () => Promise<void>
   refreshing: boolean
   retryLoadMore: () => Promise<void>
@@ -24,6 +25,15 @@ export type PageMeta = {
   page?: number
   pages?: number
   total?: number
+}
+
+export type InfiniteResourceSnapshot<T, R extends PageMeta> = {
+  data: R | null
+  items: T[]
+  page: number
+  pages: number
+  total: number
+  version: 1
 }
 
 function inferPages(data: PageMeta, page: number, itemCount: number) {
@@ -86,22 +96,25 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
   buildPath: (page: number) => string | null,
   extractItems: (data: R) => T[],
   deps: readonly unknown[] = [],
+  initialSnapshot: InfiniteResourceSnapshot<T, R> | null = null,
 ): InfiniteState<T, R> {
-  const [items, setItems] = useState<T[]>([])
-  const [data, setData] = useState<R | null>(null)
-  const [page, setPage] = useState(1)
-  const [pages, setPages] = useState(1)
-  const [total, setTotal] = useState(0)
+  const [restoredSnapshot] = useState(() => initialSnapshot?.version === 1 ? initialSnapshot : null)
+  const restoreConsumedRef = useRef(false)
+  const [items, setItems] = useState<T[]>(restoredSnapshot?.items || [])
+  const [data, setData] = useState<R | null>(restoredSnapshot?.data ?? null)
+  const [page, setPage] = useState(restoredSnapshot?.page || 1)
+  const [pages, setPages] = useState(restoredSnapshot?.pages || 1)
+  const [total, setTotal] = useState(restoredSnapshot?.total || 0)
   const [errorMeta, setErrorMeta] = useState<ResourceErrorMeta | null>(null)
   const [loadMoreErrorMeta, setLoadMoreErrorMeta] = useState<ResourceErrorMeta | null>(null)
-  const [loading, setLoading] = useState(Boolean(buildPath(1)))
-  const [initialLoading, setInitialLoading] = useState(Boolean(buildPath(1)))
+  const [loading, setLoading] = useState(Boolean(buildPath(1)) && !restoredSnapshot)
+  const [initialLoading, setInitialLoading] = useState(Boolean(buildPath(1)) && !restoredSnapshot)
   const [refreshing, setRefreshing] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const loadingRef = useRef(false)
-  const itemsRef = useRef<T[]>([])
-  const dataRef = useRef<R | null>(null)
+  const itemsRef = useRef<T[]>(restoredSnapshot?.items || [])
+  const dataRef = useRef<R | null>(restoredSnapshot?.data ?? null)
   const generationRef = useRef(0)
   const dependencyKey = dependencyListKey(deps)
 
@@ -177,9 +190,27 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
     const generation = generationRef.current
     loadingRef.current = false
     observerRef.current?.disconnect()
+    const restored = restoreConsumedRef.current ? null : restoredSnapshot
 
     queueMicrotask(() => {
       if (generationRef.current !== generation) return
+      restoreConsumedRef.current = true
+      if (restored) {
+        itemsRef.current = restored.items
+        dataRef.current = restored.data
+        setItems(restored.items)
+        setData(restored.data)
+        setPage(restored.page)
+        setPages(restored.pages)
+        setTotal(restored.total)
+        setErrorMeta(null)
+        setLoadMoreErrorMeta(null)
+        setLoading(false)
+        setInitialLoading(false)
+        setRefreshing(false)
+        setLoadingMore(false)
+        return
+      }
       itemsRef.current = []
       dataRef.current = null
       setItems([])
@@ -202,7 +233,7 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
       loadingRef.current = false
       observerRef.current?.disconnect()
     }
-  }, [buildPath, dependencyKey, loadPage])
+  }, [buildPath, dependencyKey, loadPage, restoredSnapshot])
 
   const sentinelRef = useCallback(
     (node: HTMLElement | null) => {
@@ -232,6 +263,7 @@ export function useInfiniteApiResource<T, R extends PageMeta>(
     loadingMore,
     loadMoreError: loadMoreErrorMeta?.message || '',
     loadMoreErrorMeta,
+    navigationSnapshot: { data, items, page, pages, total, version: 1 },
     refetch,
     refreshing,
     retryLoadMore,

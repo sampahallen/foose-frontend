@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { FaAngleRight } from 'react-icons/fa'
 import { MdVerified } from 'react-icons/md'
 import { AppShell, Badge, ButtonLink, DropdownChevron, FavoriteButton, Icon, InlineNotice, ListingImageSlider, ProductCard, RefreshIndicator, SectionHeader, ShopReviewPanel, StatePanel, useToast } from '../components'
 import { ListingDetailSkeleton, ProductBandSkeleton } from '../components/feedback/DiscoverySkeletons'
@@ -9,10 +10,10 @@ import { useCart } from '../hooks/useCart'
 import { useListingRecommendationSignals } from '../hooks/useListingRecommendationSignals'
 import { useNavigationStore } from '../stores/navigationMemoryStore'
 import type { Listing, PaginatedListings } from '../types/api'
-import { formatMoney, getListingImage, getShop, getShopName, initials, listingMeta } from '../utils/format'
+import { formatMoney, getListingImage, getShop, getShopName, initials } from '../utils/format'
 import { getCurrentAppPathname, navigateBack, navigateTo, withBasePath } from '../utils/navigation'
 import { isActiveTopPick } from '../utils/promotions'
-import { optionLabel } from '../utils/listingTaxonomy'
+import { LISTING_COLORS, optionLabel } from '../utils/listingTaxonomy'
 
 function currentListingId() {
   return decodeURIComponent(getCurrentAppPathname().replace(/^\/listing\/?/, '')).trim()
@@ -137,6 +138,15 @@ export function RetailDetailPage() {
   )
   const mainImage = listing ? getListingImage(listing) : undefined
   const listingImages = listing?.images?.length ? listing.images : mainImage ? [mainImage] : []
+  const colorSwatch = listing?.color ? LISTING_COLORS.find((color) => color.value === listing.color)?.hex : undefined
+  const specs = (listing ? [
+    { label: 'Material', value: listing.attributes?.material },
+    { label: 'Fit', value: listing.attributes?.fit },
+    { label: 'Pattern', value: listing.attributes?.pattern },
+    { label: 'Gender', value: listing.gender },
+    { label: 'Bale grade', value: listing.attributes?.baleGrade },
+    { label: 'Brand', value: listing.brand },
+  ] : []).filter((spec): spec is { label: string; value: string } => Boolean(spec.value))
   const askQuestionHref = sellerChatHref({ includeListing: true, listingId, sellerId, userId: user?._id })
   const messageSellerHref = sellerChatHref({ listingId, sellerId, userId: user?._id })
   const sellerListings = useMemo(
@@ -211,11 +221,7 @@ export function RetailDetailPage() {
 
             <aside className="flex flex-col gap-4">
               <section className="rounded-xl border border-foose-border bg-foose-surface p-4 shadow-sm sm:p-5">
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  {isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt) && <Badge tone="accent">Promoted</Badge>}
-                  <Badge tone={listing.type === 'wholesale' ? 'warning' : 'accent'}>{listing.type}</Badge>
-                  {listing.condition && <Badge>{listing.condition}</Badge>}
-                </div>
+                {isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt) && <div className="mb-3"><Badge tone="accent">Promoted</Badge></div>}
                 <h1 className="text-2xl font-black leading-tight text-foose-text md:text-3xl">{listing.title}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-foose-muted">
                   {shop?.slug ? (
@@ -230,19 +236,40 @@ export function RetailDetailPage() {
                 </div>
                 <div className="my-4 h-px bg-foose-border" />
                 <p className="text-3xl font-black text-foose-text">{formatMoney(listing.price, listing.currency)}</p>
-                <p className="mt-2 text-sm text-foose-muted">
-                  {listingMeta(listing)}
-                  {listing.color ? ` - ${listing.color}` : ''}
-                </p>
-                {!!listing.attributes && Object.keys(listing.attributes).length > 0 && (
-                  <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                    {Object.entries(listing.attributes).filter(([, value]) => Boolean(value)).map(([name, value]) => (
-                      <div className="rounded-lg bg-foose-surface-low px-3 py-2" key={name}>
-                        <dt className="text-xs font-bold text-foose-faint">{optionLabel(name)}</dt>
-                        <dd className="mt-0.5 font-semibold text-foose-text">{optionLabel(String(value))}</dd>
+                {(listing.category || listing.subcategory) && (
+                  <p className="mt-1.5 flex flex-wrap items-center gap-1 text-sm font-semibold text-foose-muted">
+                    {listing.category}
+                    {listing.category && listing.subcategory && <FaAngleRight aria-hidden className="shrink-0 text-foose-faint" size={11} />}
+                    {listing.subcategory}
+                  </p>
+                )}
+                {listing.size && (
+                  <p className="mt-1.5 flex items-baseline gap-1 text-sm">
+                    <span className="text-foose-faint">Size</span>
+                    <span className="font-bold text-foose-text">{optionLabel(listing.size)}</span>
+                  </p>
+                )}
+                {listing.condition && (
+                  <p className="mt-1.5 text-sm">
+                    <span className="font-bold text-foose-text">{optionLabel(listing.condition)}</span>
+                    <span className="text-foose-faint"> condition</span>
+                  </p>
+                )}
+                {specs.length > 0 && (
+                  <dl className="mt-3 flex flex-col gap-1.5 text-sm">
+                    {specs.map((spec) => (
+                      <div className="flex items-baseline gap-1" key={spec.label}>
+                        <dt className="text-foose-faint">{spec.label}</dt>
+                        <dd className="font-bold text-foose-text">{optionLabel(spec.value)}</dd>
                       </div>
                     ))}
                   </dl>
+                )}
+                {listing.color && (
+                  <p className="mt-1.5 flex items-center gap-1.5 text-sm">
+                    {colorSwatch && <span aria-hidden className="inline-block size-3.5 shrink-0 rounded-full border border-black/10" style={{ background: colorSwatch }} />}
+                    <span className="font-bold text-foose-text">{optionLabel(listing.color)}</span>
+                  </p>
                 )}
                 {!!listing.hashtags?.length && (
                   <div className="mt-3 flex flex-wrap gap-2" aria-label="Item vibe hashtags">
@@ -297,23 +324,13 @@ export function RetailDetailPage() {
                     Ask a question
                   </ButtonLink>
                 </div>}
-                {!isOwner && <div className="mt-4 flex items-center justify-center gap-2 text-sm font-semibold text-foose-success">
-                  <Icon name="box" size={17} /> Checkout protected by Foose escrow
-                </div>}
-              </section>
-
-              <section className="rounded-xl border border-foose-border bg-foose-surface p-4 shadow-sm sm:p-5">
-                <div className="grid gap-4 border-b border-foose-border pb-4 text-sm text-foose-text">
-                  <div className="flex gap-3">
-                    <Icon name="shield" />
-                    <p>Purchases are held in escrow until the buyer confirms delivery or pickup.</p>
+                {!isOwner && (
+                  <div className="mt-4 grid justify-items-start gap-1.5 border-t border-foose-border pt-4">
+                    <p className="flex items-center gap-2 text-xs font-semibold text-foose-success"><Icon name="shield" size={14} /> Escrow protected. Funds release once you confirm delivery or pickup.</p>
+                    <p className="flex items-center gap-2 text-xs font-semibold text-foose-muted"><Icon name="truck" size={14} /> Delivery and pickup options are confirmed at checkout.</p>
                   </div>
-                  <div className="flex gap-3">
-                    <Icon name="truck" />
-                    <p>Delivery and pickup options are confirmed at checkout.</p>
-                  </div>
-                </div>
-                <details className="group pt-4 text-sm" open>
+                )}
+                <details className="group mt-5 border-t border-foose-border pt-4 text-sm" open>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-bold text-foose-text [&::-webkit-details-marker]:hidden">
                     <span>Description</span>
                     <DropdownChevron className="text-xs text-accent group-open:hidden" />
@@ -332,8 +349,7 @@ export function RetailDetailPage() {
                   )}
                   <div className="min-w-0 flex-1">
                     <h2 className="truncate text-base font-black text-foose-text">{getShopName(listing)}</h2>
-                    <p className="text-sm text-foose-muted">{shop?.totalReviews || 0} reviews</p>
-                    <StarRating count={shop?.totalReviews || 0} value={shop?.rating} />
+                    <StarRating label={`${shop?.totalReviews || 0} reviews`} value={shop?.rating} />
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
@@ -373,7 +389,7 @@ export function RetailDetailPage() {
             onClick={closeListing}
             type="button"
           >
-            x
+            <Icon name="close" size={18} />
           </button>
           <div className="overflow-y-auto p-4 pr-4 sm:p-5 sm:pr-12 md:p-7 md:pr-14">{detailContent}</div>
         </section>

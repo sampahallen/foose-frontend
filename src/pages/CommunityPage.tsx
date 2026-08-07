@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useFinspoFeed, type FinspoFeedSnapshot } from '../hooks/useFinspoFeed'
 import { useImageBatchReady } from '../hooks/useImageBatchReady'
-import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
+import { useInfiniteApiResource, type InfiniteResourceSnapshot } from '../hooks/useInfiniteApiResource'
 import { usePageNavigationSnapshot } from '../hooks/usePageNavigationSnapshot'
 import { getNavigationSnapshot } from '../stores/navigationMemoryStore'
 import type { Event, FinspoAccountSuggestion, FollowingFinspoFeed, GalleryPost } from '../types/api'
@@ -26,6 +26,11 @@ type CommunityFinspoNavigationSnapshot = {
   items: GalleryPost[]
   publicFeed: FinspoFeedSnapshot | null
   scope: FinspoScope
+  version: 1
+}
+type CommunityEventsNavigationSnapshot = {
+  events: InfiniteResourceSnapshot<Event, PaginatedEvents>
+  scope: EventScope
   version: 1
 }
 
@@ -85,10 +90,19 @@ export function CommunityPage() {
     const snapshot = getNavigationSnapshot<CommunityFinspoNavigationSnapshot>(`community-finspo:${initialState.finspoScope}`)?.data
     return snapshot?.version === 1 && snapshot.scope === initialState.finspoScope ? snapshot : null
   })
+  const [restoredEvents] = useState<CommunityEventsNavigationSnapshot | null>(() => {
+    const snapshot = getNavigationSnapshot<CommunityEventsNavigationSnapshot>(`community-events:${initialState.eventScope}`)?.data
+    return snapshot?.version === 1 && snapshot.scope === initialState.eventScope ? snapshot : null
+  })
   const [suggestionSession, setSuggestionSession] = useState<{ accounts: FinspoAccountSuggestion[]; personalized: boolean; userId: string } | null>(null)
   const eventsPath = useCallback((page: number) => `/community/events?page=${page}&limit=12`, [])
   const extractEvents = useCallback((data: PaginatedEvents) => data.events || [], [])
-  const events = useInfiniteApiResource(eventsPath, extractEvents, [])
+  const events = useInfiniteApiResource(eventsPath, extractEvents, [], restoredEvents?.events ?? null)
+  usePageNavigationSnapshot<CommunityEventsNavigationSnapshot>({
+    capture: () => ({ events: events.navigationSnapshot, scope: eventScope, version: 1 }),
+    namespace: `community-events:${eventScope}`,
+    ready: !events.loading,
+  })
   const gallery = useFinspoFeed({
     enabled: mainTab === 'finspo',
     initialSnapshot: restoredFinspo?.publicFeed,

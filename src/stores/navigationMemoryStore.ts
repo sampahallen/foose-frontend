@@ -51,7 +51,7 @@ export type NavigationPageSnapshot<T = unknown> = {
 
 type PersistedNavigationState = Pick<
   NavigationStoreState,
-  'sessionId' | 'entries' | 'currentEntryId' | 'snapshots'
+  'sessionId' | 'entries' | 'currentEntryId'
 >
 
 export type NavigationStoreState = {
@@ -286,7 +286,6 @@ export const useNavigationStore = create<NavigationStoreState>()(persist((set, g
     sessionId: state.sessionId,
     entries: state.entries,
     currentEntryId: state.currentEntryId,
-    snapshots: state.snapshots,
   }),
   migrate: (persisted) => {
     const candidate = persisted as Partial<PersistedNavigationState> | undefined
@@ -295,9 +294,16 @@ export const useNavigationStore = create<NavigationStoreState>()(persist((set, g
       ...initialState(candidate.sessionId),
       ...candidate,
       entries: candidate.entries.slice(-MAX_NAVIGATION_ENTRIES),
-      snapshots: candidate.snapshots ?? {},
     }
   },
+  // Loaded-list snapshots (feed/pagination state) are intentionally session-memory-only:
+  // a hard refresh should always start those lists fresh, even though back/forward
+  // within the tab still restores entries/scroll from sessionStorage.
+  merge: (persisted, current) => ({
+    ...current,
+    ...(persisted as Partial<PersistedNavigationState> | undefined),
+    snapshots: {},
+  }),
 }))
 
 export function getCurrentNavigationEntry() {

@@ -1,22 +1,32 @@
 /* eslint-disable react-hooks/refs -- the infinite-resource hook exposes reactive state through a stable facade */
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { AppShell, BrowseSearchCombobox, CollectionHero, InlineNotice, MarketplaceFilters, MarketplaceSortControl, ProductCard, RefreshIndicator, StatePanel } from '../components'
 import { PRODUCT_GRID_CLASS } from '../components/marketplace/ProductCard'
 import { AppendFeedback, ProductGridSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { useAuth } from '../hooks/useAuth'
-import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
+import { useInfiniteApiResource, type InfiniteResourceSnapshot } from '../hooks/useInfiniteApiResource'
+import { usePageNavigationSnapshot } from '../hooks/usePageNavigationSnapshot'
 import { scrollRevealStateClass, scrollRevealTransitionClass, useScrollRevealBand } from '../hooks/useScrollRevealBand'
-import type { PaginatedListings } from '../types/api'
+import { getNavigationSnapshot } from '../stores/navigationMemoryStore'
+import type { Listing, PaginatedListings } from '../types/api'
 import { withoutOwnListings } from '../utils/listingOwnership'
-import { withBasePath } from '../utils/navigation'
+import { createRandomSeed, withBasePath } from '../utils/navigation'
 
-function balePath(page: number, search: string) {
+type BaleNavigationSnapshot = {
+  listings: InfiniteResourceSnapshot<Listing, PaginatedListings>
+  search: string
+  seed: string
+  version: 1
+}
+
+function balePath(page: number, search: string, seed: string) {
   const query = new URLSearchParams(search)
   query.set('type', 'wholesale')
   if (!query.has('page')) query.set('page', '1')
   if (!query.has('limit')) query.set('limit', '85')
   if (!query.has('sort')) query.set('sort', 'relevance')
   query.set('page', String(page))
+  query.set('seed', seed)
   return `/recommendations/feed?${query.toString()}`
 }
 
@@ -28,9 +38,19 @@ export function BaleWholesalePage() {
     params.set('type', 'wholesale')
     return params
   }, [search])
-  const buildPath = useCallback((page: number) => balePath(page, search), [search])
+  const [restoredBales] = useState<BaleNavigationSnapshot | null>(() => {
+    const snapshot = getNavigationSnapshot<BaleNavigationSnapshot>('bales')?.data
+    return snapshot?.version === 1 && snapshot.search === search ? snapshot : null
+  })
+  const seedRef = useRef(restoredBales?.seed || createRandomSeed())
+  const buildPath = useCallback((page: number) => balePath(page, search, seedRef.current), [search])
   const extractListings = useCallback((data: PaginatedListings) => data.results || [], [])
-  const listings = useInfiniteApiResource(buildPath, extractListings, [search])
+  const listings = useInfiniteApiResource(buildPath, extractListings, [search], restoredBales?.listings ?? null)
+  usePageNavigationSnapshot<BaleNavigationSnapshot>({
+    capture: () => ({ listings: listings.navigationSnapshot, search, seed: seedRef.current, version: 1 }),
+    namespace: 'bales',
+    ready: !listings.loading,
+  })
   const filterBandVisible = useScrollRevealBand()
   const feedListings = useMemo(() => withoutOwnListings(listings.items, user), [listings.items, user])
   const resultCount = listings.total > 50 ? '50+' : String(listings.total)
