@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { MdOutlineAddReaction } from 'react-icons/md'
 import { LuReply } from 'react-icons/lu'
+import { useLongPress } from '../../hooks/useLongPress'
 import { useImagePreviewStore } from '../../stores/imagePreviewStore'
 import type { ChatAttachment, ChatMessagePreview, ChatReaction, ChatReactionName, Listing, User } from '../../types/api'
 import { formatMoney, getListingImage } from '../../utils/format'
@@ -53,91 +54,124 @@ function reactionOption(reaction: ChatReactionName) {
   return reactionOptions.find((option) => option.name === reaction)
 }
 
-function OtherReactions({ reactions }: { reactions: ChatReaction[] }) {
-  if (!reactions.length) return null
+const REACTION_PICKER_VIEWPORT_MARGIN = 8
+
+function ReactionPicker({
+  anchorRef,
+  myReaction,
+  onSelect,
+}: {
+  anchorRef: RefObject<HTMLElement | null>
+  myReaction?: ChatReactionName
+  onSelect: (reaction: ChatReactionName) => void
+}) {
+  const pickerRef = useRef<HTMLDivElement | null>(null)
+  const [position, setPosition] = useState({ openUpward: true, shiftPx: 0 })
+
+  useLayoutEffect(() => {
+    function recalculate() {
+      // Measured on the wrapper, not the animated `.message-reaction-picker` element:
+      // that element's CSS pop-in animation drives `transform` for its whole duration
+      // (and would fight over the same property with the positioning transform below),
+      // so positioning lives on this plain, unanimated wrapper instead.
+      const wrapper = pickerRef.current
+      const anchor = anchorRef.current
+      if (!wrapper || !anchor) return
+
+      const anchorRect = anchor.getBoundingClientRect()
+      const wrapperWidth = wrapper.offsetWidth
+      const wrapperHeight = wrapper.offsetHeight
+
+      const centerX = anchorRect.left + anchorRect.width / 2
+      const naturalLeft = centerX - wrapperWidth / 2
+      const minLeft = REACTION_PICKER_VIEWPORT_MARGIN
+      const maxLeft = window.innerWidth - wrapperWidth - REACTION_PICKER_VIEWPORT_MARGIN
+      const clampedLeft = Math.min(Math.max(naturalLeft, minLeft), maxLeft)
+
+      const openUpward = anchorRect.top - wrapperHeight - REACTION_PICKER_VIEWPORT_MARGIN >= 0
+
+      setPosition({ openUpward, shiftPx: clampedLeft - naturalLeft })
+    }
+
+    recalculate()
+    window.addEventListener('resize', recalculate)
+    return () => window.removeEventListener('resize', recalculate)
+  }, [anchorRef])
 
   return (
     <div
-      aria-label={reactions.map((reaction) => {
-        const option = reactionOption(reaction.reaction)
-        return `${option?.label || 'Reaction'} from ${userName(reaction.userId)}`
-      }).join(', ')}
-      className="pointer-events-auto inline-flex h-7 items-center gap-0.5 rounded-full border border-foose-border bg-foose-surface px-1.5 text-sm shadow-sm"
+      className={`absolute left-1/2 z-10 ${position.openUpward ? 'bottom-full mb-2' : 'top-full mt-2'}`}
+      ref={pickerRef}
+      style={{ transform: `translateX(calc(-50% + ${position.shiftPx}px))` }}
     >
-      {reactions.map((reaction, index) => {
-        const option = reactionOption(reaction.reaction)
-        const count = reactionCount(reactions, reaction.reaction)
-        const duplicate = reactions.findIndex((item) => item.reaction === reaction.reaction) !== index
-        if (!option || duplicate) return null
-        return (
-          <span className="inline-flex items-center gap-0.5" key={option.name} title={`${option.label} from ${userName(reaction.userId)}`}>
-            <span aria-hidden>{option.symbol}</span>
-            {count > 1 && <span className="text-[10px] font-black text-foose-muted">{count}</span>}
-          </span>
-        )
-      })}
+      <div
+        aria-label="Choose a reaction"
+        className={`message-reaction-picker flex items-center gap-0.5 rounded-full border border-foose-border bg-foose-surface p-1.5 shadow-xl ${position.openUpward ? 'origin-bottom' : 'origin-top'}`}
+        role="menu"
+      >
+        {reactionOptions.map((option) => {
+          const active = myReaction === option.name
+          return (
+            <button
+              aria-label={active ? `Undo ${option.label} reaction` : option.label}
+              className={`inline-flex size-9 items-center justify-center rounded-full text-lg transition hover:-translate-y-1 hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-accent motion-reduce:hover:translate-y-0 ${active ? 'bg-accent-light ring-1 ring-accent/25' : ''}`}
+              key={option.name}
+              onClick={() => onSelect(option.name)}
+              role="menuitem"
+              type="button"
+            >
+              <span aria-hidden>{option.symbol}</span>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
 
-function ReactionControl({
-  currentReaction,
-  incoming = false,
-  messageId,
+function ReactionSummaryRow({
   myReaction,
-  onReact,
-  open,
-  setOpen,
-  wrapperRef,
+  onRemoveMine,
+  otherReactions,
 }: {
-  currentReaction?: ReturnType<typeof reactionOption>
-  incoming?: boolean
-  messageId: string
   myReaction?: ChatReactionName
-  onReact: (messageId: string, reaction: ChatReactionName) => void
-  open: boolean
-  setOpen: Dispatch<SetStateAction<boolean>>
-  wrapperRef: RefObject<HTMLDivElement | null>
+  onRemoveMine: () => void
+  otherReactions: ChatReaction[]
 }) {
+  const mine = myReaction ? reactionOption(myReaction) : undefined
+  if (!mine && !otherReactions.length) return null
+
   return (
-    <div className="pointer-events-auto relative h-7" ref={wrapperRef}>
-      <button
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label={currentReaction ? `${currentReaction.label} reaction. Change or remove reaction` : 'Add reaction'}
-        className={`inline-flex size-7 items-center justify-center rounded-full border text-sm shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:hover:translate-y-0 ${currentReaction ? 'border-accent/20 bg-foose-surface' : 'border-foose-border bg-foose-surface text-foose-muted hover:text-accent'}`}
-        onClick={() => setOpen((current) => !current)}
-        title={currentReaction ? 'Change or remove reaction' : 'Add reaction'}
-        type="button"
-      >
-        {currentReaction ? <span aria-hidden>{currentReaction.symbol}</span> : <MdOutlineAddReaction aria-hidden size={17} />}
-      </button>
-      {open && (
-        <div
-          aria-label="Choose a reaction"
-          className={`message-reaction-picker absolute bottom-9 z-30 flex items-center gap-0.5 rounded-full border border-foose-border bg-foose-surface p-1.5 shadow-xl ${incoming ? 'left-0 origin-bottom-left' : 'right-0 origin-bottom-right'}`}
-          role="menu"
+    <div className="flex flex-wrap items-center gap-1 px-1">
+      {mine && (
+        <button
+          aria-label={`Your reaction: ${mine.label}. Tap to remove`}
+          className="inline-flex items-center gap-1 rounded-full border border-accent/25 bg-accent-light px-2 py-0.5 text-xs font-bold text-accent transition hover:bg-accent-light/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          onClick={onRemoveMine}
+          type="button"
         >
-          {reactionOptions.map((option) => {
-            const active = myReaction === option.name
-            return (
-              <button
-                aria-label={active ? `Undo ${option.label} reaction` : option.label}
-                className={`inline-flex size-9 items-center justify-center rounded-full text-lg transition hover:-translate-y-1 hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-accent motion-reduce:hover:translate-y-0 ${active ? 'bg-accent-light ring-1 ring-accent/25' : ''}`}
-                key={option.name}
-                onClick={() => {
-                  onReact(messageId, option.name)
-                  setOpen(false)
-                }}
-                role="menuitem"
-                type="button"
-              >
-                <span aria-hidden>{option.symbol}</span>
-              </button>
-            )
-          })}
-        </div>
+          <span aria-hidden>{mine.symbol}</span>
+          <span>You</span>
+        </button>
       )}
+      {otherReactions.map((reaction, index) => {
+        const option = reactionOption(reaction.reaction)
+        const count = reactionCount(otherReactions, reaction.reaction)
+        const duplicate = otherReactions.findIndex((item) => item.reaction === reaction.reaction) !== index
+        if (!option || duplicate) return null
+        return (
+          <span
+            aria-label={`${option.label} from ${userName(reaction.userId)}`}
+            className="inline-flex items-center gap-1 rounded-full border border-foose-border bg-foose-surface px-2 py-0.5 text-xs font-bold text-foose-muted"
+            key={option.name}
+            title={`${option.label} from ${userName(reaction.userId)}`}
+          >
+            <span aria-hidden>{option.symbol}</span>
+            <span>{userName(reaction.userId).split(' ')[0]}</span>
+            {count > 1 && <span className="text-[10px]">{count}</span>}
+          </span>
+        )
+      })}
     </div>
   )
 }
@@ -169,12 +203,14 @@ export function Message({
 }) {
   const openPreview = useImagePreviewStore((store) => store.openPreview)
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false)
-  const reactionControlRef = useRef<HTMLDivElement | null>(null)
+  const bubbleRef = useRef<HTMLDivElement | null>(null)
+  const reactButtonRef = useRef<HTMLButtonElement | null>(null)
   const myReaction = reactions.find((reaction) => userIdValue(reaction.userId) === currentUserId)?.reaction
   const otherReactions = reactions.filter((reaction) => userIdValue(reaction.userId) !== currentUserId)
-  const selectedReaction = myReaction ? reactionOption(myReaction) : undefined
   const replyText = replySummary(replyTo)
   const replySender = typeof replyTo === 'object' ? userName(replyTo.senderId) : ''
+  const canReact = Boolean(messageId && onReact)
+  const { pressed, ...longPressHandlers } = useLongPress(() => setReactionPickerOpen(true))
   const previewItems = attachments.map((attachment) => ({
     alt: attachment.originalname || 'Message attachment',
     src: attachment.url,
@@ -185,7 +221,9 @@ export function Message({
     if (!reactionPickerOpen) return undefined
 
     function closeOnOutsideClick(event: MouseEvent) {
-      if (!reactionControlRef.current?.contains(event.target as Node)) setReactionPickerOpen(false)
+      const target = event.target as Node
+      if (bubbleRef.current?.contains(target) || reactButtonRef.current?.contains(target)) return
+      setReactionPickerOpen(false)
     }
 
     function closeOnEscape(event: KeyboardEvent) {
@@ -200,6 +238,11 @@ export function Message({
     }
   }, [reactionPickerOpen])
 
+  function selectReaction(reaction: ChatReactionName) {
+    if (messageId && onReact) onReact(messageId, reaction)
+    setReactionPickerOpen(false)
+  }
+
   const replyButton = onReply ? (
     <button
       aria-label="Reply to this message"
@@ -212,69 +255,82 @@ export function Message({
     </button>
   ) : null
 
+  const reactButton = canReact ? (
+    <button
+      aria-expanded={reactionPickerOpen}
+      aria-haspopup="menu"
+      aria-label="React to this message"
+      className="inline-flex size-9 shrink-0 items-center justify-center self-center rounded-full text-foose-muted transition hover:bg-foose-surface-high hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      onClick={() => setReactionPickerOpen((open) => !open)}
+      ref={reactButtonRef}
+      title="React"
+      type="button"
+    >
+      <MdOutlineAddReaction aria-hidden size={18} />
+    </button>
+  ) : null
+
+  const actionButtons = (canReact || onReply) ? (
+    <div className="flex shrink-0 items-center gap-1">
+      {reactButton}
+      {replyButton}
+    </div>
+  ) : null
+
   return (
-    <div className={`message-row relative flex w-full items-center gap-1.5 pb-3 sm:gap-2 ${incoming ? 'justify-start' : 'justify-end'}`} id={messageId ? `chat-message-${messageId}` : undefined}>
-      {!incoming && replyButton}
-      <div className={`message relative flex max-w-[82%] flex-col gap-2 rounded-2xl px-4 py-3 text-sm shadow-sm [&.incoming]:rounded-bl-sm [&.incoming]:bg-foose-surface-high [&.incoming]:text-foose-text [&.outgoing]:rounded-br-sm [&.outgoing]:bg-accent [&.outgoing]:text-white [&_time]:block [&_time]:text-xs [&_time]:opacity-70 max-md:max-w-[86%] ${incoming ? 'incoming' : 'outgoing'}`}>
-      {replyText && (
-        <div className={`rounded-xl border-l-4 px-3 py-2 text-xs ${incoming ? 'border-accent bg-foose-surface/80 text-foose-muted' : 'border-white bg-white/15 text-white/85'}`}>
-          <strong className="block truncate">{replySender}</strong>
-          <span className="line-clamp-2">{replyText}</span>
-        </div>
-      )}
-      {listingTitle(listing) && (
-        <div className="grid grid-cols-[48px_minmax(0,1fr)] items-center gap-3 rounded-xl bg-foose-surface/90 p-2 text-foose-text shadow-sm">
-          {listingImage(listing) ? <img alt="" className="size-12 rounded-lg object-cover" src={listingImage(listing)} /> : <span className="size-12 rounded-lg bg-foose-surface-mid" />}
-          <span className="min-w-0">
-            <strong className="block truncate text-xs font-black">{listingTitle(listing)}</strong>
-            <small className="text-xs font-bold text-accent">{listingPrice(listing)}</small>
-          </span>
-        </div>
-      )}
-      {children && <p>{children}</p>}
-      {!!attachments.length && (
-        <div className="message-attachments flex flex-wrap gap-2 [&_img]:max-h-44 [&_img]:rounded-lg [&_img]:object-cover [&_video]:max-h-44 [&_video]:rounded-lg [&_video]:object-cover">
-          {attachments.map((attachment, index) =>
-            attachment.type === 'video' ? (
-              <button
-                className="block border-0 bg-transparent p-0"
-                key={attachment.url}
-                onClick={() => openPreview(previewItems, index)}
-                type="button"
-              >
-                <video muted src={attachment.url} />
-              </button>
-            ) : (
-              <LightboxImage alt={attachment.originalname || 'Message attachment'} index={index} items={previewItems} key={attachment.url} src={attachment.url} />
-            ),
+    <div className={`message-row relative flex w-full items-start gap-1.5 pb-1 sm:gap-2 ${incoming ? 'justify-start' : 'justify-end'}`} id={messageId ? `chat-message-${messageId}` : undefined}>
+      {!incoming && actionButtons}
+      <div className={`flex min-w-0 max-w-[82%] flex-col gap-1 max-md:max-w-[86%] ${incoming ? 'items-start' : 'items-end'}`}>
+        <div
+          className={`message relative flex w-full flex-col gap-2 rounded-2xl px-4 py-3 text-sm shadow-sm transition-transform motion-reduce:transition-none [&.incoming]:rounded-bl-sm [&.incoming]:bg-foose-surface-high [&.incoming]:text-foose-text [&.outgoing]:rounded-br-sm [&.outgoing]:bg-accent [&.outgoing]:text-white [&_time]:block [&_time]:text-xs [&_time]:opacity-70 ${incoming ? 'incoming' : 'outgoing'} ${pressed ? 'scale-[0.98]' : ''}`}
+          onContextMenu={(event) => { if (canReact) event.preventDefault() }}
+          ref={bubbleRef}
+          {...(canReact ? longPressHandlers : {})}
+        >
+          {replyText && (
+            <div className={`rounded-xl border-l-4 px-3 py-2 text-xs ${incoming ? 'border-accent bg-foose-surface/80 text-foose-muted' : 'border-white bg-white/15 text-white/85'}`}>
+              <strong className="block truncate">{replySender}</strong>
+              <span className="line-clamp-2">{replyText}</span>
+            </div>
           )}
+          {listingTitle(listing) && (
+            <div className="grid grid-cols-[48px_minmax(0,1fr)] items-center gap-3 rounded-xl bg-foose-surface/90 p-2 text-foose-text shadow-sm">
+              {listingImage(listing) ? <img alt="" className="size-12 rounded-lg object-cover" src={listingImage(listing)} /> : <span className="size-12 rounded-lg bg-foose-surface-mid" />}
+              <span className="min-w-0">
+                <strong className="block truncate text-xs font-black">{listingTitle(listing)}</strong>
+                <small className="text-xs font-bold text-accent">{listingPrice(listing)}</small>
+              </span>
+            </div>
+          )}
+          {children && <p>{children}</p>}
+          {!!attachments.length && (
+            <div className="message-attachments flex flex-wrap gap-2 [&_img]:max-h-44 [&_img]:rounded-lg [&_img]:object-cover [&_video]:max-h-44 [&_video]:rounded-lg [&_video]:object-cover">
+              {attachments.map((attachment, index) =>
+                attachment.type === 'video' ? (
+                  <button
+                    className="block border-0 bg-transparent p-0"
+                    key={attachment.url}
+                    onClick={() => openPreview(previewItems, index)}
+                    type="button"
+                  >
+                    <video muted src={attachment.url} />
+                  </button>
+                ) : (
+                  <LightboxImage alt={attachment.originalname || 'Message attachment'} index={index} items={previewItems} key={attachment.url} src={attachment.url} />
+                ),
+              )}
+            </div>
+          )}
+          {subtitle && <time>{subtitle}</time>}
+          {reactionPickerOpen && canReact && <ReactionPicker anchorRef={bubbleRef} myReaction={myReaction} onSelect={selectReaction} />}
         </div>
-      )}
-      {subtitle && <time>{subtitle}</time>}
-      {(Boolean(messageId && onReact) || otherReactions.length > 0) && (
-        <div className="message-reaction-rail pointer-events-none absolute inset-x-2 bottom-0 z-20 flex h-7 translate-y-1/2 items-center justify-between">
-          <div className="flex h-7 min-w-7 items-center justify-start">
-            {incoming ? (
-              messageId && onReact && (
-                <ReactionControl currentReaction={selectedReaction} incoming messageId={messageId} myReaction={myReaction} onReact={onReact} open={reactionPickerOpen} setOpen={setReactionPickerOpen} wrapperRef={reactionControlRef} />
-              )
-            ) : (
-              <OtherReactions reactions={otherReactions} />
-            )}
-          </div>
-          <div className="flex h-7 min-w-7 items-center justify-end">
-            {incoming ? (
-              <OtherReactions reactions={otherReactions} />
-            ) : (
-              messageId && onReact && (
-                <ReactionControl currentReaction={selectedReaction} messageId={messageId} myReaction={myReaction} onReact={onReact} open={reactionPickerOpen} setOpen={setReactionPickerOpen} wrapperRef={reactionControlRef} />
-              )
-            )}
-          </div>
-        </div>
-      )}
+        <ReactionSummaryRow
+          myReaction={myReaction}
+          onRemoveMine={() => myReaction && selectReaction(myReaction)}
+          otherReactions={otherReactions}
+        />
       </div>
-      {incoming && replyButton}
+      {incoming && actionButtons}
     </div>
   )
 }

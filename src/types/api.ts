@@ -421,6 +421,25 @@ export type Review = {
   updatedAt?: string
 }
 
+export type UserReportReason =
+  | 'harassment'
+  | 'scam_or_fraud'
+  | 'counterfeit_or_fake_listings'
+  | 'inappropriate_content'
+  | 'spam'
+  | 'other'
+
+export type UserReport = {
+  _id: string
+  reporterId?: User | string
+  reportedUserId?: User | string
+  reason: UserReportReason
+  details?: string
+  status: 'open' | 'resolved' | 'dismissed' | string
+  isActive: boolean
+  createdAt?: string
+}
+
 export type KycRecord = {
   _id?: string
   userId?: User | string

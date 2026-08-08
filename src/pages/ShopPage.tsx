@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
-import { AppShell, Badge, InlineNotice, ProductCard, RefreshIndicator, SafeImage, ShopReviewPanel, StatePanel, TopFilterBar } from '../components'
+import { AppShell, Badge, BlockUserButton, InlineNotice, ProductCard, RefreshIndicator, ReportUserDialog, SafeImage, ShopReviewPanel, StatePanel, TopFilterBar } from '../components'
 import { ProductGridSkeleton, ShopDetailSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { DiscoveryImage } from '../components/feedback/DiscoveryMedia'
 import { NavigationBackButton } from '../components/navigation'
 import { useApiResource } from '../hooks/useApiResource'
+import { useAuth } from '../hooks/useAuth'
 import type { Listing, Shop } from '../types/api'
 import { initials } from '../utils/format'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
@@ -50,12 +51,16 @@ function sortListings(listings: Listing[], query: URLSearchParams) {
 export function ShopPage() {
   const slug = currentShopSlug()
   const query = currentQuery()
+  const { user } = useAuth()
   const shop = useApiResource<{ shop: Shop }>(slug ? `/digishops/${slug}` : null)
   const listings = useApiResource<{ listings: Listing[] }>(
     shop.data?.shop._id ? `/listings/shop/${shop.data.shop._id}` : null,
     Boolean(shop.data?.shop._id),
   )
   const shopData = shop.data?.shop
+  const shopOwner = shopData?.ownerId
+  const ownerId = typeof shopOwner === 'string' ? shopOwner : shopOwner?._id
+  const showAccountActions = Boolean(ownerId && user && ownerId !== user._id)
   const filteredListings = useMemo(() => {
     const source = (listings.data?.listings || []).map((listing) =>
       shopData && typeof listing.shopId !== 'object' ? { ...listing, shopId: shopData } : listing,
@@ -125,6 +130,12 @@ export function ShopPage() {
                   <h2 className="text-2xl font-black text-foose-text">{shopData.shopName}</h2>
                   {shopData.category && <Badge tone="accent">{shopData.category}</Badge>}
                 </div>
+                {showAccountActions && ownerId && (
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <ReportUserDialog reportedUserId={ownerId} />
+                    <BlockUserButton blockedUserId={ownerId} showText />
+                  </div>
+                )}
                 <p className="text-sm leading-6 text-foose-muted">{shopData.bio || 'This DigiShop has not added a bio yet.'}</p>
                 <div className="mt-4 rounded-lg bg-foose-surface-low p-3 text-sm">
                   <strong className="text-foose-text">{shopData.rating || 0} / 5</strong>

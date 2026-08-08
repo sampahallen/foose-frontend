@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { AppShell, Dialog, Icon, InlineNotice, LoadingRegion, Message, SkeletonBlock, StatePanel } from '../components'
+import { HiFlag } from 'react-icons/hi'
+import { AppShell, BlockUserButton, Dialog, Icon, InlineNotice, LoadingRegion, Message, ReportUserDialog, SkeletonBlock, StatePanel } from '../components'
 import { InboxListSkeleton } from '../components/operational/OperationalStates'
 import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
@@ -266,9 +267,11 @@ export function InboxPage() {
   const [replyTarget, setReplyTarget] = useState<InboxChatMessage | null>(null)
   const [newReactionMessageId, setNewReactionMessageId] = useState('')
   const [pendingReactionMessageId, setPendingReactionMessageId] = useState('')
+  const [accountActionsOpen, setAccountActionsOpen] = useState(false)
   const selectedAttachmentsRef = useRef<DraftAttachment[]>([])
   const messageInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<HTMLDivElement | null>(null)
+  const accountActionsRef = useRef<HTMLDivElement | null>(null)
   const lastConversationRef = useRef('')
   const lastNewestMessageRef = useRef('')
   const initialReactionCheckRef = useRef('')
@@ -330,9 +333,30 @@ export function InboxPage() {
   }
 
   useEffect(() => {
+    if (!accountActionsOpen) return undefined
+
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (accountActionsRef.current?.contains(event.target as Node)) return
+      setAccountActionsOpen(false)
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setAccountActionsOpen(false)
+    }
+
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [accountActionsOpen])
+
+  useEffect(() => {
     setOlderMessagesEnabled(false)
     setNewReactionMessageId('')
     setPendingReactionMessageId('')
+    setAccountActionsOpen(false)
     initialReactionCheckRef.current = ''
     setReplyTarget(null)
     setLiveMessages([])
@@ -800,6 +824,57 @@ export function InboxPage() {
                 </a>
               )}
             </div>
+            {activeParticipantProfile && (
+              <div className="relative shrink-0" ref={accountActionsRef}>
+                <button
+                  aria-expanded={accountActionsOpen}
+                  aria-haspopup="menu"
+                  aria-label="Account actions"
+                  className="icon-button"
+                  onClick={() => setAccountActionsOpen((open) => !open)}
+                  type="button"
+                >
+                  <HiFlag size={20} />
+                </button>
+                {accountActionsOpen && (
+                  <div className="absolute right-0 top-full z-[1000] mt-2 w-52 rounded-xl border border-foose-border bg-foose-surface p-1.5 text-foose-text shadow-2xl" role="menu">
+                    <ReportUserDialog
+                      renderTrigger={({ onClick }) => (
+                        <button
+                          className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold transition hover:bg-foose-surface-low"
+                          onClick={() => {
+                            setAccountActionsOpen(false)
+                            onClick()
+                          }}
+                          role="menuitem"
+                          type="button"
+                        >
+                          Report user
+                        </button>
+                      )}
+                      reportedUserId={activeParticipantProfile._id}
+                    />
+                    <BlockUserButton
+                      blockedUserId={activeParticipantProfile._id}
+                      renderTrigger={({ active, busy, onClick }) => (
+                        <button
+                          className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-foose-danger transition hover:bg-foose-danger-bg/40 disabled:opacity-50"
+                          disabled={busy}
+                          onClick={(event) => {
+                            setAccountActionsOpen(false)
+                            onClick(event)
+                          }}
+                          role="menuitem"
+                          type="button"
+                        >
+                          {active ? 'Unblock user' : 'Block user'}
+                        </button>
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </header>
           <div className="relative flex min-h-0 flex-1">
           <div className="messages flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 pb-6 max-md:px-3" ref={messagesRef}>
