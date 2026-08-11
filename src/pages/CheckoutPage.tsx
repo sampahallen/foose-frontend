@@ -536,7 +536,7 @@ export function CheckoutPage() {
               {step === 0 && (
                 <FormSection description="Choose a delivery method for each seller in your cart." title="Delivery details">
                   {optionsError && <InlineNotice tone="warning">{optionsError}</InlineNotice>}
-                  <div className="grid gap-5">
+                  <div className="grid min-w-0 gap-5">
                     {shopGroups.map((group, groupIndex) => {
                       const state = shopDeliveryFor(group.shopId)
                       const errors = shopErrors(group.shopId)
@@ -558,8 +558,8 @@ export function CheckoutPage() {
                         return sum + unitPrice * item.quantity
                       }, 0)
                       return (
-                        <div className="rounded-xl border border-foose-border bg-foose-surface-low/40 p-4 sm:p-5" key={group.shopId}>
-                          <div className="mb-4 flex items-center justify-between gap-2.5 border-b border-foose-border pb-3">
+                        <div className="min-w-0 rounded-xl border border-foose-border bg-foose-surface-low/40 p-4 sm:p-5" key={group.shopId}>
+                          <div className="mb-4 flex flex-col gap-3 border-b border-foose-border pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2.5">
                             <div className="flex min-w-0 items-center gap-2.5">
                               <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-light text-accent"><Icon name="store" size={17} /></span>
                               <div className="min-w-0">
@@ -570,7 +570,7 @@ export function CheckoutPage() {
                                 <p className="text-xs text-foose-muted">Seller {groupIndex + 1} of {shopGroups.length} · {group.items.length} {group.items.length === 1 ? 'item' : 'items'}</p>
                               </div>
                             </div>
-                            <div className="shrink-0 text-right text-xs">
+                            <div className="shrink-0 pl-11 text-xs sm:pl-0 sm:text-right">
                               <p className="text-foose-muted">Items <span className="font-black text-foose-text">{formatMoney(itemsSubtotal)}</span></p>
                               <p className="text-foose-muted">Estimated delivery <span className="font-black text-foose-text">{estimatedFee === null ? '…' : formatMoney(estimatedFee)}</span></p>
                             </div>
@@ -796,7 +796,7 @@ export function CheckoutPage() {
 
               {step === 2 && (
                 <FormSection description={usesPaystack ? 'Payment is complete. Review the confirmed order details.' : 'Check these details before placing your order.'} title="Review and confirm">
-                  <div className="grid gap-4">
+                  <div className="grid min-w-0 gap-4">
                     {shopGroups.map((group) => {
                       const state = shopDeliveryFor(group.shopId)
                       const requiresDestination = state.method !== 'shop_pickup'
