@@ -527,14 +527,14 @@ export function CheckoutPage() {
         <StatePanel action={<ButtonLink to="/browse">Browse marketplace</ButtonLink>} body="Add items from the marketplace, then return here to complete your purchase." layout="page" title="No items to checkout" tone="empty" />
       )}
       {!!cart.items.length && (
-        <FormPage description="Choose fulfilment, payment, and confirm your order." eyebrow="Secure checkout" title="Complete your order" width="wide">
+        <FormPage description="Choose delivery, payment, and confirm your order." eyebrow="Secure checkout" title="Complete your order" width="wide">
           <form aria-busy={submitting} className="checkout-layout grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]" onSubmit={(event) => void submitOrder(event)}>
             <section className="min-w-0">
               <StepIndicator current={step} label="Checkout progress" onStepChange={paymentSession ? undefined : (nextStep) => { if (nextStep < step) goToStep(nextStep) }} />
               <h2 className="sr-only" ref={stepHeadingRef} tabIndex={-1}>{step === 0 ? 'Delivery details' : step === 1 ? 'Payment method' : 'Review order'}</h2>
 
               {step === 0 && (
-                <FormSection description="Choose a fulfilment method for each seller in your cart." title="Delivery details">
+                <FormSection description="Choose a delivery method for each seller in your cart." title="Delivery details">
                   {optionsError && <InlineNotice tone="warning">{optionsError}</InlineNotice>}
                   <div className="grid gap-5">
                     {shopGroups.map((group, groupIndex) => {
@@ -597,7 +597,7 @@ export function CheckoutPage() {
                             })}
                           </div>
 
-                          <FormField htmlFor={`method-${group.shopId}`} label="Fulfilment method" required>
+                          <FormField htmlFor={`method-${group.shopId}`} label="Delivery method" required>
                             <SelectControl
                               id={`method-${group.shopId}`}
                               onChange={(event) => {
@@ -809,7 +809,7 @@ export function CheckoutPage() {
                       return (
                         <dl className="grid gap-3 rounded-xl bg-foose-surface-low p-4 text-sm sm:grid-cols-2" key={group.shopId}>
                           <div className="sm:col-span-2"><dt className="font-semibold text-foose-muted">Seller</dt><dd className="mt-1 font-bold text-foose-text">{group.shopName}</dd></div>
-                          <div><dt className="font-semibold text-foose-muted">Fulfilment</dt><dd className="mt-1 font-bold text-foose-text">{deliveryMethodLabel(state.method)}{state.method === 'station_pickup' && state.company ? ` · ${state.company}` : ''}{isCourierMethod && providerName ? ` · ${providerName}` : ''}</dd></div>
+                          <div><dt className="font-semibold text-foose-muted">Delivery</dt><dd className="mt-1 font-bold text-foose-text">{deliveryMethodLabel(state.method)}{state.method === 'station_pickup' && state.company ? ` · ${state.company}` : ''}{isCourierMethod && providerName ? ` · ${providerName}` : ''}</dd></div>
                           {isCourierMethod ? (
                             <div><dt className="font-semibold text-foose-muted">Delivery address</dt><dd className="mt-1 font-bold text-foose-text">{[state.deliveryAddress, state.secondAddress].filter(Boolean).join(', ')}</dd></div>
                           ) : (
