@@ -93,6 +93,9 @@ function makeOrder(overrides: Partial<Order> = {}): Order {
 describe('OrderDetailPage lifecycle actions', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/orders/order-12345678')
+    // The waybill dialog persists its text fields to localStorage as a draft;
+    // clear it so one test's in-progress upload never leaks into the next.
+    window.localStorage.clear()
     orderMocks.order = makeOrder()
     orderMocks.apiGet.mockReset()
     orderMocks.userId = 'buyer-1'
@@ -111,6 +114,8 @@ describe('OrderDetailPage lifecycle actions', () => {
 
     expect(screen.getByRole('button', { name: 'Confirm collection' })).toBeVisible()
     expect(screen.getByRole('link', { name: 'Report a problem' })).toHaveAttribute('href', '/orders/order-12345678/report')
+    // Shop pickup genuinely has no delivery fee — this is the one case "Free" still applies.
+    expect(screen.getByText('Free')).toBeVisible()
     expect(screen.queryByRole('button', { name: /accept order/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/mark selected received/i)).not.toBeInTheDocument()
 
@@ -159,10 +164,17 @@ describe('OrderDetailPage lifecycle actions', () => {
     const bill = new File(['bill-image'], 'station-bill.png', { type: 'image/png' })
     await user.upload(screen.getByLabelText(/^Waybill/), bill)
     await user.type(screen.getByLabelText(/Driver phone number/), '+233 24 111 2222')
-    await user.type(screen.getByLabelText(/Parcel number/), 'PKG-7788')
+    await user.click(screen.getByRole('button', { name: 'Review details' }))
+    expect(screen.getAllByText('Enter the bus number.')[0]).toBeVisible()
+    expect(screen.getAllByText('Enter the amount to be paid, above zero.')[0]).toBeVisible()
+
+    await user.type(screen.getByLabelText(/Bus number/), 'GT 1234-20')
+    await user.type(screen.getByLabelText(/Amount to be paid/), '70.00')
     await user.click(screen.getByRole('button', { name: 'Review details' }))
 
     expect(screen.getByRole('dialog', { name: 'Review dispatch details' })).toHaveTextContent('Intercity STC')
+    expect(screen.getByRole('dialog', { name: 'Review dispatch details' })).toHaveTextContent('GT 1234-20')
+    expect(screen.getByRole('dialog', { name: 'Review dispatch details' })).toHaveTextContent('GHS 70.00')
     expect(orderMocks.postOrderAction).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Mark sent & notify buyer' }))
 
@@ -172,8 +184,92 @@ describe('OrderDetailPage lifecycle actions', () => {
     expect(body).toBeInstanceOf(FormData)
     expect((body as FormData).get('billImage')).toBe(bill)
     expect((body as FormData).get('driverPhone')).toBe('0241112222')
-    expect((body as FormData).get('parcelNumber')).toBe('PKG-7788')
+    expect((body as FormData).get('busNumber')).toBe('GT 1234-20')
+    expect((body as FormData).get('amount')).toBe('7000')
   }, 15_000)
+
+  it('shows TBD for a station pickup awaiting dispatch, and the seller-reported amount once sent', () => {
+    orderMocks.order = makeOrder({
+      delivery: { method: 'station_pickup' },
+      fulfillmentStatus: 'awaiting_seller',
+    })
+    const { rerender } = render(<ToastProvider><OrderDetailPage /></ToastProvider>)
+
+    expect(screen.getByText('TBD')).toBeVisible()
+    expect(screen.queryByText('Free')).not.toBeInTheDocument()
+
+    orderMocks.order = makeOrder({
+      delivery: {
+        method: 'station_pickup',
+        transit: { amount: 7000, driverPhone: '0241112222' },
+      },
+      fulfillmentStatus: 'in_transit',
+    })
+    rerender(<ToastProvider><OrderDetailPage /></ToastProvider>)
+
+    expect(screen.getByText('GHS 70.00')).toBeVisible()
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument()
+  })
+
+  it('replaces the upload dropzone with a mini preview once a waybill image is chosen', async () => {
+    const user = userEvent.setup()
+    orderMocks.userId = 'seller-1'
+    orderMocks.order = makeOrder({
+      delivery: { company: 'Intercity STC', method: 'station_pickup' },
+      fulfillmentStatus: 'awaiting_seller',
+      workflow: {
+        allowedActions: ['dispatch'],
+        deadline: { at: '2026-07-27T12:00:00.000Z', type: 'seller_action' },
+        nextActor: 'seller',
+        report: null,
+        serverNow: '2026-07-24T12:00:00.000Z',
+        settlementExplanation: 'Payment is held.',
+      },
+    })
+
+    render(<ToastProvider><OrderDetailPage /></ToastProvider>)
+    await user.click(screen.getByRole('button', { name: 'Upload waybill & send' }))
+    expect(screen.getByRole('button', { name: 'Choose image' })).toBeVisible()
+
+    const bill = new File(['bill-image'], 'station-bill.png', { type: 'image/png' })
+    await user.upload(screen.getByLabelText(/^Waybill/), bill)
+
+    expect(screen.queryByRole('button', { name: 'Choose image' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Drop an image here')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove selected upload 1' })).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'Remove selected upload 1' }))
+    expect(screen.getByRole('button', { name: 'Choose image' })).toBeVisible()
+  })
+
+  it('clears the waybill selection when the dialog is cancelled, so reopening it starts blank', async () => {
+    const user = userEvent.setup()
+    orderMocks.userId = 'seller-1'
+    orderMocks.order = makeOrder({
+      delivery: { company: 'Intercity STC', method: 'station_pickup' },
+      fulfillmentStatus: 'awaiting_seller',
+      workflow: {
+        allowedActions: ['dispatch'],
+        deadline: { at: '2026-07-27T12:00:00.000Z', type: 'seller_action' },
+        nextActor: 'seller',
+        report: null,
+        serverNow: '2026-07-24T12:00:00.000Z',
+        settlementExplanation: 'Payment is held.',
+      },
+    })
+
+    render(<ToastProvider><OrderDetailPage /></ToastProvider>)
+    await user.click(screen.getByRole('button', { name: 'Upload waybill & send' }))
+
+    const bill = new File(['bill-image'], 'station-bill.png', { type: 'image/png' })
+    await user.upload(screen.getByLabelText(/^Waybill/), bill)
+    await user.type(screen.getByLabelText(/Driver phone number/), '0241112222')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    await user.click(screen.getByRole('button', { name: 'Upload waybill & send' }))
+    expect(screen.getByRole('button', { name: 'Choose image' })).toBeVisible()
+    expect(screen.getByLabelText(/Driver phone number/)).toHaveValue('')
+  })
 
   it('shows pickup coordination details and a direct route to the seller', () => {
     render(<ToastProvider><OrderDetailPage /></ToastProvider>)
@@ -215,6 +311,66 @@ describe('OrderDetailPage lifecycle actions', () => {
     expect(screen.queryByRole('heading', { name: 'Transit details' })).not.toBeInTheDocument()
   })
 
+  it('sends a courier dispatch as a JSON tracking link, not a waybill upload', async () => {
+    const user = userEvent.setup()
+    orderMocks.userId = 'seller-1'
+    orderMocks.order = makeOrder({
+      delivery: {
+        destination: {
+          deliveryAddress: '12 Ring Road',
+          recipientName: 'Ama Buyer',
+          recipientPhone: '0240000000',
+          region: 'Greater Accra',
+          town: 'Accra',
+        },
+        method: 'intra_city_courier',
+        provider: 'bolt_send',
+      },
+      fulfillmentStatus: 'awaiting_seller',
+      workflow: {
+        allowedActions: ['dispatchCourier'],
+        deadline: { at: '2026-07-27T12:00:00.000Z', type: 'seller_action' },
+        nextActor: 'seller',
+        report: null,
+        serverNow: '2026-07-24T12:00:00.000Z',
+        settlementExplanation: 'Payment is held.',
+      },
+    })
+
+    render(<ToastProvider><OrderDetailPage /></ToastProvider>)
+    await user.click(screen.getByRole('button', { name: 'Add tracking link & send' }))
+    await user.click(screen.getByRole('button', { name: 'Send & notify buyer' }))
+    expect(screen.getAllByText(/valid tracking link/i)[0]).toBeVisible()
+    expect(orderMocks.postOrderAction).not.toHaveBeenCalled()
+
+    await user.type(screen.getByLabelText(/Tracking link/), 'https://track.bolt.eu/abc123')
+    await user.click(screen.getByRole('button', { name: 'Send & notify buyer' }))
+
+    await waitFor(() => expect(orderMocks.postOrderAction).toHaveBeenCalledWith(
+      'order-12345678',
+      'dispatchCourier',
+      { trackingLink: 'https://track.bolt.eu/abc123' },
+      expect.stringContaining('order:order-12345678:dispatchCourier:'),
+    ))
+  })
+
+  it('shows the buyer a tracking link and the provider-specific notice', () => {
+    orderMocks.order = makeOrder({
+      delivery: {
+        destination: { region: 'Greater Accra', town: 'Accra' },
+        method: 'intra_city_courier',
+        provider: 'yango_delivery',
+        trackingLink: 'https://track.yango.com/xyz',
+      },
+      fulfillmentStatus: 'in_transit',
+    })
+
+    render(<ToastProvider><OrderDetailPage /></ToastProvider>)
+
+    expect(screen.getByRole('link', { name: 'Open tracking link' })).toHaveAttribute('href', 'https://track.yango.com/xyz')
+    expect(screen.getByText(/Yango will send you SMS updates directly/)).toBeVisible()
+  })
+
   it('keeps an active report reachable after reporting freezes all actions', () => {
     orderMocks.order = makeOrder({
       activeReportId: 'report-1',
@@ -244,7 +400,6 @@ describe('OrderDetailPage lifecycle actions', () => {
         method: 'station_pickup',
         transit: {
           billImage: { originalName: 'waybill.png' },
-          parcelNumber: 'PKG-123',
         },
       },
       fulfillmentStatus: 'in_transit',

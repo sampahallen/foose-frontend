@@ -66,6 +66,10 @@ const actionCopy: Record<OrderAllowedAction, {
     busyLabel: 'Sending…',
     label: 'Upload waybill & send',
   },
+  dispatchCourier: {
+    busyLabel: 'Sending…',
+    label: 'Add tracking link & send',
+  },
   confirm_receipt: {
     busyLabel: 'Releasing funds…',
     confirmDescription: 'Confirm only after checking the complete parcel. This immediately releases the protected payment to the seller.',
@@ -107,6 +111,7 @@ export function orderPrimaryAction(order: Pick<Order, 'workflow'>) {
     'confirm_collection',
     'confirm_receipt',
     'dispatch',
+    'dispatchCourier',
     'mark_pickup_ready',
     'close_no_action',
     'release_unclaimed_pickup',
@@ -152,7 +157,7 @@ export function orderTitle(order: Pick<Order, 'items'>) {
 export function orderAddress(order: Pick<Order, 'delivery'>) {
   const destination = order.delivery?.destination
   if (destination) {
-    return [destination.preferredTerminal, destination.town, destination.region].filter(Boolean).join(', ')
+    return [destination.deliveryAddress, destination.secondAddress, destination.preferredTerminal, destination.town, destination.region].filter(Boolean).join(', ')
   }
   const address = order.delivery?.address
   return [address?.street, address?.city, address?.region].filter(Boolean).join(', ')
@@ -164,9 +169,29 @@ export function deliveryMethodLabel(method?: NonNullable<Order['delivery']>['met
       return 'Shop pickup'
     case 'station_pickup':
       return 'Station pickup'
+    case 'airport_to_airport':
+      return 'Airport to airport'
+    case 'intra_city_courier':
+      return 'Intra-city courier'
+    case 'inter_city_courier':
+      return 'Inter-city courier'
     default:
       return 'Delivery'
   }
+}
+
+/**
+ * The delivery fee in pesewas, resolved from wherever it was recorded — a
+ * checkout-time snapshot, or the transit amount the seller entered while
+ * dispatching a station-pickup order. `null` means genuinely unknown yet (a
+ * station pickup whose seller hasn't dispatched); `0` means no fee applies.
+ * Callers should render `null` as "TBD" and `0` as "Free" — never guess a fee
+ * from the method alone, since only the seller knows what the bus charged.
+ */
+export function orderDeliveryFee(order: Pick<Order, 'delivery' | 'deliveryFee'>): number | null {
+  const known = order.deliveryFee || order.delivery?.fee || order.delivery?.transit?.amount
+  if (known) return known
+  return order.delivery?.method === 'station_pickup' ? null : 0
 }
 
 export function orderRecipient(order: Pick<Order, 'delivery'>) {
@@ -276,6 +301,7 @@ export function orderNextStep(order: Order, viewer: OrderViewer) {
       release_unclaimed_pickup: 'The collection window has passed. You may return the items to inventory.',
       confirm_collection: 'Collect and inspect the order, then confirm while you are with the seller.',
       dispatch: 'Send the parcel, then upload a clear photo of the waybill.',
+      dispatchCourier: 'Book the courier, then paste the tracking link here.',
       confirm_receipt: 'Inspect the complete parcel, then confirm receipt to release payment.',
       close_no_action: 'The seller action window has passed. You may close the order for a full refund.',
       report: 'If something is wrong, submit a report before the release window ends.',
@@ -318,6 +344,7 @@ export function orderEventLabel(type: string) {
     cash_pickup_completed: 'Pickup completed and cash received',
     pickup_released: 'Unclaimed pickup returned to inventory',
     delivery_dispatched: 'Parcel sent with waybill uploaded',
+    delivery_dispatched_courier: 'Parcel sent with courier booked',
     funds_released: 'Protected payment released to seller',
     refund_pending: 'Full refund requested',
     collection_confirmed: 'Collection confirmed and payment released',

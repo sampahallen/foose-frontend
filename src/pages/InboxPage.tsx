@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { HiFlag } from 'react-icons/hi'
-import { AppShell, BlockUserButton, Dialog, Icon, InlineNotice, LoadingRegion, Message, ReportUserDialog, SkeletonBlock, StatePanel } from '../components'
+import { AppShell, BlockUserButton, Dialog, Icon, InlineNotice, LoadingRegion, Message, OfferCard, ReportUserDialog, SkeletonBlock, StatePanel } from '../components'
 import { InboxListSkeleton } from '../components/operational/OperationalStates'
 import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
+import { useBargain } from '../hooks/useBargain'
 import { useApiResource } from '../hooks/useApiResource'
 import { useInfiniteApiResource } from '../hooks/useInfiniteApiResource'
 import { useMessaging } from '../hooks/useMessaging'
@@ -296,6 +297,7 @@ export function InboxPage() {
     return firstDate - secondDate
   })
   const newestMessageId = orderedMessages.at(-1)?._id || ''
+  const bargaining = useBargain(orderedMessages)
   const activeComposerListing = params.listingId && dismissedListingId !== params.listingId ? listingContext.data?.listing : undefined
   const productChat = Boolean(activeComposerListing || orderedMessages.some((message) => Boolean(message.listingId)))
   const activeContact = productMessages
@@ -900,6 +902,22 @@ export function InboxPage() {
               orderedMessages.map((message) => {
                 const incoming = Boolean(myId) && senderIdValue(message.senderId) !== myId
                 const subtitle = message.createdAt ? formatDateTime(message.createdAt) : undefined
+                if (message.type === 'offer' && message.offer) {
+                  const bargainId = typeof message.bargainId === 'string' ? message.bargainId : message.bargainId?._id
+                  return (
+                    <OfferCard
+                      bargain={bargainId ? bargaining.bargains[bargainId] : undefined}
+                      busy={Boolean(bargainId) && bargaining.busyId === bargainId}
+                      currentUserId={myId}
+                      incoming={incoming}
+                      isLatest={bargaining.isLatestOfferMessage(message._id)}
+                      key={message._id}
+                      message={message}
+                      onAction={(id, action, amount) => void bargaining.act(id, action, amount)}
+                      subtitle={subtitle}
+                    />
+                  )
+                }
                 return (
                   <Message
                     attachments={message.attachments || []}
@@ -931,6 +949,16 @@ export function InboxPage() {
             </button>
           )}
           </div>
+          {bargaining.actionError && (
+            <InlineNotice
+              action={<button className="text-sm font-bold text-accent" onClick={bargaining.clearActionError} type="button">Dismiss</button>}
+              className="mx-3 mb-2"
+              title="Bargain not updated"
+              tone="error"
+            >
+              {bargaining.actionError}
+            </InlineNotice>
+          )}
           {sendError && <InlineNotice className="mx-3 mb-2" title={sendErrorTitle} tone="error">{sendError}</InlineNotice>}
           {replyTarget && <ReplyContextBand message={replyTarget} onDismiss={() => setReplyTarget(null)} />}
           <ListingContextBand listing={activeComposerListing} onDismiss={() => setDismissedListingId(params.listingId)} />

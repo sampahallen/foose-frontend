@@ -8,6 +8,7 @@ const endpointByAction: Record<Exclude<OrderAllowedAction, 'report'>, string> = 
   release_unclaimed_pickup: 'release-unclaimed-pickup',
   confirm_collection: 'confirm-collection',
   dispatch: 'dispatch',
+  dispatchCourier: 'dispatch-courier',
   confirm_receipt: 'confirm-receipt',
   close_no_action: 'close-no-action',
 }

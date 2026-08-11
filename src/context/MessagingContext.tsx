@@ -8,6 +8,7 @@ import { getErrorMessage } from '../utils/errorMessage'
 import {
   MessagingContext,
   type MessagesReadEvent,
+  type RealtimeBargainEvent,
   type RealtimeMessageEvent,
   type RealtimeReactionEvent,
   type SendSocketMessageAck,
@@ -101,6 +102,7 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
   const [messageReactionEvent, setMessageReactionEvent] = useState<RealtimeReactionEvent | null>(null)
   const [messageReactionEvents, setMessageReactionEvents] = useState<RealtimeReactionEvent[]>([])
   const [messagesReadEvent, setMessagesReadEvent] = useState<MessagesReadEvent | null>(null)
+  const [bargainEvent, setBargainEvent] = useState<RealtimeBargainEvent | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [notificationError, setNotificationError] = useState('')
   const [notificationEvent, setNotificationEvent] = useState<Notification | null>(null)
@@ -226,6 +228,11 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
       })
     }
 
+    function handleBargainUpdated(rawEvent: RealtimeBargainEvent) {
+      if (!rawEvent?.bargain || !rawEvent.conversationId) return
+      setBargainEvent({ ...rawEvent })
+    }
+
     function handleMessageReactionsRead(event: MessagesReadEvent) {
       if (event.readBy !== userId) return
       setMessageReactionEvents((current) => current.filter((item) => item.conversationId !== event.conversationId))
@@ -284,6 +291,7 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
       nextSocket.on('message-reaction-updated', handleMessageReaction)
       nextSocket.on('message-reactions-read', handleMessageReactionsRead)
       nextSocket.on('messages-read', handleMessagesRead)
+      nextSocket.on('bargain-updated', handleBargainUpdated)
     }
     nextSocket.on('notification', handleNotification)
     nextSocket.on('new-notification', handleNotification)
@@ -299,6 +307,7 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
         nextSocket.off('message-reaction-updated', handleMessageReaction)
         nextSocket.off('message-reactions-read', handleMessageReactionsRead)
         nextSocket.off('messages-read', handleMessagesRead)
+        nextSocket.off('bargain-updated', handleBargainUpdated)
       }
       nextSocket.off('notification', handleNotification)
       nextSocket.off('new-notification', handleNotification)
@@ -379,6 +388,7 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
+      bargainEvent,
       connected,
       conversations,
       hasUnreadMessages,
@@ -403,6 +413,7 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
       unreadNotificationCount,
     }),
     [
+      bargainEvent,
       connected,
       conversations,
       hasUnreadMessages,

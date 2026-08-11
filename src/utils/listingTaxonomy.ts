@@ -132,7 +132,7 @@ export const LISTING_MATERIALS = [
 ] as const
 export const LISTING_FITS = ['slim', 'regular', 'relaxed', 'oversized', 'tailored'] as const
 export const LISTING_PATTERNS = ['solid', 'striped', 'checked', 'floral', 'graphic', 'animal', 'geometric', 'traditional-print', 'other'] as const
-export const LISTING_BALE_GRADES = ['premium', 'grade-a', 'grade-b', 'mixed'] as const
+export const LISTING_BALE_GRADES = ['premium', 'grade-a', 'grade-b', 'mixed', 'wiper'] as const
 export const LISTING_FOOTWEAR_SIZES = Array.from({ length: 31 }, (_, index) => `EU ${index + 20}`)
 
 export type ListingAttributes = {

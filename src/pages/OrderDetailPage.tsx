@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { FaInfoCircle } from 'react-icons/fa'
 import {
   AppShell,
   ConfirmDialog,
@@ -18,6 +19,8 @@ import {
 } from '../components'
 import { OrderDetailSkeleton } from '../components/operational/OperationalStates'
 import { NavigationBackButton } from '../components/navigation'
+import { clearDraftImages, loadDraftImages, saveDraftImages } from '../components/forms/draftImageStore'
+import { useLocalDraft } from '../components/forms/useLocalDraft'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useOrderAutoRefresh } from '../hooks/useOrderAutoRefresh'
@@ -26,7 +29,7 @@ import { ApiError, apiGet } from '../lib/api'
 import { createOrderIdempotencyKey, postOrderAction } from '../lib/orderActions'
 import { useImagePreviewStore } from '../stores/imagePreviewStore'
 import type { Listing, Order, OrderAllowedAction, OrderEvent, User } from '../types/api'
-import { formatDateTime, formatMoney, getListingImage } from '../utils/format'
+import { formatDateTime, formatMoney, getListingImage, parseGhsToPesewas } from '../utils/format'
 import { normalizePhone } from '../utils/formValidation'
 import {
   deliveryMethodLabel,
@@ -34,6 +37,7 @@ import {
   orderAddress,
   orderAllowedActions,
   orderDeadlineLabel,
+  orderDeliveryFee,
   orderNextStep,
   orderRecipient,
   orderSettlementLabel,
@@ -92,6 +96,12 @@ function itemId(item: Order['items'][number], index: number) {
   return item.listingId?._id || String(index)
 }
 
+const COURIER_PROVIDER_COPY: Record<string, { name: string; notice: string }> = {
+  bolt_send: { name: 'Bolt Send', notice: 'Track your delivery in real-time via the link above.' },
+  shaq_express: { name: 'ShaQ Express', notice: 'Track your ShaQ Express delivery via the link above.' },
+  yango_delivery: { name: 'Yango Delivery', notice: 'Yango will send you SMS updates directly. You can also track via the link above.' },
+}
+
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   if (!value) return null
   return (
@@ -102,7 +112,7 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
-function actionMessage(action: Exclude<OrderAllowedAction, 'report' | 'dispatch'>) {
+function actionMessage(action: Exclude<OrderAllowedAction, 'report' | 'dispatch' | 'dispatchCourier'>) {
   const messages: Record<typeof action, string> = {
     cancel_cash_pickup: 'The pickup request was cancelled and its inventory was restored.',
     mark_pickup_ready: 'The buyer was notified and their 72-hour collection window has started.',
@@ -132,13 +142,17 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   const allowedActions = order ? orderAllowedActions(order) : []
   const [actionId, setActionId] = useState<OrderAllowedAction | ''>('')
   const [actionError, setActionError] = useState('')
-  const [pendingConfirmation, setPendingConfirmation] = useState<Exclude<OrderAllowedAction, 'report' | 'dispatch'> | null>(null)
+  const [pendingConfirmation, setPendingConfirmation] = useState<Exclude<OrderAllowedAction, 'report' | 'dispatch' | 'dispatchCourier'> | null>(null)
   const [selectedItem, setSelectedItem] = useState<Order['items'][number] | null>(null)
   const [dispatchOpen, setDispatchOpen] = useState(false)
+  const [courierDispatchOpen, setCourierDispatchOpen] = useState(false)
+  const [trackingLinkValue, setTrackingLinkValue] = useState('')
+  const [trackingLinkAttempted, setTrackingLinkAttempted] = useState(false)
   const [billImage, setBillImage] = useState<File | null>(null)
   const [billPreviewUrl, setBillPreviewUrl] = useState('')
   const [driverPhone, setDriverPhone] = useState('')
-  const [parcelNumber, setParcelNumber] = useState('')
+  const [busNumber, setBusNumber] = useState('')
+  const [amountValue, setAmountValue] = useState('')
   const [dispatchAttempted, setDispatchAttempted] = useState(false)
   const [dispatchReviewing, setDispatchReviewing] = useState(false)
   const [billLoading, setBillLoading] = useState(false)
@@ -148,6 +162,27 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   const openImagePreview = useImagePreviewStore((state) => state.openPreview)
   const actionKeysRef = useRef(new Map<OrderAllowedAction, string>())
   const billReadRevisionRef = useRef(0)
+  const dispatchDraftResumedRef = useRef(false)
+  // The waybill image itself lives in IndexedDB (see draftImageStore), keyed by
+  // the same storageKey as this text draft, so a refresh mid-upload does not
+  // lose either. orderId is read straight from the URL, so the key is stable
+  // before the order document has finished loading.
+  const dispatchDraftValue = useMemo(
+    () => ({ amountValue, busNumber, driverPhone }),
+    [amountValue, busNumber, driverPhone],
+  )
+  const dispatchDraft = useLocalDraft({
+    enabled: Boolean(orderId),
+    formId: 'order-dispatch',
+    onRestore: (saved) => {
+      if (typeof saved.driverPhone === 'string') setDriverPhone(saved.driverPhone)
+      if (typeof saved.busNumber === 'string') setBusNumber(saved.busNumber)
+      if (typeof saved.amountValue === 'string') setAmountValue(saved.amountValue)
+    },
+    resourceId: orderId,
+    userId: user?._id,
+    value: dispatchDraftValue,
+  })
   const visibleEvents = useMemo(() => {
     const initial = eventsResource.data?.events || orderResource.data?.events || order?.events || []
     return Array.from(new Map(
@@ -173,6 +208,25 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     orderId,
   )
 
+  // Resume an in-progress waybill upload after a refresh. Runs once: an image
+  // in storage is what makes the draft meaningful, so a text-only leftover
+  // (e.g. from a much older visit whose image already expired) is discarded
+  // rather than reopening an empty dialog.
+  useEffect(() => {
+    if (dispatchDraftResumedRef.current || !dispatchDraft.hasRecoverableDraft) return
+    dispatchDraftResumedRef.current = true
+    void loadDraftImages(dispatchDraft.storageKey).then((files) => {
+      if (!files.length) {
+        dispatchDraft.discardDraft()
+        return
+      }
+      dispatchDraft.resumeDraft()
+      updateBillImage(files)
+      setDispatchOpen(true)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per mount, keyed on the draft becoming available
+  }, [dispatchDraft.hasRecoverableDraft])
+
   async function refreshOrder() {
     await Promise.all([orderResource.refetch(), eventsResource.refetch()])
   }
@@ -196,7 +250,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     }
   }
 
-  async function executeAction(action: Exclude<OrderAllowedAction, 'report' | 'dispatch'>) {
+  async function executeAction(action: Exclude<OrderAllowedAction, 'report' | 'dispatch' | 'dispatchCourier'>) {
     if (!order) return
     setActionId(action)
     setActionError('')
@@ -228,7 +282,10 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     event.preventDefault()
     if (!order) return
     setDispatchAttempted(true)
-    if (!billImage || !/^0\d{9}$/.test(normalizePhone(driverPhone))) return
+    const amountPesewas = parseGhsToPesewas(amountValue)
+    if (!billImage || !/^0\d{9}$/.test(normalizePhone(driverPhone)) || !busNumber.trim() || amountPesewas === null || amountPesewas <= 0) {
+      return
+    }
     setActionError('')
     setDispatchReviewing(true)
   }
@@ -239,6 +296,9 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     const revision = billReadRevisionRef.current
     setBillImage(file)
     setBillPreviewUrl('')
+    // Removing the image (files === []) clears the persisted copy too, since
+    // saveDraftImages treats an empty list as a delete.
+    void saveDraftImages(dispatchDraft.storageKey, files)
     if (!file) return
     const reader = new FileReader()
     reader.addEventListener('load', () => {
@@ -249,13 +309,34 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     reader.readAsDataURL(file)
   }
 
+  // The waybill dialog is fully abandoned: clear both the text draft and the
+  // persisted image so reopening it — this session or after a refresh —
+  // starts blank.
+  function exitDispatchDialog() {
+    setDispatchOpen(false)
+    setDispatchReviewing(false)
+    setDispatchAttempted(false)
+    setBillImage(null)
+    setBillPreviewUrl('')
+    billReadRevisionRef.current += 1
+    setDriverPhone('')
+    setBusNumber('')
+    setAmountValue('')
+    dispatchDraft.clearDraft()
+    void clearDraftImages(dispatchDraft.storageKey)
+  }
+
   async function confirmDispatch() {
     const normalizedDriverPhone = normalizePhone(driverPhone)
-    if (!order || !billImage || !/^0\d{9}$/.test(normalizedDriverPhone)) return
+    const amountPesewas = parseGhsToPesewas(amountValue)
+    if (!order || !billImage || !/^0\d{9}$/.test(normalizedDriverPhone) || !busNumber.trim() || amountPesewas === null || amountPesewas <= 0) {
+      return
+    }
     const body = new FormData()
     body.set('billImage', billImage)
     body.set('driverPhone', normalizedDriverPhone)
-    body.set('parcelNumber', parcelNumber.trim())
+    body.set('busNumber', busNumber.trim())
+    body.set('amount', String(amountPesewas))
 
     setActionId('dispatch')
     setActionError('')
@@ -265,14 +346,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       await postOrderAction(order._id, 'dispatch', body, idempotencyKey)
       actionKeysRef.current.delete('dispatch')
       await refreshOrder()
-      setDispatchOpen(false)
-      setDispatchReviewing(false)
-      setDispatchAttempted(false)
-      setBillImage(null)
-      setDriverPhone('')
-      setParcelNumber('')
-      billReadRevisionRef.current += 1
-      setBillPreviewUrl('')
+      exitDispatchDialog()
       showToast({
         message: 'The buyer can now see the waybill and delivery release window.',
         title: 'Order marked as sent',
@@ -281,8 +355,49 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Unable to send the waybill')
       if (error instanceof ApiError && [409, 410].includes(error.status)) {
-        setDispatchOpen(false)
-        setDispatchReviewing(false)
+        exitDispatchDialog()
+        await refreshOrder()
+        showToast({
+          message: 'Someone else updated this order first. The latest order state is now shown.',
+          title: 'Order changed',
+          tone: 'info',
+        })
+      }
+    } finally {
+      setActionId('')
+    }
+  }
+
+  function exitCourierDispatchDialog() {
+    setCourierDispatchOpen(false)
+    setTrackingLinkAttempted(false)
+    setTrackingLinkValue('')
+  }
+
+  async function confirmCourierDispatch() {
+    if (!order) return
+    setTrackingLinkAttempted(true)
+    const trackingLink = trackingLinkValue.trim()
+    if (!trackingLink || !/^https?:\/\//i.test(trackingLink)) return
+
+    setActionId('dispatchCourier')
+    setActionError('')
+    try {
+      const idempotencyKey = actionKeysRef.current.get('dispatchCourier') || createOrderIdempotencyKey(order._id, 'dispatchCourier')
+      actionKeysRef.current.set('dispatchCourier', idempotencyKey)
+      await postOrderAction(order._id, 'dispatchCourier', { trackingLink }, idempotencyKey)
+      actionKeysRef.current.delete('dispatchCourier')
+      await refreshOrder()
+      exitCourierDispatchDialog()
+      showToast({
+        message: 'The buyer can now see the tracking link and delivery release window.',
+        title: 'Order marked as sent',
+        tone: 'success',
+      })
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to save the tracking link')
+      if (error instanceof ApiError && [409, 410].includes(error.status)) {
+        exitCourierDispatchDialog()
         await refreshOrder()
         showToast({
           message: 'Someone else updated this order first. The latest order state is now shown.',
@@ -350,6 +465,10 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             setDispatchReviewing(false)
             setDispatchAttempted(false)
             setActionError('')
+          } else if (action === 'dispatchCourier') {
+            setCourierDispatchOpen(true)
+            setTrackingLinkAttempted(false)
+            setActionError('')
           } else {
             setPendingConfirmation(action)
           }
@@ -369,13 +488,19 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   const transitAvailable = Boolean(
     company
     || transit?.driverPhone
-    || transit?.parcelNumber
     || transit?.billImage,
   )
   const billAvailable = Boolean(transit?.billImage)
   const normalizedDriverPhone = normalizePhone(driverPhone)
   const driverPhoneInvalid = dispatchAttempted && !/^0\d{9}$/.test(normalizedDriverPhone)
+  const busNumberInvalid = dispatchAttempted && !busNumber.trim()
+  const amountPesewas = parseGhsToPesewas(amountValue)
+  const amountInvalid = dispatchAttempted && (amountPesewas === null || amountPesewas <= 0)
   const confirmCopy = pendingConfirmation ? orderActionCopy(pendingConfirmation) : null
+  const deliveryFeeAmount = order ? orderDeliveryFee(order) : null
+  const isCourierMethod = order?.delivery?.method === 'intra_city_courier' || order?.delivery?.method === 'inter_city_courier'
+  const courierProvider = order?.delivery?.provider ? COURIER_PROVIDER_COPY[order.delivery.provider] : undefined
+  const trackingLinkInvalid = trackingLinkAttempted && !/^https?:\/\//i.test(trackingLinkValue.trim())
 
   return (
     <AppShell active={sellerMode ? 'shop' : 'profile'} searchPlaceholder="Search orders…" showFooter={false}>
@@ -501,7 +626,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             </div>
             <dl className="mt-4 space-y-1.5 text-sm">
               <div className="flex items-center justify-between text-foose-muted"><dt>Items</dt><dd className="font-bold text-foose-text">{formatMoney(order.subtotalAmount ?? order.totalAmount - (order.deliveryFee || 0), order.currency)}</dd></div>
-              <div className="flex items-center justify-between text-foose-muted"><dt>Delivery</dt><dd className="font-bold text-foose-text">{order.deliveryFee || order.delivery?.fee ? formatMoney(order.deliveryFee || order.delivery?.fee || 0, order.currency) : 'Free'}</dd></div>
+              <div className="flex items-center justify-between text-foose-muted"><dt>Delivery</dt><dd className="font-bold text-foose-text">{deliveryFeeAmount === null ? 'TBD' : deliveryFeeAmount ? formatMoney(deliveryFeeAmount, order.currency) : 'Free'}</dd></div>
               <div className="flex items-center justify-between border-t border-foose-border pt-2 text-base"><dt className="font-black text-foose-text">Total</dt><dd className="font-black text-accent">{formatMoney(order.totalAmount, order.currency)}</dd></div>
             </dl>
           </section>
@@ -534,10 +659,25 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                 <>
                   <DetailRow label="Company" value={company || 'Not provided'} />
                   <DetailRow label="Driver phone" value={transit.driverPhone || 'Not provided'} />
-                  {transit.parcelNumber && <DetailRow label="Parcel number" value={transit.parcelNumber} />}
+                  {transit.busNumber && <DetailRow label="Bus number" value={transit.busNumber} />}
+                </>
+              )}
+              {isCourierMethod && (
+                <>
+                  <DetailRow label="Delivery provider" value={courierProvider?.name || order?.delivery?.provider || 'Not provided'} />
+                  <DetailRow
+                    label="Tracking"
+                    value={order?.delivery?.trackingLink
+                      ? <a className="text-accent underline underline-offset-2" href={order.delivery.trackingLink} rel="noreferrer" target="_blank">Open tracking link</a>
+                      : sellerMode ? 'Add a tracking link when you mark this order as sent' : 'Tracking link pending'}
+                  />
                 </>
               )}
             </dl>
+
+            {isCourierMethod && !sellerMode && order.delivery?.trackingLink && courierProvider && (
+              <InlineNotice className="mt-4" tone="info">{courierProvider.notice}</InlineNotice>
+            )}
 
             {order.delivery?.method === 'shop_pickup' && !sellerMode && typeof order.shopId === 'object' && (
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -641,7 +781,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             <>
               <button
                 className="rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text"
-                onClick={() => setDispatchOpen(false)}
+                onClick={exitDispatchDialog}
                 type="button"
               >
                 Cancel
@@ -650,23 +790,21 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             </>
           )
         )}
-        onClose={() => {
-          setDispatchOpen(false)
-          setDispatchReviewing(false)
-        }}
+        onClose={exitDispatchDialog}
         open={dispatchOpen}
         size="lg"
         title={dispatchReviewing ? 'Review dispatch details' : 'Upload waybill'}
       >
         <div className={dispatchReviewing ? 'grid gap-5' : 'hidden'}>
             {actionError && <InlineNotice title="Waybill was not saved" tone="error">{actionError}</InlineNotice>}
-            <InlineNotice title="This starts the delivery clock" tone="warning">
+            <InlineNotice icon={<FaInfoCircle size={18} />} title="This starts the delivery clock" tone="info">
               The buyer is notified immediately. Unless they confirm receipt or submit a report, the protected payment releases after 36 hours.
             </InlineNotice>
             <dl className="divide-y divide-foose-border rounded-xl border border-foose-border px-3">
               {company && <DetailRow label="Company" value={company} />}
               <DetailRow label="Driver phone" value={normalizedDriverPhone} />
-              <DetailRow label="Parcel number" value={parcelNumber.trim() || 'Not provided'} />
+              <DetailRow label="Bus number" value={busNumber.trim()} />
+              <DetailRow label="Amount to be paid" value={amountPesewas !== null ? formatMoney(amountPesewas, order?.currency) : ''} />
               <DetailRow label="Private waybill" value={billImage?.name} />
             </dl>
             <div className="overflow-hidden rounded-2xl border border-foose-border bg-foose-surface-low p-3">
@@ -680,13 +818,15 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
               />
             </div>
         </div>
-        <form className={dispatchReviewing ? 'hidden' : 'grid gap-5'} id="dispatch-order-form" noValidate onSubmit={reviewDispatch}>
+        <form className={dispatchReviewing ? 'hidden' : 'relative z-0 grid gap-5'} id="dispatch-order-form" noValidate onSubmit={reviewDispatch}>
           {actionError && <InlineNotice title="Waybill was not saved" tone="error">{actionError}</InlineNotice>}
-          {dispatchAttempted && (!billImage || driverPhoneInvalid) && (
+          {dispatchAttempted && (!billImage || driverPhoneInvalid || busNumberInvalid || amountInvalid) && (
             <ErrorSummary
               errors={[
                 ...(!billImage ? [{ fieldId: 'dispatch-bill', message: 'Add a clear image of the waybill.' }] : []),
                 ...(driverPhoneInvalid ? [{ fieldId: 'dispatch-driver-phone', message: 'Enter a valid 10-digit driver phone number.' }] : []),
+                ...(busNumberInvalid ? [{ fieldId: 'dispatch-bus-number', message: 'Enter the bus number.' }] : []),
+                ...(amountInvalid ? [{ fieldId: 'dispatch-amount', message: 'Enter the amount to be paid, above zero.' }] : []),
               ]}
               focus
             />
@@ -711,19 +851,32 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
               value={driverPhone}
             />
             <TextField
-              id="dispatch-parcel-number"
-              label="Parcel number"
+              error={busNumberInvalid ? 'Enter the bus number.' : undefined}
+              id="dispatch-bus-number"
+              label="Bus number"
               maxLength={120}
-              name="parcelNumber"
-              onChange={(event) => setParcelNumber(event.target.value)}
-              optional
-              placeholder="e.g. PKG-12345"
-              value={parcelNumber}
+              name="busNumber"
+              onChange={(event) => setBusNumber(event.target.value)}
+              placeholder="e.g. GT 1234-20"
+              required
+              value={busNumber}
+            />
+            <TextField
+              error={amountInvalid ? 'Enter the amount to be paid, above zero.' : undefined}
+              id="dispatch-amount"
+              inputMode="decimal"
+              label="Amount to be paid"
+              name="amount"
+              onChange={(event) => setAmountValue(event.target.value)}
+              placeholder="70.00"
+              prefix="GHS"
+              required
+              value={amountValue}
             />
           </div>
           <ImagePreviewInput
             accept="image/jpeg,image/png,image/webp"
-            aspect="wide"
+            aspect="original"
             error={dispatchAttempted && !billImage ? 'Add a clear image of the waybill.' : undefined}
             hint="JPEG, PNG or WebP only. Maximum 5 MB. This image stays private to order participants and authorized staff."
             id="dispatch-bill"
@@ -732,7 +885,48 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             maxFiles={1}
             name="billImage"
             onFilesChange={updateBillImage}
+            presentation="preview"
             required
+          />
+        </form>
+      </Dialog>
+
+      <Dialog
+        description="Paste the tracking link from the Bolt/Yango/ShaQ app after you've booked the delivery. The buyer is notified immediately."
+        dismissible={actionId !== 'dispatchCourier'}
+        footer={(
+          <>
+            <button
+              className="rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text"
+              disabled={actionId === 'dispatchCourier'}
+              onClick={exitCourierDispatchDialog}
+              type="button"
+            >
+              Cancel
+            </button>
+            <SubmitButton form="courier-dispatch-form" loading={actionId === 'dispatchCourier'} loadingLabel="Sending…">
+              Send & notify buyer
+            </SubmitButton>
+          </>
+        )}
+        onClose={exitCourierDispatchDialog}
+        open={courierDispatchOpen}
+        title="Add tracking link"
+      >
+        <form className="grid gap-5" id="courier-dispatch-form" noValidate onSubmit={(event) => { event.preventDefault(); void confirmCourierDispatch() }}>
+          {actionError && <InlineNotice title="Tracking link was not saved" tone="error">{actionError}</InlineNotice>}
+          {trackingLinkInvalid && (
+            <ErrorSummary errors={[{ fieldId: 'courier-tracking-link', message: 'Enter a valid tracking link (starting with https://).' }]} focus />
+          )}
+          <TextField
+            error={trackingLinkInvalid ? 'Enter a valid tracking link (starting with https://).' : undefined}
+            id="courier-tracking-link"
+            label="Tracking link"
+            onChange={(event) => setTrackingLinkValue(event.target.value)}
+            placeholder="https://track.bolt.eu/..."
+            required
+            type="url"
+            value={trackingLinkValue}
           />
         </form>
       </Dialog>

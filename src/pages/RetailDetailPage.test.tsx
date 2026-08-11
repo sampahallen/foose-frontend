@@ -7,6 +7,7 @@ import { RetailDetailPage } from './RetailDetailPage'
 
 const mocks = vi.hoisted(() => ({
   addListing: vi.fn(),
+  cartItems: [] as Array<{ listingId: string }>,
   currentUser: null as null | { _id: string },
   navigateTo: vi.fn(),
 }))
@@ -53,7 +54,7 @@ vi.mock('../hooks/useApiResource', () => ({
 }))
 
 vi.mock('../hooks/useCart', () => ({
-  useCart: () => ({ addListing: mocks.addListing }),
+  useCart: () => ({ addListing: mocks.addListing, items: mocks.cartItems }),
 }))
 
 vi.mock('../hooks/useListingRecommendationSignals', () => ({
@@ -76,6 +77,7 @@ describe('RetailDetailPage cart actions', () => {
   beforeEach(() => {
     mocks.addListing.mockReset()
     mocks.addListing.mockReturnValue(true)
+    mocks.cartItems = []
     mocks.currentUser = null
     mocks.navigateTo.mockReset()
   })
@@ -90,6 +92,26 @@ describe('RetailDetailPage cart actions', () => {
     expect(mocks.navigateTo).not.toHaveBeenCalled()
     expect(screen.getByRole('status')).toHaveTextContent('Added to cart')
     expect(screen.getByRole('status')).toHaveTextContent('Everyday trainers was added to your cart.')
+  })
+
+  it('shows an added-to-cart state for an item already in the cart and links to it', async () => {
+    const user = userEvent.setup()
+    mocks.cartItems = [{ listingId: 'listing-1' }]
+    render(<ToastProvider><RetailDetailPage /></ToastProvider>)
+
+    expect(screen.queryByRole('button', { name: 'Add to cart' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Added to cart' }))
+
+    // Re-adding is impossible from this state; the button becomes a way back to the cart.
+    expect(mocks.addListing).not.toHaveBeenCalled()
+    expect(mocks.navigateTo).toHaveBeenCalledWith('/cart')
+  })
+
+  it('leaves the add button alone for a different listing in the cart', () => {
+    mocks.cartItems = [{ listingId: 'listing-2' }]
+    render(<ToastProvider><RetailDetailPage /></ToastProvider>)
+
+    expect(screen.getByRole('button', { name: 'Add to cart' })).toBeInTheDocument()
   })
 
   it('still sends Buy now directly to checkout', async () => {

@@ -5,6 +5,7 @@ import { ButtonLink } from '../ui/ButtonLink'
 
 export function OrderSummary({
   action,
+  bargainPrices,
   deliveryFee,
   deliveryParcelCount,
   disabled = false,
@@ -16,6 +17,11 @@ export function OrderSummary({
   submit = false,
 }: {
   action: string
+  /**
+   * Agreed unit prices from the buyer's accepted bargains, keyed by listing.
+   * Display only — the server re-resolves the price when the order is placed.
+   */
+  bargainPrices?: Record<string, number>
   /** Estimated delivery from API; null while loading or unknown */
   deliveryFee?: number | null
   /** Standard delivery is charged once for each seller parcel. */
@@ -30,9 +36,16 @@ export function OrderSummary({
   /** Use inside a `<form>` to trigger submit (e.g. checkout). */
   submit?: boolean
 }) {
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const resolvedDelivery = deliveryFee ?? 0
-  const total = subtotal + resolvedDelivery + serviceFee
+  // Bargained prices are shown on the items themselves; the summary just needs
+  // the totals to agree with them.
+  const subtotal = items.reduce((sum, item) => {
+    const agreed = bargainPrices?.[item.listingId]
+    const unitPrice = agreed !== undefined ? Math.min(agreed, item.price) : item.price
+    return sum + unitPrice * item.quantity
+  }, 0)
+  // Delivery here is an informational planning estimate, not a charge Foose
+  // collects — buyers/sellers settle it directly, so it never joins the total.
+  const total = subtotal + serviceFee
 
   let deliveryLabel: string
   if (deliveryFee === undefined) {
@@ -68,13 +81,6 @@ export function OrderSummary({
             <strong>{formatMoney(subtotal)}</strong>
           </div>
           <div className="summary-row flex flex-wrap items-center gap-3 justify-between border-b border-foose-border py-3">
-            <span>
-              Delivery
-              {deliveryParcelCount && deliveryParcelCount > 1 ? ` (${deliveryParcelCount} seller parcels)` : ''}
-            </span>
-            <strong>{deliveryLabel}</strong>
-          </div>
-          <div className="summary-row flex flex-wrap items-center gap-3 justify-between border-b border-foose-border py-3">
             <span>Service Fee</span>
             <strong>{formatMoney(serviceFee)}</strong>
           </div>
@@ -82,7 +88,6 @@ export function OrderSummary({
             <span>Total</span>
             <strong>{formatMoney(total)}</strong>
           </div>
-          {deliveryFee === null && <p className="muted-copy text-sm leading-6 text-foose-muted md:text-base">Total updates when the delivery estimate is ready.</p>}
         </>
       )}
       {href ? (
@@ -104,6 +109,13 @@ export function OrderSummary({
         <Icon name="wallet" />
         <Icon name="shield" />
       </div>
+      {!pendingFees && deliveryFee !== undefined && (
+        <p className="muted-copy mt-4 text-center text-sm leading-6 text-foose-muted">
+          {deliveryFee === null
+            ? 'Calculating the delivery estimate…'
+            : `Estimated delivery${deliveryParcelCount && deliveryParcelCount > 1 ? ` (${deliveryParcelCount} seller parcels)` : ''}: ${deliveryLabel}`}
+        </p>
+      )}
     </aside>
   )
 }

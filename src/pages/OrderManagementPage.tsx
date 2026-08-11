@@ -35,6 +35,12 @@ type OrdersResponse = {
   orders: Order[]
 }
 
+type BuyingOrdersSummary = {
+  inProgressCount: number
+  needsActionCount: number
+  underReviewCount: number
+}
+
 type PaginationState = {
   endpoint: string
   nextCursor: string | null
@@ -100,6 +106,9 @@ function OrderManagementContent({
     return `${base}?${parameters.toString()}`
   }, [bucket, deferredQuery, method, sellerMode, sort])
   const orders = useApiResource<OrdersResponse>(endpoint)
+  // Buyer-only: per-bucket counts for the tab badges below. History is
+  // excluded server-side since nothing there needs the buyer's attention.
+  const summary = useApiResource<BuyingOrdersSummary>('/orders/me/buying/summary', !sellerMode)
   const [pagination, setPagination] = useState<PaginationState>({
     endpoint: '',
     nextCursor: null,
@@ -117,8 +126,12 @@ function OrderManagementContent({
     [activePagination?.orders, orders.data?.orders],
   )
 
-  useOrderAutoRefresh(orders.refetch, Boolean(orders.data))
-  useOrderRealtimeRefresh(orders.refetch, Boolean(orders.data))
+  async function refreshOrdersAndSummary() {
+    await Promise.all([orders.refetch(), summary.refetch()])
+  }
+
+  useOrderAutoRefresh(refreshOrdersAndSummary, Boolean(orders.data))
+  useOrderRealtimeRefresh(refreshOrdersAndSummary, Boolean(orders.data))
 
   const effectiveCursor = activePagination ? activePagination.nextCursor : orders.data?.nextCursor
   const visibleOrders = useMemo(() => {
@@ -189,6 +202,16 @@ function OrderManagementContent({
     }
   }
 
+  // How many orders in this bucket need the buyer to do something. Buyer-only
+  // and never shown for history — a completed order needs no count.
+  function bucketCount(value: OrderBucket) {
+    if (sellerMode) return undefined
+    if (value === 'needs_action') return summary.data?.needsActionCount
+    if (value === 'in_progress') return summary.data?.inProgressCount
+    if (value === 'under_review') return summary.data?.underReviewCount
+    return undefined
+  }
+
   function reviewAction(order: Order) {
     if (sellerMode || bucket !== 'history' || !isHistoricalOrder(order) || order.fulfillmentStatus === 'cancelled') {
       return undefined
@@ -245,17 +268,27 @@ function OrderManagementContent({
           <>
             <nav aria-label="Order status groups" className="-mx-3 mb-5 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0">
               <div className="inline-flex min-w-max gap-2 rounded-2xl border border-foose-border bg-foose-surface-low p-1.5">
-                {bucketOptions.map((option) => (
-                  <button
-                    aria-current={bucket === option.value ? 'page' : undefined}
-                    className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-sm font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${bucket === option.value ? 'bg-accent text-white shadow-sm' : 'text-foose-muted hover:bg-foose-surface hover:text-foose-text'}`}
-                    key={option.value}
-                    onClick={() => setBucket(option.value)}
-                    type="button"
-                  >
-                    {option.label}
-                  </button>
-                ))}
+                {bucketOptions.map((option) => {
+                  const count = bucketCount(option.value)
+                  const active = bucket === option.value
+                  return (
+                    <button
+                      aria-current={active ? 'page' : undefined}
+                      aria-label={count ? `${option.label}, ${count} to complete` : undefined}
+                      className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-sm font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${active ? 'bg-accent text-white shadow-sm' : 'text-foose-muted hover:bg-foose-surface hover:text-foose-text'}`}
+                      key={option.value}
+                      onClick={() => setBucket(option.value)}
+                      type="button"
+                    >
+                      {option.label}
+                      {Boolean(count) && (
+                        <span aria-hidden="true" className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black leading-none ${active ? 'bg-white text-accent' : 'bg-accent-light text-accent'}`}>
+                          {count && count > 99 ? '99+' : count}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
             </nav>
 

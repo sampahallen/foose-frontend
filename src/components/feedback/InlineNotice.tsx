@@ -21,12 +21,15 @@ export function InlineNotice({
   action,
   children,
   className = '',
+  icon,
   title,
   tone = 'info',
 }: {
   action?: ReactNode
   children: ReactNode
   className?: string
+  /** Overrides the default tone icon, e.g. a specific react-icons glyph. */
+  icon?: ReactNode
   title?: ReactNode
   tone?: InlineNoticeTone
 }) {
@@ -36,7 +39,7 @@ export function InlineNotice({
       className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-sm ${toneClasses[tone]} ${className}`}
       role={tone === 'error' ? 'alert' : 'status'}
     >
-      <span aria-hidden="true" className="mt-0.5 shrink-0"><Icon name={toneIcon[tone]} size={18} /></span>
+      <span aria-hidden="true" className="mt-0.5 shrink-0">{icon || <Icon name={toneIcon[tone]} size={18} />}</span>
       <div className="min-w-0 flex-1 text-foose-text">
         {title && <p className="font-bold">{title}</p>}
         <div className={title ? 'mt-0.5 text-foose-muted' : 'text-foose-muted'}>{children}</div>

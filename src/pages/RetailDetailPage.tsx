@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { FaAngleRight } from 'react-icons/fa'
 import { MdVerified } from 'react-icons/md'
-import { AppShell, Badge, ButtonLink, DropdownChevron, FavoriteButton, Icon, InlineNotice, ListingImageSlider, ProductCard, RefreshIndicator, SectionHeader, ShopReviewPanel, StatePanel, useToast } from '../components'
+import { AppShell, Badge, ButtonLink, DropdownChevron, FavoriteButton, Icon, InlineNotice, ListingImageSlider, MakeOfferPanel, ProductCard, RefreshIndicator, SectionHeader, ShopReviewPanel, StatePanel, useToast } from '../components'
 import { ListingDetailSkeleton, ProductBandSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
@@ -122,7 +122,7 @@ export function RetailDetailPage() {
   const { showToast } = useToast()
   const listingId = currentListingId()
   const listingResource = useApiResource<{ listing: Listing }>(listingId ? `/listings/${listingId}` : null)
-  const { addListing } = useCart()
+  const { addListing, items: cartItems } = useCart()
   const isModal = useNavigationStore((state) => (
     state.entries.find((entry) => entry.id === state.currentEntryId)?.presentation === 'modal'
   ))
@@ -131,6 +131,7 @@ export function RetailDetailPage() {
   const shopId = shopIdValue(listing?.shopId)
   const sellerId = shopOwnerId(shop?.ownerId)
   const isOwner = Boolean(user?._id && sellerId === user._id)
+  const inCart = Boolean(listing && cartItems.some((item) => item.listingId === listing._id))
   const sellerListingsResource = useApiResource<{ listings: Listing[] }>(shopId ? `/listings/shop/${shopId}` : null, Boolean(shopId && !isOwner))
   const relatedListingsResource = useApiResource<PaginatedListings>(
     listing?.category ? `/search/items?category=${encodeURIComponent(listing.category)}${listing.subcategory ? `&subcategory=${encodeURIComponent(listing.subcategory)}` : ''}&limit=12&sort=newest` : null,
@@ -287,7 +288,7 @@ export function RetailDetailPage() {
                 {listing.type === 'wholesale' && (
                   <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-foose-muted">
                     {listing.bulkMinQty !== undefined && <span className="rounded-full bg-foose-surface-mid px-3 py-1">Min. {listing.bulkMinQty}</span>}
-                    {listing.bulkWeight && <span className="rounded-full bg-foose-surface-mid px-3 py-1">{listing.bulkWeight}</span>}
+                    {listing.bulkWeight && <span className="rounded-full bg-foose-surface-mid px-3 py-1">{listing.bulkWeight.replace(/\s*kg\s*$/i, '')} Kg</span>}
                   </div>
                 )}
                 {!!listing.volumeDiscounts?.length && (
@@ -317,12 +318,20 @@ export function RetailDetailPage() {
                   <button className="inline-flex h-11 items-center justify-center rounded-md border border-accent bg-accent px-4 text-sm font-black text-white transition hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleBuyNow} type="button">
                     Buy now
                   </button>
-                  <button className="inline-flex h-11 items-center justify-center rounded-md border border-foose-border bg-foose-surface px-4 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleAddToCart} type="button">
-                    Add to cart
-                  </button>
+                  {inCart ? (
+                    <button className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-foose-success bg-foose-success-bg px-4 text-sm font-black text-foose-success transition hover:brightness-95" onClick={() => navigateTo('/cart')} type="button">
+                      <Icon name="check" size={16} />
+                      Added to cart
+                    </button>
+                  ) : (
+                    <button className="inline-flex h-11 items-center justify-center rounded-md border border-foose-border bg-foose-surface px-4 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleAddToCart} type="button">
+                      Add to cart
+                    </button>
+                  )}
                   <ButtonLink to={askQuestionHref} className="h-11 rounded-md" variant="secondary">
                     Ask a question
                   </ButtonLink>
+                  <MakeOfferPanel inboxHref={withBasePath(askQuestionHref)} listing={listing} />
                 </div>}
                 {!isOwner && (
                   <div className="mt-4 grid justify-items-start gap-1.5 border-t border-foose-border pt-4">

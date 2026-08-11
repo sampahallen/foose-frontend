@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -92,6 +92,18 @@ describe('guided checkout form', () => {
     expect(screen.queryByRole('textbox', { name: 'Region' })).not.toBeInTheDocument()
   })
 
+  it('disables the payment action briefly after arriving, so a double-click cannot fire it from the same gesture as "Continue to payment"', async () => {
+    const user = userEvent.setup()
+    render(<CheckoutPage />)
+
+    await user.click(screen.getByRole('radio', { name: 'Shop pickup' }))
+    await user.click(screen.getByRole('button', { name: 'Continue to payment' }))
+
+    const payButton = screen.getByRole('button', { name: 'Pay with Paystack' })
+    expect(payButton).toBeDisabled()
+    await waitFor(() => expect(payButton).not.toBeDisabled())
+  })
+
   it('preserves entered delivery values while moving forward and back', async () => {
     const user = userEvent.setup()
     paymentMocks.apiGet.mockResolvedValue({
@@ -137,7 +149,9 @@ describe('guided checkout form', () => {
     expect(screen.getByRole('heading', { name: 'Payment' })).toBeVisible()
 
     await user.click(screen.getByRole('radio', { name: /Cash on pickup/ }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Review order' })).not.toBeDisabled())
     await user.click(screen.getByRole('button', { name: 'Review order' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Place pickup order' })).not.toBeDisabled())
     await user.click(screen.getByRole('button', { name: 'Place pickup order' }))
 
     expect(paymentMocks.apiPost).toHaveBeenCalledWith(
@@ -174,6 +188,7 @@ describe('guided checkout form', () => {
     render(<CheckoutPage />)
     await user.click(screen.getByRole('radio', { name: 'Shop pickup' }))
     await user.click(screen.getByRole('button', { name: 'Continue to payment' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pay with Paystack' })).not.toBeDisabled())
     await user.click(screen.getByRole('button', { name: 'Pay with Paystack' }))
 
     expect(await screen.findByText(/available in inventory again/i)).toBeVisible()
@@ -206,6 +221,7 @@ describe('guided checkout form', () => {
     expect(paymentMocks.navigateTo).not.toHaveBeenCalled()
     expect(cartMocks.clearCart).not.toHaveBeenCalled()
 
+    await waitFor(() => expect(screen.getByRole('button', { name: 'View order confirmation' })).not.toBeDisabled())
     await user.click(screen.getByRole('button', { name: 'View order confirmation' }))
 
     expect(paymentMocks.navigateTo).toHaveBeenCalledWith('/order-confirmed?orderIds=order-1')
@@ -241,12 +257,14 @@ describe('guided checkout form', () => {
     render(<CheckoutPage />)
     await user.click(screen.getByRole('radio', { name: 'Shop pickup' }))
     await user.click(screen.getByRole('button', { name: 'Continue to payment' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pay with Paystack' })).not.toBeDisabled())
     await user.click(screen.getByRole('button', { name: 'Pay with Paystack' }))
 
     expect(await screen.findByRole('button', { name: 'Retry payment confirmation' })).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'Review and confirm' })).not.toBeInTheDocument()
     expect(screen.getByText(/you will not be charged again/i)).toBeVisible()
 
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Retry payment confirmation' })).not.toBeDisabled())
     await user.click(screen.getByRole('button', { name: 'Retry payment confirmation' }))
 
     expect(await screen.findByRole('heading', { name: 'Review and confirm' })).toBeVisible()
@@ -416,6 +434,99 @@ describe('guided checkout form', () => {
     const options = screen.getAllByRole('option')
     expect(options.map((option) => option.textContent)).toEqual(['Choose a destination', 'Accra'])
     expect(destinationSelect).toBeVisible()
+  })
+
+  it('shows live courier pricing per provider and submits the chosen provider and address', async () => {
+    const user = userEvent.setup()
+    paymentMocks.apiGet.mockImplementation((path: string) => {
+      if (path.startsWith('/orders/checkout/delivery-quote')) {
+        return Promise.resolve({
+          interCity: null,
+          intraCity: [
+            { distanceKm: 30, feePesewas: 1500, providerId: 'bolt_send', providerName: 'Bolt Send', trackingNotice: 'Track your delivery in real-time via the link above.' },
+            { distanceKm: 30, feePesewas: 1800, providerId: 'yango_delivery', providerName: 'Yango Delivery', trackingNotice: 'Yango will send you SMS updates directly. You can also track via the link above.' },
+          ],
+        })
+      }
+      return Promise.resolve({
+        shops: [{
+          courier: { interCityPossible: true, intraCityPossible: true },
+          intercityStc: { destinations: [], eligible: false },
+          location: { city: 'Accra', region: 'Greater Accra' },
+          shopId: 'shop-1',
+          shopName: 'Archive Shop',
+          twoMExpress: { destinations: [], eligible: false },
+          vipJeoun: { destinations: [], eligible: false },
+        }],
+      })
+    })
+    paymentMocks.apiPost.mockResolvedValue({
+      order: { _id: 'courier-order' },
+      orders: [{ _id: 'courier-order' }],
+      payment: { accessCode: 'access-code', provider: 'paystack', reference: 'courier-payment-ref', status: 'pending' },
+    })
+
+    render(<CheckoutPage />)
+
+    await user.click(screen.getByRole('radio', { name: 'Intra-city courier' }))
+    const regionSelect = await screen.findByRole('combobox', { name: /Your region/ })
+    await user.click(regionSelect)
+    await user.click(screen.getByRole('option', { name: 'Greater Accra' }))
+    const townSelect = screen.getByRole('combobox', { name: /Your town/ })
+    await user.click(townSelect)
+    await user.click(screen.getByRole('option', { name: 'Tema' }))
+
+    expect(await screen.findByRole('radio', { name: /Bolt Send/ })).toBeVisible()
+    expect(screen.getAllByText(/~30km/)).toHaveLength(2)
+    expect(screen.getByRole('radio', { name: /Yango Delivery/ })).toBeVisible()
+
+    await user.click(screen.getByRole('radio', { name: /Bolt Send/ }))
+    await user.type(screen.getByRole('textbox', { name: /Delivery address/ }), '12 Ring Road')
+
+    expect(screen.getByText('Estimated delivery: GHS 15.00')).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'Continue to payment' }))
+    expect(screen.getByRole('heading', { name: 'Payment' })).toBeVisible()
+    expect(screen.queryByRole('radio', { name: /Cash on pickup/ })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pay with Paystack' })).not.toBeDisabled())
+    await user.click(screen.getByRole('button', { name: 'Pay with Paystack' }))
+
+    await waitFor(() => expect(paymentMocks.apiPost).toHaveBeenCalledWith(
+      '/orders',
+      expect.objectContaining({
+        deliveryByShop: {
+          'shop-1': expect.objectContaining({
+            destination: expect.objectContaining({
+              deliveryAddress: '12 Ring Road',
+              region: 'Greater Accra',
+              town: 'Tema',
+            }),
+            method: 'intra_city_courier',
+            provider: 'bolt_send',
+          }),
+        },
+      }),
+      expect.any(Object),
+    ))
+  })
+
+  it('blurs the intra-city courier card when the seller region has no coverage', async () => {
+    paymentMocks.apiGet.mockResolvedValue({
+      shops: [{
+        courier: { interCityPossible: false, intraCityPossible: false },
+        intercityStc: { destinations: [], eligible: false },
+        location: { city: 'Bolgatanga', region: 'Upper East' },
+        shopId: 'shop-1',
+        shopName: 'Archive Shop',
+        twoMExpress: { destinations: [], eligible: false },
+        vipJeoun: { destinations: [], eligible: false },
+      }],
+    })
+    render(<CheckoutPage />)
+
+    expect(await screen.findAllByText("Not offered from this seller's location.")).toHaveLength(2)
+    expect(screen.getByRole('radio', { name: 'Intra-city courier' })).toBeDisabled()
+    expect(screen.getByRole('radio', { name: 'Inter-city courier' })).toBeDisabled()
   })
 
   it('warns when the seller has no eligible VIP Jeoun stop nearby', async () => {

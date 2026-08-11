@@ -3,7 +3,7 @@ import { BsFillSendPlusFill } from 'react-icons/bs'
 import { FaAngleRight } from 'react-icons/fa'
 import { AppShell, ButtonLink, HashtagInput, Icon, ImagePreviewInput, InlineNotice, LightboxImage, SelectControl, StatePanel, StepIndicator } from '../components'
 import { clearDraftImages, loadDraftImages, saveDraftImages } from '../components/forms/draftImageStore'
-import { ErrorSummary, SubmitButton } from '../components/forms/FormControls'
+import { ChoiceCardGroup, ErrorSummary, SubmitButton } from '../components/forms/FormControls'
 import { FormField, TextAreaField, TextField } from '../components/forms/FormField'
 import { FormActions, FormPage, FormSection } from '../components/forms/FormLayout'
 import { UnsavedChangesGuard } from '../components/forms/UnsavedChangesGuard'
@@ -15,6 +15,7 @@ import { useApiResource } from '../hooks/useApiResource'
 import { apiPost, apiPut } from '../lib/api'
 import type { Listing } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
+import { parseGhsToPesewas, priceInputValue } from '../utils/format'
 import {
   LISTING_BALE_GRADES,
   LISTING_BRANDS,
@@ -40,12 +41,6 @@ function readFormText(formData: FormData, name: string) {
   return String(formData.get(name) || '').trim()
 }
 
-function optionalNumber(value: string) {
-  if (!value) return undefined
-  const numberValue = Number(value)
-  return Number.isFinite(numberValue) ? numberValue : undefined
-}
-
 function appendText(formData: FormData, name: string, value: string | number | undefined) {
   if (value === undefined || value === '') return
   formData.append(name, String(value))
@@ -68,18 +63,6 @@ function sourceEventId() {
   return new URLSearchParams(window.location.search).get('eventId')?.trim() || ''
 }
 
-function parseGhsToPesewas(value: string) {
-  const normalized = value.trim().replace(/,/g, '.')
-  if (!/^\d+(\.\d{0,2})?$/.test(normalized)) return null
-  const [whole, decimal = ''] = normalized.split('.')
-  return Number(whole) * 100 + Number(decimal.padEnd(2, '0').slice(0, 2))
-}
-
-function priceInputValue(price?: number) {
-  if (price === undefined) return ''
-  return (price / 100).toFixed(2)
-}
-
 export function NewListingPage() {
   const { user } = useAuth()
   const editId = currentEditId()
@@ -100,13 +83,18 @@ export function NewListingPage() {
   const [titleValue, setTitleValue] = useState(listing?.title || '')
   const [priceValue, setPriceValue] = useState(listing ? priceInputValue(listing.price) : '')
   const [descriptionValue, setDescriptionValue] = useState(listing?.description || '')
-  const [quantityValue, setQuantityValue] = useState(listing?.quantity ? String(listing.quantity) : '')
-  const [bulkMinQtyValue, setBulkMinQtyValue] = useState(listing?.bulkMinQty ? String(listing.bulkMinQty) : '')
   const [brandValue, setBrandValue] = useState(listing?.brand || '')
   const [colorValue, setColorValue] = useState<string>(listing?.color || 'multi')
   const [sizeValue, setSizeValue] = useState(listing?.size || '')
   const [genderValue, setGenderValue] = useState(listing?.gender || '')
   const [bulkWeightValue, setBulkWeightValue] = useState(listing?.bulkWeight || '')
+  // Deliberately starts unset on a new listing so the seller has to choose.
+  const [bargainingValue, setBargainingValue] = useState<'' | 'yes' | 'no'>(
+    listing === undefined ? '' : listing.bargainingAllowed ? 'yes' : 'no',
+  )
+  const [minAcceptableValue, setMinAcceptableValue] = useState(
+    listing?.minAcceptablePrice ? priceInputValue(listing.minAcceptablePrice) : '',
+  )
   const [attributeValues, setAttributeValues] = useState<ListingAttributes>(listing?.attributes || {})
   const [flawNoteValue, setFlawNoteValue] = useState('')
   const [hashtags, setHashtags] = useState<string[]>(listing?.hashtags || [])
@@ -116,7 +104,7 @@ export function NewListingPage() {
   const [step, setStep] = useState(0)
   const [validationAttempt, setValidationAttempt] = useState(0)
   const restoredRef = useRef(false)
-  const [touched, setTouched] = useState({ bulkMinQty: false, price: false, quantity: false, title: false })
+  const [touched, setTouched] = useState({ price: false, title: false })
   const [submitting, setSubmitting] = useState(false)
   const [submittingAction, setSubmittingAction] = useState<'active' | 'draft' | ''>('')
   const listingType = selectedListingType || listing?.type || 'retail'
@@ -132,31 +120,37 @@ export function NewListingPage() {
   const availableSubcategories = LISTING_CATEGORIES.find((entry) => entry.label === categoryValue)?.subcategories || []
   const needsFlawProof = conditionValue === 'fair' || conditionValue === 'poor'
   const sizePlaceholder = sizePlaceholderForCategory(categoryValue, subcategoryValue)
+  // Bales are mixed bundles, not single graded garments, so item-specific
+  // attributes stop applying once the listing type is wholesale.
+  const HIDDEN_FOR_WHOLESALE = new Set<Parameters<typeof categoryUsesField>[1]>(['size', 'gender', 'brand', 'material', 'fit'])
   const showsField = (field: Parameters<typeof categoryUsesField>[1]) =>
-    categoryUsesField(categoryValue, field, subcategoryValue, listingType)
+    categoryUsesField(categoryValue, field, subcategoryValue, listingType) &&
+    !(listingType === 'wholesale' && HIDDEN_FOR_WHOLESALE.has(field))
   const priceNumber = parseGhsToPesewas(priceValue)
-  const bulkQuantity = optionalNumber(quantityValue)
-  const minimumOrderQuantity = optionalNumber(bulkMinQtyValue)
-  const wholesaleValid =
-    listingType !== 'wholesale' ||
-    Boolean(bulkQuantity && minimumOrderQuantity && bulkQuantity >= 1 && minimumOrderQuantity >= 1 && minimumOrderQuantity <= bulkQuantity)
   const categoryMissing = !categoryValue
   const sizeMissing = showsField('size') && !sizeValue.trim()
   const genderMissing = showsField('gender') && !genderValue
-  const conditionMissing = !conditionValue
-  const attributesValid = !categoryMissing && !sizeMissing && !genderMissing && !conditionMissing
-  const canSubmitListing = titleValue.trim().length >= 2 && priceNumber !== null && priceNumber >= 0 && wholesaleValid && attributesValid
+  const conditionMissing = listingType !== 'wholesale' && !conditionValue
+  // fieldsForCategory() auto-adds baleGrade whenever the listing type is
+  // wholesale, so showsField('baleGrade') already scopes this to bales.
+  const baleGradeMissing = showsField('baleGrade') && !attributeValues.baleGrade
+  const bulkWeightMissing = listingType === 'wholesale' && !bulkWeightValue.trim()
+  const bargainingMissing = !bargainingValue
+  const minAcceptableNumber = minAcceptableValue.trim() ? parseGhsToPesewas(minAcceptableValue) : null
+  const minAcceptableInvalid =
+    bargainingValue === 'yes' &&
+    minAcceptableValue.trim() !== '' &&
+    (minAcceptableNumber === null || minAcceptableNumber <= 0 || (priceNumber !== null && minAcceptableNumber > priceNumber))
+  const attributesValid = !categoryMissing && !sizeMissing && !genderMissing && !conditionMissing && !baleGradeMissing && !bulkWeightMissing
+  const canSubmitListing = titleValue.trim().length >= 2 && priceNumber !== null && priceNumber >= 0 && attributesValid && !bargainingMissing && !minAcceptableInvalid
   const titleInvalid = touched.title && titleValue.trim().length < 2
   const priceInvalid = touched.price && (priceNumber === null || priceNumber < 0)
-  const quantityInvalid = touched.quantity && listingType === 'wholesale' && (!bulkQuantity || bulkQuantity < 1)
-  const bulkMinQtyInvalid =
-    touched.bulkMinQty &&
-    listingType === 'wholesale' &&
-    (!minimumOrderQuantity || minimumOrderQuantity < 1 || Boolean(bulkQuantity && minimumOrderQuantity > bulkQuantity))
   const categoryInvalid = validationAttempt > 0 && categoryMissing
   const sizeInvalid = validationAttempt > 0 && sizeMissing
   const genderInvalid = validationAttempt > 0 && genderMissing
   const conditionInvalid = validationAttempt > 0 && conditionMissing
+  const baleGradeInvalid = validationAttempt > 0 && baleGradeMissing
+  const bulkWeightInvalid = validationAttempt > 0 && bulkWeightMissing
   const validationErrors = [
     ...(titleValue.trim().length < 2 ? [{ fieldId: 'listing-title', message: 'Enter a listing title with at least 2 characters.' }] : []),
     ...(priceNumber === null || priceNumber < 0 ? [{ fieldId: 'listing-price', message: 'Enter a valid price with up to two decimal places.' }] : []),
@@ -164,13 +158,16 @@ export function NewListingPage() {
     ...(sizeMissing ? [{ fieldId: 'listing-size', message: 'Enter a size.' }] : []),
     ...(genderMissing ? [{ fieldId: 'listing-gender', message: 'Choose a gender.' }] : []),
     ...(conditionMissing ? [{ fieldId: 'listing-condition', message: 'Choose a condition.' }] : []),
-    ...(quantityInvalid ? [{ fieldId: 'listing-quantity', message: 'Enter the total available quantity.' }] : []),
-    ...(bulkMinQtyInvalid ? [{ fieldId: 'listing-minimum', message: minimumOrderQuantity && bulkQuantity && minimumOrderQuantity > bulkQuantity ? 'Minimum order cannot exceed total quantity.' : 'Enter the minimum order quantity.' }] : []),
+    ...(baleGradeMissing ? [{ fieldId: 'listing-bale-grade', message: 'Choose a bale grade.' }] : []),
+    ...(bulkWeightMissing ? [{ fieldId: 'listing-weight', message: 'Enter the bale weight.' }] : []),
+    ...(bargainingMissing ? [{ fieldId: 'listing-bargaining', message: 'Choose whether buyers can send you offers.' }] : []),
+    ...(minAcceptableInvalid ? [{ fieldId: 'listing-min-price', message: 'Enter a lowest price above zero and no higher than your listed price.' }] : []),
   ]
   const draftValue = useMemo(() => ({
+    bargaining: bargainingValue,
     brand: brandValue,
-    bulkMinQty: bulkMinQtyValue,
     bulkWeight: bulkWeightValue,
+    minAcceptablePrice: minAcceptableValue,
     attributes: attributeValues,
     category: categoryValue,
     subcategory: subcategoryValue,
@@ -182,10 +179,9 @@ export function NewListingPage() {
     hashtags,
     listingType,
     price: priceValue,
-    quantity: quantityValue,
     size: sizeValue,
     title: titleValue,
-  }), [attributeValues, brandValue, bulkMinQtyValue, bulkWeightValue, categoryValue, colorValue, conditionValue, descriptionValue, flawNoteValue, genderValue, hashtags, listingType, priceValue, quantityValue, sizeValue, subcategoryValue, titleValue])
+  }), [attributeValues, bargainingValue, brandValue, bulkWeightValue, categoryValue, colorValue, conditionValue, descriptionValue, flawNoteValue, genderValue, hashtags, listingType, minAcceptableValue, priceValue, sizeValue, subcategoryValue, titleValue])
   const draft = useLocalDraft({
     enabled: !editResource.initialLoading,
     formId: 'listing',
@@ -202,9 +198,9 @@ export function NewListingPage() {
       if (typeof saved.color === 'string') setColorValue(saved.color)
       if (typeof saved.size === 'string') setSizeValue(saved.size)
       if (typeof saved.gender === 'string') setGenderValue(saved.gender)
-      if (typeof saved.quantity === 'string') setQuantityValue(saved.quantity)
-      if (typeof saved.bulkMinQty === 'string') setBulkMinQtyValue(saved.bulkMinQty)
       if (typeof saved.bulkWeight === 'string') setBulkWeightValue(saved.bulkWeight)
+      if (saved.bargaining === 'yes' || saved.bargaining === 'no') setBargainingValue(saved.bargaining)
+      if (typeof saved.minAcceptablePrice === 'string') setMinAcceptableValue(saved.minAcceptablePrice)
       if (saved.attributes && typeof saved.attributes === 'object' && !Array.isArray(saved.attributes)) setAttributeValues(saved.attributes as ListingAttributes)
       if (typeof saved.flawNote === 'string') setFlawNoteValue(saved.flawNote)
       if (Array.isArray(saved.hashtags)) setHashtags(saved.hashtags.filter((tag): tag is string => typeof tag === 'string'))
@@ -214,8 +210,8 @@ export function NewListingPage() {
     value: draftValue,
   })
   const dirty = listing
-    ? titleValue !== (listing.title || '') || descriptionValue !== (listing.description || '') || priceValue !== priceInputValue(listing.price) || categoryValue !== storedSelection.category || subcategoryValue !== storedSelection.subcategory || JSON.stringify(attributeValues) !== JSON.stringify(listing.attributes || {}) || selectedFiles.length > 0
-    : Boolean(titleValue || descriptionValue || priceValue || selectedCategory || brandValue || selectedCondition || hashtags.length || selectedFiles.length || selectedListingType)
+    ? titleValue !== (listing.title || '') || descriptionValue !== (listing.description || '') || priceValue !== priceInputValue(listing.price) || categoryValue !== storedSelection.category || subcategoryValue !== storedSelection.subcategory || JSON.stringify(attributeValues) !== JSON.stringify(listing.attributes || {}) || selectedFiles.length > 0 || bargainingValue !== (listing.bargainingAllowed ? 'yes' : 'no') || minAcceptableValue !== (listing.minAcceptablePrice ? priceInputValue(listing.minAcceptablePrice) : '')
+    : Boolean(titleValue || descriptionValue || priceValue || selectedCategory || brandValue || selectedCondition || hashtags.length || selectedFiles.length || selectedListingType || bargainingValue)
 
   useEffect(() => {
     selectedPreviewsRef.current = selectedPreviews
@@ -258,8 +254,6 @@ export function NewListingPage() {
     setTitleValue(listing.title || '')
     setPriceValue(priceInputValue(listing.price))
     setDescriptionValue(listing.description || '')
-    setQuantityValue(listing.quantity ? String(listing.quantity) : '')
-    setBulkMinQtyValue(listing.bulkMinQty ? String(listing.bulkMinQty) : '')
     const normalizedListingCategory = normalizeCategorySelection(listing.category, listing.subcategory)
     setSelectedCategory(normalizedListingCategory.category)
     setSelectedSubcategory(normalizedListingCategory.subcategory)
@@ -268,6 +262,8 @@ export function NewListingPage() {
     setSizeValue(listing.size || '')
     setGenderValue(listing.gender || '')
     setBulkWeightValue(listing.bulkWeight || '')
+    setBargainingValue(listing.bargainingAllowed ? 'yes' : 'no')
+    setMinAcceptableValue(listing.minAcceptablePrice ? priceInputValue(listing.minAcceptablePrice) : '')
     setAttributeValues(listing.attributes || {})
     setHashtags(listing.hashtags || [])
   }, [listing])
@@ -297,7 +293,7 @@ export function NewListingPage() {
       return
     }
     if (step === 1 && !canSubmitListing) {
-      setTouched({ bulkMinQty: true, price: true, quantity: true, title: true })
+      setTouched({ price: true, title: true })
       setValidationAttempt((attempt) => attempt + 1)
       return
     }
@@ -309,7 +305,7 @@ export function NewListingPage() {
   async function createListing(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!canSubmitListing) {
-      setTouched({ bulkMinQty: true, price: true, quantity: true, title: true })
+      setTouched({ price: true, title: true })
       setStep(titleValue.trim().length < 2 ? 0 : 1)
       setValidationAttempt((attempt) => attempt + 1)
       return
@@ -320,8 +316,6 @@ export function NewListingPage() {
     const sourceData = new FormData(form)
     const uploadData = new FormData()
     const price = parseGhsToPesewas(readFormText(sourceData, 'price'))
-    const bulkQuantity = optionalNumber(readFormText(sourceData, 'quantity'))
-    const minimumOrderQuantity = optionalNumber(readFormText(sourceData, 'bulkMinQty'))
     const flawNote = readFormText(sourceData, 'flawNote')
     const submittedDescription = readFormText(sourceData, 'description')
     const completeDescription = needsFlawProof ? `${submittedDescription}\n\nFlaws: ${flawNote}`.trim() : submittedDescription
@@ -335,18 +329,13 @@ export function NewListingPage() {
     }
 
     if (listingType === 'wholesale') {
-      if (!bulkQuantity || bulkQuantity < 1) {
-        setError('Enter the total quantity available for the wholesale lot.')
+      if (!bulkWeightValue.trim()) {
+        setError('Enter the bale weight.')
         return
       }
 
-      if (!minimumOrderQuantity || minimumOrderQuantity < 1) {
-        setError('Enter the minimum order quantity for wholesale buyers.')
-        return
-      }
-
-      if (minimumOrderQuantity > bulkQuantity) {
-        setError('Minimum order quantity cannot be greater than total available quantity.')
+      if (!attributeValues.baleGrade) {
+        setError('Choose a bale grade.')
         return
       }
     }
@@ -388,12 +377,25 @@ export function NewListingPage() {
     if (showsField('gender')) appendText(uploadData, 'gender', readFormText(sourceData, 'gender'))
     appendText(uploadData, 'attributes', JSON.stringify(pruneListingAttributes(categoryValue, attributeValues, subcategoryValue, listingType)))
 
-    if (listingType === 'retail') {
-      appendText(uploadData, 'quantity', 1)
-    } else {
-      appendText(uploadData, 'quantity', bulkQuantity)
-      appendText(uploadData, 'bulkMinQty', minimumOrderQuantity)
+    // Every listing - retail or wholesale - is sold as a single unit; a bale
+    // is one bundle, not a bulk SKU with its own stock count.
+    appendText(uploadData, 'quantity', 1)
+    if (listingType === 'wholesale') {
       appendText(uploadData, 'bulkWeight', readFormText(sourceData, 'bulkWeight'))
+    }
+
+    // Sent as an explicit "true"/"false" string: the API rejects anything else
+    // rather than guessing, so an unset radio can never post as "allowed".
+    appendText(uploadData, 'bargainingAllowed', bargainingValue === 'yes' ? 'true' : 'false')
+    if (bargainingValue === 'yes' && minAcceptableNumber) {
+      if (minAcceptableNumber > price) {
+        setError('Your lowest acceptable price cannot be above the listed price.')
+        return
+      }
+      appendText(uploadData, 'minAcceptablePrice', minAcceptableNumber)
+    } else {
+      // Clears any floor left over from a previous edit.
+      appendText(uploadData, 'minAcceptablePrice', 0)
     }
 
     selectedFiles.forEach((file) => uploadData.append('images', file))
@@ -519,13 +521,13 @@ export function NewListingPage() {
             <TextField error={titleInvalid ? 'Enter at least 2 characters.' : undefined} id="listing-title" label="Title" name="title" onBlur={() => setTouched((current) => ({ ...current, title: true }))} onChange={(event) => setTitleValue(event.target.value)} placeholder="Vintage bomber jacket" required value={titleValue} wrapperClassName="form-field-wide" />
             <TextAreaField id="listing-description" label="Description" maxLength={LISTING_DESCRIPTION_MAX} name="description" onChange={(event) => setDescriptionValue(event.target.value)} optional placeholder="Condition, fit, measurements, and pickup notes" rows={5} value={descriptionValue} wrapperClassName="form-field-wide" />
             <div className="form-field-wide"><HashtagInput initialTags={hashtags} label="Vibe hashtags" name="hashtags" onChange={setHashtags} /></div>
-            <FormField hint={listingType === 'retail' ? 'Retail listings are single items.' : 'Wholesale listings use bulk quantities and minimum order quantities.'} htmlFor="listing-type" label="Listing type" required>
+            <FormField hint={listingType === 'retail' ? 'Retail listings are single items.' : 'Wholesale listings are sold as a single bale, priced and graded as one lot.'} htmlFor="listing-type" label="Listing type" required>
               <SelectControl className={listingSelectControl} id="listing-type" name="type" onChange={(event) => changeListingType(event.target.value as 'retail' | 'wholesale')} required value={listingType}><option value="retail">Retail</option><option value="wholesale">Wholesale</option></SelectControl>
             </FormField>
           </FormSection>
 
           <FormSection className={!editId && step !== 1 ? 'hidden' : ''} columns={2} description="Set the price and attributes buyers use to compare and filter products." title="Pricing and attributes">
-            <TextField error={priceInvalid ? 'Enter a valid amount, like 240.00.' : undefined} hint="Use up to two decimal places." id="listing-price" inputMode="decimal" label={listingType === 'wholesale' ? 'Unit price (GHS)' : 'Price (GHS)'} name="price" onBlur={() => setTouched((current) => ({ ...current, price: true }))} onChange={(event) => setPriceValue(event.target.value)} placeholder="240.00" prefix="GHS" required value={priceValue} />
+            <TextField error={priceInvalid ? 'Enter a valid amount, like 240.00.' : undefined} hint="Use up to two decimal places." id="listing-price" inputMode="decimal" label="Price (GHS)" name="price" onBlur={() => setTouched((current) => ({ ...current, price: true }))} onChange={(event) => setPriceValue(event.target.value)} placeholder="240.00" prefix="GHS" required value={priceValue} />
             <FormField error={categoryInvalid ? 'Choose a category.' : undefined} htmlFor="listing-category" label="Category" required>
               <SelectControl className={listingSelectControl} id="listing-category" name="category" onChange={(event) => changeCategorySelection(event.target.value, '')} required value={categoryValue}>
                 <option value="">Select category</option>
@@ -550,7 +552,7 @@ export function NewListingPage() {
             )}
             {showsField('size') && categoryValue !== 'Footwear' && <TextField error={sizeInvalid ? 'Enter a size.' : undefined} id="listing-size" label={sizeLabelForCategory(categoryValue, subcategoryValue)} name="size" onChange={(event) => setSizeValue(event.target.value)} placeholder={sizePlaceholder} required value={sizeValue} />}
             {showsField('gender') && <FormField error={genderInvalid ? 'Choose a gender.' : undefined} htmlFor="listing-gender" label="Gender" required><SelectControl className={listingSelectControl} id="listing-gender" name="gender" onChange={(event) => setGenderValue(event.target.value)} required value={genderValue}><option value="">Select gender</option><option value="men">Men</option><option value="women">Women</option><option value="unisex">Unisex</option><option value="kids">Kids</option></SelectControl></FormField>}
-            <FormField error={conditionInvalid ? 'Choose a condition.' : undefined} htmlFor="listing-condition" label="Condition" required><SelectControl className={listingSelectControl} id="listing-condition" name="condition" onChange={(event) => setSelectedCondition(event.target.value)} required value={conditionValue}><option value="">Select condition</option>{LISTING_CONDITIONS.map((condition) => <option key={condition} value={condition}>{condition[0].toUpperCase() + condition.slice(1)}</option>)}</SelectControl></FormField>
+            {listingType !== 'wholesale' && <FormField error={conditionInvalid ? 'Choose a condition.' : undefined} htmlFor="listing-condition" label="Condition" required><SelectControl className={listingSelectControl} id="listing-condition" name="condition" onChange={(event) => setSelectedCondition(event.target.value)} required value={conditionValue}><option value="">Select condition</option>{LISTING_CONDITIONS.map((condition) => <option key={condition} value={condition}>{condition[0].toUpperCase() + condition.slice(1)}</option>)}</SelectControl></FormField>}
             {showsField('brand') && (
               <FormField htmlFor="listing-brand" label="Brand" optional>
                 <SelectControl className={listingSelectControl} id="listing-brand" name="brand" onChange={(event) => setBrandValue(event.target.value)} value={brandValue}>
@@ -563,16 +565,45 @@ export function NewListingPage() {
             {showsField('material') && <FormField htmlFor="listing-material" label="Material" optional><SelectControl className={listingSelectControl} id="listing-material" onChange={(event) => changeAttribute('material', event.target.value)} value={attributeValues.material || ''}><option value="">Select material</option>{taxonomyOptions(LISTING_MATERIALS)}</SelectControl></FormField>}
             {showsField('fit') && <FormField htmlFor="listing-fit" label="Fit" optional><SelectControl className={listingSelectControl} id="listing-fit" onChange={(event) => changeAttribute('fit', event.target.value)} value={attributeValues.fit || ''}><option value="">Select fit</option>{taxonomyOptions(LISTING_FITS)}</SelectControl></FormField>}
             {showsField('pattern') && <FormField htmlFor="listing-pattern" label="Pattern" optional><SelectControl className={listingSelectControl} id="listing-pattern" onChange={(event) => changeAttribute('pattern', event.target.value)} value={attributeValues.pattern || ''}><option value="">Select pattern</option>{taxonomyOptions(LISTING_PATTERNS)}</SelectControl></FormField>}
-            {showsField('baleGrade') && <FormField htmlFor="listing-bale-grade" label="Bale grade" optional><SelectControl className={listingSelectControl} id="listing-bale-grade" onChange={(event) => changeAttribute('baleGrade', event.target.value)} value={attributeValues.baleGrade || ''}><option value="">Select grade</option>{taxonomyOptions(LISTING_BALE_GRADES)}</SelectControl></FormField>}
-            <FormField htmlFor="listing-color" label="Color" optional>
-              <SelectControl className={listingSelectControl} id="listing-color" name="color" onChange={(event) => setColorValue(event.target.value)} value={colorValue}>
-                {LISTING_COLORS.map((color) => <option data-swatch={color.hex} key={color.value} value={color.value}>{color.label}</option>)}
-              </SelectControl>
-            </FormField>
+            {showsField('baleGrade') && <FormField error={baleGradeInvalid ? 'Choose a bale grade.' : undefined} htmlFor="listing-bale-grade" label="Bale grade" required><SelectControl className={listingSelectControl} id="listing-bale-grade" onChange={(event) => changeAttribute('baleGrade', event.target.value)} required value={attributeValues.baleGrade || ''}><option value="">Select grade</option>{taxonomyOptions(LISTING_BALE_GRADES)}</SelectControl></FormField>}
+            {listingType !== 'wholesale' && (
+              <FormField htmlFor="listing-color" label="Color" optional>
+                <SelectControl className={listingSelectControl} id="listing-color" name="color" onChange={(event) => setColorValue(event.target.value)} value={colorValue}>
+                  {LISTING_COLORS.map((color) => <option data-swatch={color.hex} key={color.value} value={color.value}>{color.label}</option>)}
+                </SelectControl>
+              </FormField>
+            )}
             {needsFlawProof && <TextAreaField className="border-foose-warning/30 bg-foose-warning-bg" hint="Fair or poor items need an image showing the flaw. This note is appended to the description." id="listing-flaw" label="Flaw note for escrow review" name="flawNote" onChange={(event) => setFlawNoteValue(event.target.value)} placeholder="Small stain on the left sleeve, shown in photo 2." required rows={3} value={flawNoteValue} wrapperClassName="form-field-wide rounded-xl bg-foose-warning-bg p-4" />}
-            {listingType === 'wholesale' && <TextField error={quantityInvalid ? 'Enter at least 1 item.' : undefined} id="listing-quantity" label="Total available quantity" min="1" name="quantity" onBlur={() => setTouched((current) => ({ ...current, quantity: true }))} onChange={(event) => setQuantityValue(event.target.value)} placeholder="100" required step="1" type="number" value={quantityValue} />}
-            {listingType === 'wholesale' && <TextField error={bulkMinQtyInvalid ? (minimumOrderQuantity && bulkQuantity && minimumOrderQuantity > bulkQuantity ? 'Minimum order cannot exceed total quantity.' : 'Enter at least 1 item.') : undefined} id="listing-minimum" label="Minimum order quantity" min="1" name="bulkMinQty" onBlur={() => setTouched((current) => ({ ...current, bulkMinQty: true }))} onChange={(event) => setBulkMinQtyValue(event.target.value)} placeholder="10" required step="1" type="number" value={bulkMinQtyValue} />}
-            {listingType === 'wholesale' && <TextField id="listing-weight" label="Bulk weight" name="bulkWeight" onChange={(event) => setBulkWeightValue(event.target.value)} optional placeholder="25kg" value={bulkWeightValue} />}
+            {listingType === 'wholesale' && <TextField error={bulkWeightInvalid ? 'Enter the bale weight.' : undefined} id="listing-weight" label="Weight (Kg)" name="bulkWeight" onChange={(event) => setBulkWeightValue(event.target.value)} placeholder="25kg" required value={bulkWeightValue} />}
+            <ChoiceCardGroup<'yes' | 'no'>
+              className="form-field-wide"
+              error={validationAttempt > 0 && bargainingMissing ? 'Choose whether buyers can send you offers.' : undefined}
+              hint="Bargaining happens with each buyer in your inbox. A price you agree applies only to that buyer — everyone else still pays the listed price."
+              id="listing-bargaining"
+              label="Allow bargaining"
+              name="bargainingAllowedChoice"
+              onChange={setBargainingValue}
+              options={[
+                { description: 'Buyers can send you offers on this item.', label: 'Yes, I will bargain', value: 'yes' },
+                { description: 'The listed price is final.', label: 'No, fixed price', value: 'no' },
+              ]}
+              required
+              value={bargainingValue === '' ? undefined : bargainingValue}
+            />
+            {bargainingValue === 'yes' && (
+              <TextField
+                error={minAcceptableInvalid ? 'Enter an amount above zero and no higher than your listed price.' : undefined}
+                hint="Only you see this. Buyers who offer less are warned, but their offer still reaches you."
+                id="listing-min-price"
+                inputMode="decimal"
+                label="Lowest price you would accept (GHS)"
+                onChange={(event) => setMinAcceptableValue(event.target.value)}
+                optional
+                placeholder="180.00"
+                prefix="GHS"
+                value={minAcceptableValue}
+              />
+            )}
           </FormSection>
 
           {!editId && <FormSection className={step !== 2 ? 'hidden' : ''} description="Check the core details before publishing. You can go back without losing your entries." title="Review and publish"><div className="rounded-2xl bg-accent-light/50 p-5"><h3 className="font-display text-2xl font-semibold text-foose-text">{titleValue || 'Untitled listing'}</h3><p className="mt-2 text-xl font-black text-accent">{priceValue ? `GHS ${priceValue}` : 'Price missing'}</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="font-bold text-foose-faint">Format</dt><dd className="mt-1 font-semibold capitalize text-foose-text">{listingType}</dd></div><div><dt className="font-bold text-foose-faint">Category</dt><dd className="mt-1 flex items-center gap-1 font-semibold text-foose-text">{categoryValue || 'Not specified'}{subcategoryValue && <><FaAngleRight aria-hidden className="shrink-0 text-foose-faint" size={12} />{subcategoryValue}</>}</dd></div>{Object.entries(pruneListingAttributes(categoryValue, attributeValues, subcategoryValue, listingType)).map(([name, value]) => <div key={name}><dt className="font-bold text-foose-faint">{optionLabel(name)}</dt><dd className="mt-1 font-semibold text-foose-text">{optionLabel(String(value))}</dd></div>)}<div className="sm:col-span-2"><dt className="font-bold text-foose-faint">Images selected</dt><dd className="mt-1">{selectedPreviews.length ? <div className="flex flex-wrap gap-2">{selectedPreviews.map((item, index) => <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-foose-border bg-foose-surface-mid sm:size-20 [&_img]:h-full [&_img]:w-full [&_img]:object-cover" key={item.url}><LightboxImage alt={`Listing photo ${index + 1}`} index={index} items={selectedPreviews.map((preview, previewIndex) => ({ alt: `Listing photo ${previewIndex + 1}`, src: preview.url }))} src={item.url} /></div>)}</div> : <span className="font-semibold text-foose-text">No images selected</span>}</dd></div><div className="sm:col-span-2"><dt className="font-bold text-foose-faint">Hashtags</dt><dd className="mt-1">{hashtags.length ? <div className="flex flex-wrap gap-2">{hashtags.map((tag) => <span className="rounded-full bg-accent-light px-3 py-1.5 text-xs font-bold text-accent" key={tag}>#{tag}</span>)}</div> : <span className="font-semibold text-foose-text">No hashtags added</span>}</dd></div></dl></div></FormSection>}

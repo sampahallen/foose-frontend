@@ -156,6 +156,9 @@ export type Listing = {
   quantity?: number
   bulkMinQty?: number
   bulkWeight?: string
+  bargainingAllowed?: boolean
+  /** Seller-only. Never returned on public listing reads. */
+  minAcceptablePrice?: number
   volumeDiscounts?: Array<{
     minQty?: number
     pricePerUnit?: number
@@ -213,6 +216,7 @@ export type OrderAllowedAction =
   | 'release_unclaimed_pickup'
   | 'confirm_collection'
   | 'dispatch'
+  | 'dispatchCourier'
   | 'confirm_receipt'
   | 'close_no_action'
   | 'report'
@@ -247,7 +251,9 @@ export type OrderTransit = {
   serviceName?: string
   transitServiceName?: string
   driverPhone?: string
-  parcelNumber?: string
+  busNumber?: string
+  /** The transit fee the buyer must pay to collect the parcel, in pesewas. */
+  amount?: number
   cargoTrackingNumber?: string
   billImage?: PrivateOrderAsset
 }
@@ -258,7 +264,13 @@ export type OrderDestination = {
   region?: string
   town?: string
   preferredTerminal?: string
+  /** intra_city_courier/inter_city_courier only. */
+  deliveryAddress?: string
+  secondAddress?: string
+  deliveryNote?: string
 }
+
+export type CourierProviderId = 'bolt_send' | 'yango_delivery' | 'shaq_express'
 
 export type OrderEvent = {
   _id?: string
@@ -308,9 +320,13 @@ export type Order = {
     _id?: string
     listingId?: Listing | string
     title: string
+    /** What the buyer paid per unit. Below `listPrice` when a bargain was used. */
     price: number
+    listPrice?: number
+    bargainId?: string
     quantity: number
   }>
+  bargainIds?: string[]
   subtotalAmount?: number
   deliveryFee?: number
   totalAmount: number
@@ -348,9 +364,15 @@ export type Order = {
   releasedAt?: string
   buyerConfirmedAt?: string
   delivery?: {
-    method?: 'station_pickup' | 'shop_pickup'
+    method?: 'station_pickup' | 'shop_pickup' | 'airport_to_airport' | 'intra_city_courier' | 'inter_city_courier'
     company?: string
     fee?: number
+    /** Distance-based planning estimate (pesewas) — never charged, see backend/CLAUDE.md. */
+    estimatedFeePesewas?: number
+    /** intra_city_courier/inter_city_courier only. */
+    provider?: CourierProviderId | string
+    /** Tracking URL the seller pastes in for the two courier methods. */
+    trackingLink?: string
     destination?: OrderDestination
     recipient?: {
       name?: string
@@ -664,6 +686,18 @@ export type ChatMessage = {
   senderId?: User | string
   receiverId?: User | string
   listingId?: Listing | string
+  type?: 'text' | 'image' | 'video' | 'mixed' | 'offer'
+  bargainId?: Bargain | string
+  /** Immutable snapshot of the negotiation round this message represents. */
+  offer?: ChatMessageOffer
+}
+
+export type ChatMessageOffer = {
+  action: BargainAction
+  actor: BargainActor
+  amount?: number
+  previousAmount?: number
+  round?: number
 }
 
 export type ChatConversation = {
@@ -688,6 +722,63 @@ export type ChatReaction = {
   isRead?: boolean
   userId?: User | string
   reaction: ChatReactionName
+}
+
+export type BargainAction = 'open' | 'counter' | 'accept' | 'decline' | 'cancel' | 'close'
+
+export type BargainActor = 'buyer' | 'seller' | 'system'
+
+export type BargainStatus =
+  | 'awaiting_seller'
+  | 'awaiting_buyer'
+  | 'accepted'
+  | 'consumed'
+  | 'declined'
+  | 'cancelled'
+  | 'closed'
+
+export type BargainOffer = {
+  _id?: string
+  actor: 'buyer' | 'seller'
+  amount: number
+  note?: string
+  messageId?: string
+  createdAt?: string
+}
+
+export type Bargain = {
+  _id: string
+  listingId?: Listing | string
+  buyerId?: User | string
+  sellerId?: User | string
+  shopId?: Shop | string
+  conversationId: string
+  /** Listing price when the bargain opened, in pesewas. */
+  listPriceAtOpen: number
+  currency?: string
+  status: BargainStatus
+  isActive?: boolean
+  offers: BargainOffer[]
+  roundCount: number
+  agreedPrice?: number
+  acceptedAt?: string
+  acceptedBy?: 'buyer' | 'seller'
+  consumedByOrderId?: string
+  consumedAt?: string
+  closedReason?: 'round_limit' | 'listing_unavailable' | 'declined' | 'cancelled'
+  createdAt?: string
+  updatedAt?: string
+  /** Server-derived, relative to the caller. */
+  allowedActions?: BargainAction[]
+  isFinalRound?: boolean
+  viewerRole?: 'buyer' | 'seller' | null
+}
+
+export type BargainResponse = {
+  bargain: Bargain
+  message?: ChatMessage
+  /** True when the buyer's offer fell under the seller's private floor. */
+  belowSellerMinimum?: boolean
 }
 
 export type ChatMessagePreview = {

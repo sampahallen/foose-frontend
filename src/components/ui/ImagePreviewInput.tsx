@@ -319,10 +319,10 @@ export function ImagePreviewInput({
       </div>}
 
       {showCompactPreview && (
-        <div className="mx-auto w-full max-w-[240px]">
+        <div className="relative z-10 mx-auto w-full max-w-[240px]">
           {keptImages.map((image, index) => (
             <div className={`group relative overflow-hidden rounded-2xl ${aspectClass}`} key={`${image}-${index}`} style={aspectStyle}>
-              <LightboxImage alt={`Current upload ${index + 1}`} className="h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover" index={index} items={previewItems} src={image} />
+              <LightboxImage alt={`Current upload ${index + 1}`} className={`h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover ${aspect === 'original' ? '[&_img]:h-auto' : ''}`} index={index} items={previewItems} src={image} />
               <button
                 aria-label={`Remove current upload ${index + 1}`}
                 className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-black/65 text-white shadow-sm transition hover:bg-foose-danger focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white"
@@ -338,7 +338,7 @@ export function ImagePreviewInput({
           ))}
           {visibleFiles.map((file, index) => (
             <div className={`group relative overflow-hidden rounded-2xl ${aspectClass}`} key={file.id} style={aspectStyle}>
-              <LightboxImage alt={file.name || `Selected upload ${index + 1}`} className="h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover" index={keptImages.length + index} items={previewItems} src={file.url} />
+              <LightboxImage alt={file.name || `Selected upload ${index + 1}`} className={`h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover ${aspect === 'original' ? '[&_img]:h-auto' : ''}`} index={keptImages.length + index} items={previewItems} src={file.url} />
               <button
                 aria-label={`Remove selected upload ${index + 1}`}
                 className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-black/65 text-white shadow-sm transition hover:bg-foose-danger focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white"

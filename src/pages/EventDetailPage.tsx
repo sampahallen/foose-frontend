@@ -1,15 +1,14 @@
-import { useState } from 'react'
-import { AppShell, Badge, FavoriteButton, Icon, InlineNotice, LightboxImage, RefreshIndicator, SectionHeader, StatePanel } from '../components'
+import { AppShell, Badge, FavoriteButton, Icon, InlineNotice, LightboxImage, ProductCard, RefreshIndicator, SectionHeader, StatePanel } from '../components'
 import { EventDetailSkeleton } from '../components/feedback/DiscoverySkeletons'
-import { DiscoveryImage } from '../components/feedback/DiscoveryMedia'
+import { PRODUCT_GRID_CLASS } from '../components/marketplace/ProductCard'
 import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { useCart } from '../hooks/useCart'
 import type { Event, Listing } from '../types/api'
 import { concreteEventListings, eventHostHref, eventHostName, eventTimeLabel, eventTimeTerm, eventTypeLabel, eventWindowHasClosed, eventWindowHasOpened, isOnlinePopUp } from '../utils/events'
-import { formatMoney, getListingImage, getShop, listingMeta } from '../utils/format'
-import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
+import { getShop } from '../utils/format'
+import { getCurrentAppPathname, navigateTo, withBasePath } from '../utils/navigation'
 import { isActiveEventPromotion } from '../utils/promotions'
 
 function eventIdFromPath() {
@@ -21,9 +20,8 @@ export function EventDetailPage() {
   const { user } = useAuth()
   const eventId = eventIdFromPath()
   const eventResource = useApiResource<{ event: Event }>(eventId ? `/community/events/${eventId}` : null, Boolean(eventId))
-  const { addListing } = useCart()
+  const { addListing, items: cartItems } = useCart()
   const event = eventResource.data?.event
-  const [addedListingId, setAddedListingId] = useState('')
   const listings = event ? concreteEventListings(event).filter((listing) => {
     const owner = getShop(listing)?.ownerId
     const ownerId = typeof owner === 'string' ? owner : owner?._id
@@ -35,31 +33,32 @@ export function EventDetailPage() {
 
   function addPopUpListing(listing: Listing) {
     if (!event) return
-    const added = addListing(listing, 1, {
+    addListing(listing, 1, {
       availableFrom: event.startsAt,
       availableUntil: event.endsAt,
       sourceEventId: event._id,
       sourceEventTitle: event.title,
     })
-    if (added) setAddedListingId(listing._id)
   }
 
   function renderListing(listing: Listing) {
-    const image = getListingImage(listing)
+    // Read from the cart itself, so the state survives a reload and stays right
+    // if the item is removed from the cart page.
+    const inCart = cartItems.some((item) => item.listingId === listing._id)
     return (
-      <article className="event-catalog-card rounded-xl border border-foose-border bg-foose-surface shadow-sm p-4 md:p-5 overflow-hidden p-0 [&_img]:aspect-[4/3] [&_img]:w-full [&_img]:object-cover [&_.image-placeholder]:aspect-[4/3] [&_.image-placeholder]:w-full [&_.image-placeholder]:object-cover [&>div]:flex [&>div]:flex-col [&>div]:gap-3 [&>div]:p-4 max-lg:rounded-lg max-lg:p-3" key={listing._id}>
-        <a href={withBasePath(`/listing/${listing._id}`)}>
-          <DiscoveryImage alt={listing.title} fallback="Listing image unavailable" fallbackClassName="aspect-[4/3] min-h-32 w-full" src={image} />
-        </a>
-        <div>
-          <p className="product-meta text-xs uppercase tracking-wide text-foose-faint">{listingMeta(listing)}</p>
-          <h3>{listing.title}</h3>
-          <strong>{formatMoney(listing.price, listing.currency)}</strong>
-          <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={listing.status !== 'active'} onClick={() => addPopUpListing(listing)} type="button">
-            {addedListingId === listing._id ? 'Added to cart' : 'Add to cart'}
+      <div className="flex flex-col gap-2" key={listing._id}>
+        <ProductCard listing={listing} />
+        {inCart ? (
+          <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition [&.full]:w-full border-foose-success bg-foose-success-bg text-foose-success hover:brightness-95" onClick={() => navigateTo('/cart')} type="button">
+            <Icon name="check" size={16} />
+            Added to cart
           </button>
-        </div>
-      </article>
+        ) : (
+          <button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" disabled={listing.status !== 'active'} onClick={() => addPopUpListing(listing)} type="button">
+            Add to cart
+          </button>
+        )}
+      </div>
     )
   }
 
@@ -129,7 +128,7 @@ export function EventDetailPage() {
           <SectionHeader title="Pop-up catalog" eyebrow={checkoutOpen ? 'Checkout is open now' : 'Browse before the shopping window opens'} />
           {eventWindowHasClosed(event) && <InlineNotice className="mb-4" title="This pop-up has ended" tone="info">Its catalog remains available to review, but checkout is closed.</InlineNotice>}
           {!listings.length && <StatePanel body="The host has not added items to this pop-up yet." layout="section" title="No catalog items yet" tone="empty" />}
-          {!!listings.length && <div className="event-catalog-grid grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">{listings.map(renderListing)}</div>}
+          {!!listings.length && <div className={PRODUCT_GRID_CLASS}>{listings.map(renderListing)}</div>}
         </section>
       )}
     </AppShell>

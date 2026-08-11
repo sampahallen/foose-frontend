@@ -1,6 +1,7 @@
 import { AppShell, ButtonLink, Icon, InlineNotice, OrderSummary, StatePanel } from '../components'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { useAcceptedBargainPrices } from '../hooks/useBargain'
 import { useCart, type CartItem } from '../hooks/useCart'
 import { apiGet } from '../lib/api'
 import type { Listing } from '../types/api'
@@ -34,11 +35,14 @@ function CartItemImage({ image, title }: { image?: string; title: string }) {
 }
 
 function CartRow({
+  bargainPrice,
   item,
   onRemove,
   onUpdateQuantity,
   status,
 }: {
+  /** Agreed unit price from this buyer's accepted bargain, if any. */
+  bargainPrice?: number
   item: CartItem
   onRemove: () => void
   onUpdateQuantity: (quantity: number) => void
@@ -47,6 +51,8 @@ function CartRow({
   const unavailable = isUnavailable(status)
   const statusLabel = status === 'sold' ? 'Sold' : status === 'removed' ? 'Removed' : ''
   const wholesale = item.type === 'wholesale'
+  const unitPrice = bargainPrice === undefined ? item.price : Math.min(bargainPrice, item.price)
+  const bargained = unitPrice < item.price
 
   return (
     <article aria-label={unavailable ? `${item.title}, ${statusLabel.toLowerCase()}` : item.title} className="flex gap-4 p-4">
@@ -78,8 +84,16 @@ function CartRow({
               </button>
             </div>
           )}
-          <strong className={`font-display text-lg font-bold ${unavailable ? 'text-foose-faint line-through' : 'text-accent'}`}>{formatMoney(item.price * item.quantity, item.currency)}</strong>
+          <div className="flex items-baseline gap-2">
+            {bargained && !unavailable && (
+              <span className="text-sm font-semibold text-foose-muted line-through">{formatMoney(item.price * item.quantity, item.currency)}</span>
+            )}
+            <strong className={`font-display text-lg font-bold ${unavailable ? 'text-foose-faint line-through' : 'text-accent'}`}>{formatMoney(unitPrice * item.quantity, item.currency)}</strong>
+          </div>
         </div>
+        {bargained && !unavailable && (
+          <p className="mt-1 text-right text-xs font-bold text-foose-success">Bargained</p>
+        )}
       </div>
     </article>
   )
@@ -88,6 +102,7 @@ function CartRow({
 export function CartPage() {
   const { user } = useAuth()
   const cart = useCart()
+  const bargainPrices = useAcceptedBargainPrices(Boolean(user) && cart.items.length > 0)
   const [listingStatuses, setListingStatuses] = useState<Record<string, Listing['status']>>({})
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [availabilityError, setAvailabilityError] = useState('')
@@ -186,6 +201,7 @@ export function CartPage() {
                 <div className="divide-y divide-foose-border">
                   {group.items.map((item) => (
                     <CartRow
+                      bargainPrice={bargainPrices[item.listingId]}
                       item={item}
                       key={item.listingId}
                       onRemove={() => cart.removeItem(item.listingId)}
@@ -198,6 +214,7 @@ export function CartPage() {
             ))}
           </section>
           <OrderSummary
+            bargainPrices={bargainPrices}
             action={unavailableCount > 0 ? 'Remove unavailable items' : availabilityLoading ? 'Checking availability' : user && !user.isEmailVerified ? 'Verify email to checkout' : 'Proceed to checkout'}
             disabled={checkoutBlocked}
             href={checkoutBlocked ? undefined : '/checkout'}

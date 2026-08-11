@@ -3,6 +3,7 @@ import type { Order } from '../types/api'
 import {
   orderAllowedActions,
   orderBucket,
+  orderDeliveryFee,
   orderNextStep,
   orderProgressLabel,
   orderSettlementLabel,
@@ -76,6 +77,17 @@ describe('order workflow view model', () => {
   it('provides plain-language settlement labels', () => {
     expect(orderSettlementLabel('refund_attention', 'paystack')).toBe('Refund needs attention')
     expect(orderSettlementLabel('cash_due', 'cash_on_pickup')).toBe('Cash due at pickup')
+  })
+
+  it('never guesses a fee: shop pickup is free, a station pickup is TBD until the seller reports what the bus charged', () => {
+    expect(orderDeliveryFee(order({ delivery: { method: 'shop_pickup' } }))).toBe(0)
+    expect(orderDeliveryFee(order({ delivery: { method: 'station_pickup' } }))).toBeNull()
+    expect(orderDeliveryFee(order({
+      delivery: { method: 'station_pickup', transit: { amount: 7000, driverPhone: '0241112222' } },
+    }))).toBe(7000)
+    // Whichever field actually carries the known fee should win.
+    expect(orderDeliveryFee(order({ delivery: { fee: 500, method: 'station_pickup' } }))).toBe(500)
+    expect(orderDeliveryFee(order({ deliveryFee: 500, delivery: { method: 'station_pickup' } }))).toBe(500)
   })
 
   it('does not archive cancelled orders until their financial settlement is terminal', () => {
