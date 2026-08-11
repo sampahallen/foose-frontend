@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { AppShell, ButtonLink, ChoiceCardGroup, ErrorSummary, FormPage, FormSection, Icon, InlineNotice, OrderSummary, SelectControl, StatePanel, StepIndicator, TextField } from '../components'
+import { AppShell, ButtonLink, ErrorSummary, FormField, FormPage, FormSection, Icon, InlineNotice, OrderSummary, SelectControl, StatePanel, StepIndicator, TextField } from '../components'
 import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useAcceptedBargainPrices } from '../hooks/useBargain'
@@ -10,6 +10,7 @@ import { getErrorMessage } from '../utils/errorMessage'
 import { GHANA_REGION_OPTIONS } from '../utils/ghanaRegions'
 import { townOptionsForRegion } from '../utils/ghanaTowns'
 import { navigateTo } from '../utils/navigation'
+import { formatMoney } from '../utils/format'
 import { deliveryMethodLabel } from '../utils/orderStatus'
 import { openPaystackInline } from '../utils/paystackInline'
 
@@ -225,6 +226,24 @@ export function CheckoutPage() {
       [shopId]: { ...(current[shopId] || defaultShopDelivery(user)), ...patch },
     }))
   }
+
+  // Intra-city courier only ever ships within the seller's own region, so the
+  // region isn't a buyer choice - it tracks the seller's location, which may
+  // still be loading when the buyer picks this method.
+  useEffect(() => {
+    const syncTimer = window.setTimeout(() => {
+      for (const group of shopGroups) {
+        const state = shopDeliveryFor(group.shopId)
+        if (state.method !== 'intra_city_courier') continue
+        const sellerRegion = shopOptions[group.shopId]?.location.region
+        if (sellerRegion && state.region !== sellerRegion) {
+          updateShopDelivery(group.shopId, { provider: '', region: sellerRegion, town: '' })
+        }
+      }
+    }, 0)
+    return () => window.clearTimeout(syncTimer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopGroups, shopOptions])
 
   // Live, distance-based courier pricing. Keyed by shop+region+town so
   // switching the buyer's destination naturally invalidates the old price
@@ -518,7 +537,7 @@ export function CheckoutPage() {
                 <FormSection description="Choose a fulfilment method for each seller in your cart." title="Delivery details">
                   {optionsError && <InlineNotice tone="warning">{optionsError}</InlineNotice>}
                   <div className="grid gap-5">
-                    {shopGroups.map((group) => {
+                    {shopGroups.map((group, groupIndex) => {
                       const state = shopDeliveryFor(group.shopId)
                       const errors = shopErrors(group.shopId)
                       const requiresDestination = state.method !== 'shop_pickup'
@@ -527,43 +546,87 @@ export function CheckoutPage() {
                       const routeOptions = routeOptionsFor(shopOptions[group.shopId], state.company)
                       const selectedStopKey = state.region || state.town ? stopKey({ region: state.region, terminal: state.preferredTerminal, town: state.town }) : ''
                       const courierAvailability = shopOptions[group.shopId]?.courier
+                      const shopLocation = shopOptions[group.shopId]?.location
                       const quote = state.region && state.town ? courierQuotesByKey[courierQuoteKey(group.shopId, state.region, state.town)] : undefined
                       const quoteError = state.region && state.town ? courierQuoteErrorByKey[courierQuoteKey(group.shopId, state.region, state.town)] : undefined
                       const courierOptions = !quote ? [] : state.method === 'intra_city_courier' ? quote.intraCity : quote.interCity ? [quote.interCity] : []
+                      const selectedProvider = courierOptions.find((option) => option.providerId === state.provider)
+                      const estimatedFee = estimatedDeliveryFeeForShop(group, state, shopOptions, courierQuotesByKey)
+                      const itemsSubtotal = group.items.reduce((sum, item) => {
+                        const agreed = bargainPrices[item.listingId]
+                        const unitPrice = agreed === undefined ? item.price : Math.min(agreed, item.price)
+                        return sum + unitPrice * item.quantity
+                      }, 0)
                       return (
-                        <div className="rounded-xl border border-foose-border p-4 sm:p-5" key={group.shopId}>
-                          <h3 className="mb-3 font-display text-base font-semibold text-foose-text">{group.shopName}</h3>
-                          <ChoiceCardGroup<DeliveryMethod>
-                            label="Fulfilment method"
-                            name={`method-${group.shopId}`}
-                            onChange={(value) => updateShopDelivery(group.shopId, {
-                              company: value === 'station_pickup' ? state.company : '',
-                              method: value,
-                              preferredTerminal: '',
-                              provider: '',
-                              region: value === 'station_pickup' ? '' : state.region,
-                              town: '',
+                        <div className="rounded-xl border border-foose-border bg-foose-surface-low/40 p-4 sm:p-5" key={group.shopId}>
+                          <div className="mb-4 flex items-center justify-between gap-2.5 border-b border-foose-border pb-3">
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-light text-accent"><Icon name="store" size={17} /></span>
+                              <div className="min-w-0">
+                                <h3 className="truncate font-display text-base font-semibold text-foose-text">
+                                  {group.shopName}
+                                  {shopLocation && <span className="font-normal text-foose-muted"> · {shopLocation.city}, {shopLocation.region}</span>}
+                                </h3>
+                                <p className="text-xs text-foose-muted">Seller {groupIndex + 1} of {shopGroups.length} · {group.items.length} {group.items.length === 1 ? 'item' : 'items'}</p>
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-right text-xs">
+                              <p className="text-foose-muted">Items <span className="font-black text-foose-text">{formatMoney(itemsSubtotal)}</span></p>
+                              <p className="text-foose-muted">Estimated delivery <span className="font-black text-foose-text">{estimatedFee === null ? '…' : formatMoney(estimatedFee)}</span></p>
+                            </div>
+                          </div>
+
+                          <div className="mb-4 grid gap-3 rounded-lg bg-foose-surface p-3">
+                            {group.items.map((item) => {
+                              const agreed = bargainPrices[item.listingId]
+                              const unitPrice = agreed === undefined ? item.price : Math.min(agreed, item.price)
+                              return (
+                                <div className="flex items-center gap-3" key={item.listingId}>
+                                  <div className="size-12 shrink-0 overflow-hidden rounded-lg bg-foose-surface-mid [&_img]:size-full [&_img]:object-cover">
+                                    {item.image && <img alt="" src={item.image} />}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold text-foose-text">{item.title}</p>
+                                    <p className="text-xs text-foose-muted">Qty {item.quantity} · {formatMoney(unitPrice * item.quantity, item.currency)}</p>
+                                  </div>
+                                  <button aria-label={`Remove ${item.title} from checkout`} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-foose-faint transition hover:bg-accent-light hover:text-accent" onClick={() => cart.removeItem(item.listingId)} type="button">
+                                    <Icon name="trash" size={16} />
+                                  </button>
+                                </div>
+                              )
                             })}
-                            options={[
-                              { description: 'Collect at a bus station via Intercity STC, 2M Express, or VIP Jeoun. Pay the transit fee directly at the station.', label: 'Station pickup', value: 'station_pickup', visual: <Icon name="truck" /> },
-                              { description: "Collect from the seller's physical shop, when available. No delivery fee.", label: 'Shop pickup', value: 'shop_pickup', visual: <Icon name="store" /> },
-                              {
-                                description: courierAvailability?.intraCityPossible === false ? "Not offered from this seller's location." : 'Door-to-door via Bolt Send or Yango Delivery, within the same region as the seller.',
-                                disabled: courierAvailability?.intraCityPossible === false,
-                                label: 'Intra-city courier',
-                                value: 'intra_city_courier',
-                                visual: <Icon name="send" />,
-                              },
-                              {
-                                description: courierAvailability?.interCityPossible === false ? "Not offered from this seller's location." : 'Door-to-door via ShaQ Express, across regions.',
-                                disabled: courierAvailability?.interCityPossible === false,
-                                label: 'Inter-city courier',
-                                value: 'inter_city_courier',
-                                visual: <Icon name="truck" />,
-                              },
-                            ]}
-                            value={state.method}
-                          />
+                          </div>
+
+                          <FormField htmlFor={`method-${group.shopId}`} label="Fulfilment method" required>
+                            <SelectControl
+                              id={`method-${group.shopId}`}
+                              onChange={(event) => {
+                                const value = event.target.value as DeliveryMethod
+                                updateShopDelivery(group.shopId, {
+                                  company: value === 'station_pickup' ? state.company : '',
+                                  method: value,
+                                  preferredTerminal: '',
+                                  provider: '',
+                                  region: value === 'station_pickup'
+                                    ? ''
+                                    : value === 'intra_city_courier'
+                                      ? shopLocation?.region || ''
+                                      : state.region,
+                                  town: '',
+                                })
+                              }}
+                              value={state.method}
+                            >
+                              <option value="station_pickup">Station pickup</option>
+                              <option value="shop_pickup">Shop pickup</option>
+                              <option disabled={courierAvailability?.intraCityPossible === false} value="intra_city_courier">
+                                Intra-city courier{courierAvailability?.intraCityPossible === false ? ' (not available)' : ''}
+                              </option>
+                              <option disabled={courierAvailability?.interCityPossible === false} value="inter_city_courier">
+                                Inter-city courier{courierAvailability?.interCityPossible === false ? ' (not available)' : ''}
+                              </option>
+                            </SelectControl>
+                          </FormField>
 
                           {validationAttempted && (errors.company || errors.recipientName || errors.recipientPhone || errors.region || errors.town || errors.deliveryAddress || errors.provider) && (
                             <ErrorSummary
@@ -581,18 +644,21 @@ export function CheckoutPage() {
                           )}
 
                           {state.method === 'station_pickup' && (
-                            <ChoiceCardGroup
-                              className="mt-4"
-                              error={validationAttempted ? errors.company : undefined}
-                              id={`company-${group.shopId}`}
-                              label="Bus transit company"
-                              name={`company-${group.shopId}`}
-                              onChange={(value) => updateShopDelivery(group.shopId, (ROUTE_VALIDATED_COMPANIES as readonly string[]).includes(value)
-                                ? { company: value, preferredTerminal: '', region: '', town: '' }
-                                : { company: value })}
-                              options={STATION_PICKUP_COMPANIES.map((name) => ({ label: name, value: name }))}
-                              value={state.company}
-                            />
+                            <FormField className="mt-4" error={validationAttempted ? errors.company : undefined} htmlFor={`company-${group.shopId}`} label="Bus transit company" required>
+                              <SelectControl
+                                id={`company-${group.shopId}`}
+                                onChange={(event) => {
+                                  const value = event.target.value
+                                  updateShopDelivery(group.shopId, (ROUTE_VALIDATED_COMPANIES as readonly string[]).includes(value)
+                                    ? { company: value, preferredTerminal: '', region: '', town: '' }
+                                    : { company: value })
+                                }}
+                                value={state.company}
+                              >
+                                <option value="">Choose a company</option>
+                                {STATION_PICKUP_COMPANIES.map((name) => <option key={name} value={name}>{name}</option>)}
+                              </SelectControl>
+                            </FormField>
                           )}
 
                           {isRouteValidated && (
@@ -624,18 +690,27 @@ export function CheckoutPage() {
                           {isCourierMethod && (
                             <div className="mt-4 grid gap-4">
                               <div className="grid gap-4 sm:grid-cols-2">
-                                <label className="grid gap-1.5 sm:gap-2" htmlFor={`destination-${group.shopId}`}>
-                                  <span className="text-[13px] font-extrabold leading-5 text-foose-text sm:text-sm">Your region<span aria-hidden="true" className="ml-1 text-foose-danger">*</span></span>
-                                  <SelectControl
-                                    id={`destination-${group.shopId}`}
-                                    menuZIndex={1500}
-                                    onChange={(event) => updateShopDelivery(group.shopId, { provider: '', region: event.target.value, town: '' })}
-                                    value={state.region}
-                                  >
-                                    <option value="">Choose a region</option>
-                                    {GHANA_REGION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                  </SelectControl>
-                                </label>
+                                {state.method === 'intra_city_courier' ? (
+                                  <div className="grid gap-1.5 sm:gap-2">
+                                    <span className="text-[13px] font-extrabold leading-5 text-foose-text sm:text-sm">Your region</span>
+                                    <div className="flex min-h-11 items-center rounded-xl border border-foose-border bg-foose-surface-low px-3 text-sm font-semibold text-foose-text sm:min-h-12 sm:px-4">
+                                      {state.region || 'Loading seller region…'}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <label className="grid gap-1.5 sm:gap-2" htmlFor={`destination-${group.shopId}`}>
+                                    <span className="text-[13px] font-extrabold leading-5 text-foose-text sm:text-sm">Your region<span aria-hidden="true" className="ml-1 text-foose-danger">*</span></span>
+                                    <SelectControl
+                                      id={`destination-${group.shopId}`}
+                                      menuZIndex={1500}
+                                      onChange={(event) => updateShopDelivery(group.shopId, { provider: '', region: event.target.value, town: '' })}
+                                      value={state.region}
+                                    >
+                                      <option value="">Choose a region</option>
+                                      {GHANA_REGION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                    </SelectControl>
+                                  </label>
+                                )}
                                 <label className="grid gap-1.5 sm:gap-2" htmlFor={`town-${group.shopId}`}>
                                   <span className="text-[13px] font-extrabold leading-5 text-foose-text sm:text-sm">Your town<span aria-hidden="true" className="ml-1 text-foose-danger">*</span></span>
                                   <SelectControl
@@ -661,19 +736,21 @@ export function CheckoutPage() {
                                 </InlineNotice>
                               )}
                               {!!courierOptions.length && (
-                                <ChoiceCardGroup
-                                  error={validationAttempted ? errors.provider : undefined}
-                                  id={`provider-${group.shopId}`}
-                                  label="Delivery provider"
-                                  name={`provider-${group.shopId}`}
-                                  onChange={(value) => updateShopDelivery(group.shopId, { provider: value })}
-                                  options={courierOptions.map((option) => ({
-                                    description: `~${option.distanceKm}km · ${option.trackingNotice}`,
-                                    label: option.providerName,
-                                    value: option.providerId,
-                                  }))}
-                                  value={state.provider}
-                                />
+                                <FormField error={validationAttempted ? errors.provider : undefined} htmlFor={`provider-${group.shopId}`} label="Delivery provider" required>
+                                  <SelectControl
+                                    id={`provider-${group.shopId}`}
+                                    onChange={(event) => updateShopDelivery(group.shopId, { provider: event.target.value })}
+                                    value={state.provider}
+                                  >
+                                    <option value="">Choose a provider</option>
+                                    {courierOptions.map((option) => (
+                                      <option key={option.providerId} value={option.providerId}>{option.providerName}</option>
+                                    ))}
+                                  </SelectControl>
+                                  {selectedProvider && (
+                                    <InlineNotice className="mt-3" tone="info">~{selectedProvider.distanceKm}km · {selectedProvider.trackingNotice}</InlineNotice>
+                                  )}
+                                </FormField>
                               )}
 
                               <TextField error={validationAttempted ? errors.deliveryAddress : undefined} id={`delivery-address-${group.shopId}`} label="Delivery address" onChange={(event) => updateShopDelivery(group.shopId, { deliveryAddress: event.target.value })} placeholder="House number, street" required value={state.deliveryAddress} />
@@ -688,14 +765,6 @@ export function CheckoutPage() {
                               <TextField error={validationAttempted ? errors.recipientPhone : undefined} id={`recipient-phone-${group.shopId}`} inputMode="tel" label="Recipient phone" onChange={(event) => updateShopDelivery(group.shopId, { recipientPhone: event.target.value })} placeholder="024 000 0000" required type="tel" value={state.recipientPhone} />
                             </div>
                           )}
-
-                          <InlineNotice className="mt-4" tone="info">
-                            {state.method === 'shop_pickup'
-                              ? "Shop pickup means collecting from the seller's physical shop. The seller will mark the order ready, and there is no delivery fee."
-                              : isCourierMethod
-                                ? 'The price shown is an estimate for planning — the seller books and pays the courier directly, and settles the delivery cost with you outside Foose.'
-                                : 'Pay the transit fee directly at the station — it is not charged through Foose.'}
-                          </InlineNotice>
                         </div>
                       )
                     })}
@@ -705,16 +774,21 @@ export function CheckoutPage() {
 
               {step === 1 && (
                 <FormSection description="Choose how you would like to pay for this order." title="Payment">
-                  <ChoiceCardGroup
-                    label="Payment method"
-                    name="paymentMethod"
-                    onChange={(value) => setPaymentMethod(value as 'cash_on_pickup' | 'paystack')}
-                    options={[
-                      { description: 'Pay in a secure Paystack window without leaving Foose. Paid funds are held in escrow.', label: 'Pay online with Paystack', value: 'paystack', visual: <Icon name="shield" /> },
-                      ...(allShopPickup ? [{ description: 'Pay the seller when you collect the order. No escrow is held.', label: 'Cash on pickup', value: 'cash_on_pickup', visual: <Icon name="money" /> }] : []),
-                    ]}
-                    value={paymentMethod}
-                  />
+                  <FormField htmlFor="paymentMethod" label="Payment method" required>
+                    <SelectControl
+                      id="paymentMethod"
+                      onChange={(event) => setPaymentMethod(event.target.value as 'cash_on_pickup' | 'paystack')}
+                      value={paymentMethod}
+                    >
+                      <option value="paystack">Pay online with Paystack</option>
+                      {allShopPickup && <option value="cash_on_pickup">Cash on pickup</option>}
+                    </SelectControl>
+                  </FormField>
+                  <InlineNotice tone="info">
+                    {paymentMethod === 'paystack'
+                      ? 'Pay in a secure Paystack window without leaving Foose. Paid funds are held in escrow.'
+                      : 'Pay the seller when you collect the order. No escrow is held.'}
+                  </InlineNotice>
                   {paymentMessage && <InlineNotice title={completedReference ? 'Payment completed' : cancellationReference ? 'Cancelling payment' : 'Payment not completed'} tone="info">{paymentMessage}</InlineNotice>}
                   {error && <InlineNotice title={completedReference ? 'Payment confirmation unavailable' : cancellationReference ? 'Cancellation incomplete' : 'Checkout could not continue'} tone="error">{error}</InlineNotice>}
                 </FormSection>
