@@ -177,6 +177,13 @@ function tempMessageId() {
   return `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
+function resizeMessageInput(input: HTMLTextAreaElement) {
+  input.style.height = '48px'
+  const contentHeight = input.scrollHeight
+  input.style.height = `${Math.min(contentHeight, 144)}px`
+  input.classList.toggle('is-overflowing', contentHeight > 144)
+}
+
 function ListingContextBand({ listing, onDismiss }: { listing?: Listing | string; onDismiss?: () => void }) {
   const title = listingTitle(listing)
   if (!title) return null
@@ -270,7 +277,7 @@ export function InboxPage() {
   const [pendingReactionMessageId, setPendingReactionMessageId] = useState('')
   const [accountActionsOpen, setAccountActionsOpen] = useState(false)
   const selectedAttachmentsRef = useRef<DraftAttachment[]>([])
-  const messageInputRef = useRef<HTMLInputElement | null>(null)
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null)
   const messagesRef = useRef<HTMLDivElement | null>(null)
   const accountActionsRef = useRef<HTMLDivElement | null>(null)
   const lastConversationRef = useRef('')
@@ -325,6 +332,14 @@ export function InboxPage() {
         node.scrollTo({ top: node.scrollHeight })
       })
     })
+  }, [])
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (messageInputRef.current) resizeMessageInput(messageInputRef.current)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   function prepareConversationOpen() {
@@ -645,6 +660,7 @@ export function InboxPage() {
       }
 
       form.reset()
+      if (messageInputRef.current) resizeMessageInput(messageInputRef.current)
       selectedAttachments.forEach((attachment) => URL.revokeObjectURL(attachment.url))
       setSelectedAttachments([])
       setReplyTarget(null)
@@ -962,10 +978,12 @@ export function InboxPage() {
           {sendError && <InlineNotice className="mx-3 mb-2" title={sendErrorTitle} tone="error">{sendError}</InlineNotice>}
           {replyTarget && <ReplyContextBand message={replyTarget} onDismiss={() => setReplyTarget(null)} />}
           <ListingContextBand listing={activeComposerListing} onDismiss={() => setDismissedListingId(params.listingId)} />
-          <form aria-busy={sending} className={`message-composer sticky bottom-0 flex shrink-0 items-end gap-2 border-t border-foose-border bg-foose-surface/95 p-3 shadow-[0_-8px_24px_rgba(26,27,37,0.04)] backdrop-blur max-md:gap-1.5 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] [&_input]:h-12 [&_input]:w-full [&_input]:px-4 ${canCompose ? 'single-line' : ''} `} onSubmit={(event) => void sendMessage(event)}>
+          <form aria-busy={sending} className={`message-composer sticky bottom-0 flex min-w-0 shrink-0 items-end gap-2 border-t border-foose-border bg-foose-surface/95 p-3 shadow-[0_-8px_24px_rgba(26,27,37,0.04)] backdrop-blur max-md:gap-1.5 max-sm:px-2 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] ${canCompose ? 'single-line' : ''} `} onSubmit={(event) => void sendMessage(event)}>
             {!params.conversationId && !params.receiverId && <input aria-label="Receiver user ID" name="receiverId" placeholder="Receiver user ID" />}
-            <div className="composer-main min-w-0 flex-1 [&_input]:h-12 [&_input]:w-full [&_input]:rounded-full [&_input]:border [&_input]:border-foose-border [&_input]:bg-foose-surface-low [&_input]:px-4 [&_input]:outline-none [&_input]:transition [&_input]:focus:border-accent [&_input]:focus:bg-foose-surface">
-              <input aria-label="Write message" autoComplete="off" name="content" placeholder={activeComposerListing ? 'Ask a question about this product...' : 'Message'} readOnly={sending} ref={messageInputRef} />
+            <div className="composer-main min-w-0 flex-1">
+              <div className="overflow-hidden rounded-3xl bg-foose-surface-low pr-1 ring-1 ring-inset ring-foose-border transition focus-within:bg-foose-surface focus-within:ring-accent">
+                <textarea aria-label="Write message" className="message-composer-input block h-12 max-h-36 min-h-12 w-full resize-none bg-transparent px-4 py-3 text-foose-text outline-none" name="content" onInput={(event) => resizeMessageInput(event.currentTarget)} placeholder={activeComposerListing ? 'Ask a question about this product...' : 'Message'} readOnly={sending} ref={messageInputRef} rows={1} />
+              </div>
               {!!selectedAttachments.length && (
                 <div className="composer-media-previews flex flex-wrap gap-2">
                   {selectedAttachments.map((attachment, index) => (
@@ -1000,17 +1018,17 @@ export function InboxPage() {
                 </div>
               )}
             </div>
-            <label aria-label="Attach images or videos" className="attachment-button inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-full border border-foose-border bg-foose-surface text-accent transition hover:bg-accent-light focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent [&_input]:sr-only" title="Attach images or videos">
+            <label aria-label="Attach images or videos" className="attachment-button inline-flex size-12 max-sm:size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-foose-border bg-foose-surface text-accent transition hover:bg-accent-light focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent [&_input]:sr-only" title="Attach images or videos">
               <span className="sr-only">Attach images or videos</span>
               <Icon name="upload" />
               <input accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" disabled={sending} multiple name="attachments" onChange={handleAttachmentChange} type="file" />
             </label>
-            <label aria-label="Open camera" className="attachment-button inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-full border border-foose-border bg-foose-surface text-accent transition hover:bg-accent-light focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent [&_input]:sr-only" title="Open camera">
+            <label aria-label="Open camera" className="attachment-button inline-flex size-12 max-sm:size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-foose-border bg-foose-surface text-accent transition hover:bg-accent-light focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent [&_input]:sr-only" title="Open camera">
               <span className="sr-only">Open camera</span>
               <Icon name="camera" />
               <input accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" capture="environment" disabled={sending} multiple onChange={handleAttachmentChange} type="file" />
             </label>
-            <button aria-label={sending ? 'Sending message' : 'Send message'} className="message-send-button inline-flex size-12 shrink-0 items-center justify-center rounded-full border border-accent bg-accent text-white shadow-sm transition hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:bg-foose-surface-mid disabled:text-foose-faint" disabled={sending} type="submit">
+            <button aria-label={sending ? 'Sending message' : 'Send message'} className="message-send-button inline-flex size-12 max-sm:size-10 shrink-0 items-center justify-center rounded-full border border-accent bg-accent text-white shadow-sm transition hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:bg-foose-surface-mid disabled:text-foose-faint" disabled={sending} type="submit">
               {sending ? <span aria-hidden className="size-5 animate-spin rounded-full border-2 border-white/45 border-t-white motion-reduce:animate-none" /> : <Icon name="send" />}
             </button>
           </form>

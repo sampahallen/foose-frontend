@@ -60,6 +60,34 @@
   --foose-fab-with-actions-inset: calc(var(--foose-bottom-nav-height) + 5rem + env(safe-area-inset-bottom));
 }
 
+.message-composer-input {
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.message-composer-input.is-overflowing {
+  overflow-y: auto;
+  scrollbar-color: var(--color-foose-border) transparent;
+  scrollbar-width: thin;
+}
+
+.message-composer-input::-webkit-scrollbar {
+  width: 0;
+}
+
+.message-composer-input.is-overflowing::-webkit-scrollbar {
+  width: 3px;
+}
+
+.message-composer-input::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.message-composer-input::-webkit-scrollbar-thumb {
+  background: var(--color-foose-border);
+  border-radius: 999px;
+}
+
 .finspo-thin-scrollbar {
   scrollbar-color: var(--color-foose-border) transparent;
   scrollbar-width: thin;

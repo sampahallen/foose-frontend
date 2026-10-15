@@ -271,18 +271,18 @@ export function Message({
   ) : null
 
   const actionButtons = (canReact || onReply) ? (
-    <div className="flex shrink-0 items-center gap-1">
+    <div className={`order-2 flex shrink-0 items-center gap-1 sm:order-none ${incoming ? 'self-start' : 'self-end'}`}>
       {reactButton}
       {replyButton}
     </div>
   ) : null
 
   return (
-    <div className={`message-row relative flex w-full items-start gap-1.5 pb-1 sm:gap-2 ${incoming ? 'justify-start' : 'justify-end'}`} id={messageId ? `chat-message-${messageId}` : undefined}>
+    <div className={`message-row relative flex w-full min-w-0 flex-col gap-1 pb-2 sm:flex-row sm:items-start sm:gap-2 ${incoming ? 'items-start sm:justify-start' : 'items-end sm:justify-end'}`} id={messageId ? `chat-message-${messageId}` : undefined}>
       {!incoming && actionButtons}
-      <div className={`flex min-w-0 max-w-[82%] flex-col gap-1 max-md:max-w-[86%] ${incoming ? 'items-start' : 'items-end'}`}>
+      <div className={`order-1 flex min-w-0 max-w-[90%] flex-col gap-1 sm:order-none sm:max-w-[82%] ${incoming ? 'items-start' : 'items-end'}`}>
         <div
-          className={`message relative flex w-full flex-col gap-2 rounded-2xl px-4 py-3 text-sm shadow-sm transition-transform motion-reduce:transition-none [&.incoming]:rounded-bl-sm [&.incoming]:bg-foose-surface-high [&.incoming]:text-foose-text [&.outgoing]:rounded-br-sm [&.outgoing]:bg-accent [&.outgoing]:text-white [&_time]:block [&_time]:text-xs [&_time]:opacity-70 ${incoming ? 'incoming' : 'outgoing'} ${pressed ? 'scale-[0.98]' : ''}`}
+          className={`message relative flex w-full min-w-0 flex-col gap-2 rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 text-sm shadow-sm transition-transform motion-reduce:transition-none [&.incoming]:rounded-bl-sm [&.incoming]:bg-foose-surface-high [&.incoming]:text-foose-text [&.outgoing]:rounded-br-sm [&.outgoing]:bg-accent [&.outgoing]:text-white [&_time]:block [&_time]:text-xs [&_time]:opacity-70 ${incoming ? 'incoming' : 'outgoing'} ${pressed ? 'scale-[0.98]' : ''}`}
           onContextMenu={(event) => { if (canReact) event.preventDefault() }}
           ref={bubbleRef}
           {...(canReact ? longPressHandlers : {})}
@@ -290,25 +290,25 @@ export function Message({
           {replyText && (
             <div className={`rounded-xl border-l-4 px-3 py-2 text-xs ${incoming ? 'border-accent bg-foose-surface/80 text-foose-muted' : 'border-white bg-white/15 text-white/85'}`}>
               <strong className="block truncate">{replySender}</strong>
-              <span className="line-clamp-2">{replyText}</span>
+              <span className="line-clamp-2 [overflow-wrap:anywhere]">{replyText}</span>
             </div>
           )}
           {listingTitle(listing) && (
-            <div className="grid grid-cols-[48px_minmax(0,1fr)] items-center gap-3 rounded-xl bg-foose-surface/90 p-2 text-foose-text shadow-sm">
-              {listingImage(listing) ? <img alt="" className="size-12 rounded-lg object-cover" src={listingImage(listing)} /> : <span className="size-12 rounded-lg bg-foose-surface-mid" />}
+            <div className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-center gap-2 rounded-xl bg-foose-surface/90 p-2 text-foose-text shadow-sm sm:grid-cols-[48px_minmax(0,1fr)] sm:gap-3">
+              {listingImage(listing) ? <img alt="" className="size-10 rounded-lg object-cover sm:size-12" src={listingImage(listing)} /> : <span className="size-10 rounded-lg bg-foose-surface-mid sm:size-12" />}
               <span className="min-w-0">
                 <strong className="block truncate text-xs font-black">{listingTitle(listing)}</strong>
                 <small className="text-xs font-bold text-accent">{listingPrice(listing)}</small>
               </span>
             </div>
           )}
-          {children && <p>{children}</p>}
+          {children && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{children}</p>}
           {!!attachments.length && (
-            <div className="message-attachments flex flex-wrap gap-2 [&_img]:max-h-44 [&_img]:rounded-lg [&_img]:object-cover [&_video]:max-h-44 [&_video]:rounded-lg [&_video]:object-cover">
+            <div className="message-attachments flex min-w-0 max-w-full flex-wrap gap-2 [&_img]:max-h-44 [&_img]:max-w-full [&_img]:rounded-lg [&_img]:object-cover [&_video]:max-h-44 [&_video]:max-w-full [&_video]:rounded-lg [&_video]:object-cover">
               {attachments.map((attachment, index) =>
                 attachment.type === 'video' ? (
                   <button
-                    className="block border-0 bg-transparent p-0"
+                    className="block min-w-0 max-w-full border-0 bg-transparent p-0"
                     key={attachment.url}
                     onClick={() => openPreview(previewItems, index)}
                     type="button"
