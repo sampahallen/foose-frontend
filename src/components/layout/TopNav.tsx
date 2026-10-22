@@ -69,22 +69,22 @@ export function TopNav({
 
   return (
     <>
-      <header className={`top-nav sticky top-0 z-50 h-16 border-b border-white/20 bg-accent/95 text-white backdrop-blur ${scrollRevealTransitionClass} ${scrollRevealStateClass(active === 'profile' || profileMenuOpen || scrollVisible)} [&_.icon-button]:text-white [&_.icon-button]:hover:bg-white/15 [&_.icon-button]:hover:text-white ${className}`}>
-        <div className="nav-inner mx-auto flex h-full w-full max-w-[1280px] items-center justify-between gap-2 px-4 md:px-6 lg:gap-8 max-lg:justify-between">
-          <a aria-label={`${brand} home`} className="brand-logo inline-flex min-w-16 items-center font-display text-xl font-bold sm:min-w-20 [&_img]:h-auto [&_img]:w-16 [&_img]:sm:w-20 [&_img]:md:w-[86px]" href={withBasePath('/')}>
+      <header className={`top-nav sticky top-0 z-50 h-16 border-b border-white/[0.13] bg-[linear-gradient(105deg,#111a4a_0%,#192a89_56%,#2642fb_100%)] text-white shadow-[0_12px_28px_rgb(15_24_82_/_13%)] backdrop-blur lg:h-[78px] ${scrollRevealTransitionClass} ${scrollRevealStateClass(active === 'profile' || profileMenuOpen || scrollVisible)} [&_.icon-button]:text-white [&_.icon-button]:hover:bg-white/15 [&_.icon-button]:hover:text-white ${className}`}>
+        <div className="nav-inner mx-auto flex h-full w-full max-w-[1280px] items-center justify-between gap-2 px-4 md:px-6 lg:max-w-[1440px] lg:gap-[30px] lg:px-9 max-lg:justify-between">
+          <a aria-label={`${brand} home`} className="brand-logo inline-flex min-w-16 items-center font-display text-xl font-bold sm:min-w-20 [&_img]:h-auto [&_img]:w-16 [&_img]:sm:w-20 [&_img]:md:w-[86px] lg:[&_img]:w-[102px]" href={withBasePath('/')}>
             <img src={whiteLogo} alt="" />
           </a>
           <div className="mobile-nav-actions ml-auto flex items-center gap-0.5 lg:hidden">
             <a
               aria-current={active === 'explore' ? 'page' : undefined}
               aria-label="Explore Foose"
-              className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-white/30 ${active === 'explore' ? 'border-white bg-white text-accent' : 'border-white/25 bg-white/10 text-white hover:bg-white/15'}`}
+              className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border px-3 text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-white/30 ${active === 'explore' ? 'border-white bg-white text-[#1d329c]' : 'border-white/30 bg-white/10 text-white hover:border-white/65 hover:bg-white/20'}`}
               href={withBasePath('/search')}
               onClick={openExplore}
             >
-              <Icon name="search" size={18} />
+              <Icon name="search" size={18} /> Explore
             </a>
-            <a aria-current={active === 'cart' ? 'page' : undefined} aria-label={cartLabel} className={`icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white ${active === 'cart' ? '!bg-white !text-accent hover:!text-accent' : ''}`} href={withBasePath('/cart')}>
+            <a aria-current={active === 'cart' ? 'page' : undefined} aria-label={cartLabel} className={`icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/[0.08] text-current transition hover:border-white/50 hover:bg-white/[0.18] ${active === 'cart' ? '!border-white !bg-white !text-[#1d329c] hover:!bg-white hover:!text-[#1d329c]' : ''}`} href={withBasePath('/cart')}>
               <Icon name="cart" />
               {cartCount > 0 && (
                 <span aria-hidden className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-accent-light px-1.5 py-0.5 text-[10px] font-black leading-none text-accent ring-2 ring-accent">
@@ -92,18 +92,13 @@ export function TopNav({
                 </span>
               )}
             </a>
-            {user && (
-              <a aria-current={active === 'shop' ? 'page' : undefined} aria-label={shopLabel} className={`icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white ${active === 'shop' ? '!bg-white !text-accent hover:!text-accent' : ''}`} href={withBasePath(shopHref)}>
-                <Icon name="store" />
-              </a>
-            )}
             {user ? (
               <div className="profile-menu-wrap relative" ref={mobileProfileMenuRef}>
                 <button
                   aria-expanded={profileMenuOpen}
                   aria-haspopup="menu"
                   aria-label="Open profile menu"
-                  className={`avatar-link inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white [&_span]:inline-flex [&_span]:size-10 [&_span]:shrink-0 [&_span]:items-center [&_span]:justify-center [&_span]:rounded-full [&_span]:bg-white/10 [&_span]:text-sm [&_span]:font-bold [&_span]:text-white [&_img]:inline-flex [&_img]:size-10 [&_img]:shrink-0 [&_img]:items-center [&_img]:justify-center [&_img]:rounded-full [&_img]:bg-white/10 [&_img]:text-sm [&_img]:font-bold [&_img]:text-white [&_img]:object-cover profile-menu-trigger border border-white/25 ${active === 'profile' ? 'active' : ''} `}
+                  className={`avatar-link inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-sm font-bold text-white [&_span]:inline-flex [&_span]:size-10 [&_span]:shrink-0 [&_span]:items-center [&_span]:justify-center [&_span]:rounded-full [&_span]:bg-white/10 [&_span]:text-sm [&_span]:font-bold [&_span]:text-white [&_img]:inline-flex [&_img]:size-10 [&_img]:shrink-0 [&_img]:items-center [&_img]:justify-center [&_img]:rounded-full [&_img]:bg-white/10 [&_img]:text-sm [&_img]:font-bold [&_img]:text-white [&_img]:object-cover profile-menu-trigger border border-white/20 hover:border-white/50 hover:bg-white/[0.18] ${active === 'profile' || active === 'shop' ? 'active' : ''} `}
                   onClick={() => setProfileMenuOpen((open) => !open)}
                   type="button"
                 >
@@ -132,6 +127,9 @@ export function TopNav({
                       <a href={withBasePath('/wallet')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                         Wallet
                       </a>
+                      <a aria-current={active === 'shop' ? 'page' : undefined} href={withBasePath(shopHref)} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                        {shopLabel}
+                      </a>
                       <span className="profile-dropdown-spacer h-3" />
                       <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                         Profile
@@ -151,35 +149,35 @@ export function TopNav({
                 )}
               </div>
             ) : status === 'checking' ? null : (
-              <a aria-label="Log in" className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-white/15 hover:text-white" href={authHref('/login', redirectTarget)}>
+              <a aria-label="Log in" className="icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/[0.08] text-current transition hover:border-white/50 hover:bg-white/[0.18]" href={authHref('/login', redirectTarget)}>
                 <Icon name="user" />
               </a>
             )}
           </div>
-          <nav className="nav-links hidden items-center gap-6 lg:flex [&_a]:rounded-full [&_a]:px-3 [&_a]:py-2 [&_a]:text-sm [&_a]:font-semibold [&_a]:text-white/85 [&_a]:transition [&_a]:hover:bg-white/10 [&_a]:hover:text-white [&_a.active]:bg-white [&_a.active]:text-accent" aria-label="Primary navigation">
-            <a className={active === 'home' ? 'active' : ''} href={withBasePath('/')}>
+          <nav className="nav-links hidden items-center lg:flex lg:gap-0.5 lg:rounded-full lg:border lg:border-white/20 lg:bg-white/[0.08] lg:p-[5px]" aria-label="Primary navigation">
+            <a className={`rounded-full px-4 py-2.5 text-center text-[13px] font-bold tracking-[0.01em] text-white/85 transition hover:bg-white/15 hover:text-white ${active === 'home' ? '!bg-white !text-[#1d329c] shadow-[0_3px_12px_rgb(5_11_42_/_16%)] hover:!bg-white hover:!text-[#1d329c]' : ''}`} href={withBasePath('/')}>
               Home
             </a>
-            <a className={active === 'browse' ? 'active' : ''} href={withBasePath('/browse')}>
+            <a className={`rounded-full px-4 py-2.5 text-center text-[13px] font-bold tracking-[0.01em] text-white/85 transition hover:bg-white/15 hover:text-white ${active === 'browse' ? '!bg-white !text-[#1d329c] shadow-[0_3px_12px_rgb(5_11_42_/_16%)] hover:!bg-white hover:!text-[#1d329c]' : ''}`} href={withBasePath('/browse')}>
               Browse
             </a>
-            <a className={active === 'community' ? 'active' : ''} href={withBasePath('/community')}>
+            <a className={`rounded-full px-4 py-2.5 text-center text-[13px] font-bold tracking-[0.01em] text-white/85 transition hover:bg-white/15 hover:text-white ${active === 'community' ? '!bg-white !text-[#1d329c] shadow-[0_3px_12px_rgb(5_11_42_/_16%)] hover:!bg-white hover:!text-[#1d329c]' : ''}`} href={withBasePath('/community')}>
               Community
             </a>
           </nav>
-          <div className="nav-actions ml-auto hidden items-center gap-2 lg:flex">
+          <div className="nav-actions ml-auto hidden items-center gap-2 lg:flex lg:gap-[7px]">
             <a
               aria-current={active === 'explore' ? 'page' : undefined}
-              className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-white/30 ${active === 'explore' ? 'border-white bg-white text-accent' : 'border-white/25 bg-white/10 text-white hover:bg-white/15'}`}
+              className={`inline-flex min-h-[42px] items-center gap-2 rounded-full border px-[18px] text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-white/30 ${active === 'explore' ? 'border-white bg-white text-[#1d329c]' : 'border-white/30 bg-white/10 text-white hover:border-white/65 hover:bg-white/20'}`}
               href={withBasePath('/search')}
               onClick={openExplore}
             >
               <Icon name="search" size={18} /> Explore
             </a>
-            <a aria-label="Saved" className={`icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent ${active === 'saved' ? 'active' : ''} `} href={withBasePath('/saved')}>
+            <a aria-label="Saved" className={`icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/[0.08] text-current transition hover:border-white/50 hover:bg-white/[0.18] nav-icon ${active === 'saved' ? '!border-white !bg-white !text-[#1d329c] hover:!bg-white hover:!text-[#1d329c]' : ''}`} href={withBasePath('/saved')}>
               <Icon name="heart" />
             </a>
-            <a aria-current={active === 'cart' ? 'page' : undefined} aria-label={cartLabel} className={`icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent ${active === 'cart' ? 'active' : ''}`} href={withBasePath('/cart')}>
+            <a aria-current={active === 'cart' ? 'page' : undefined} aria-label={cartLabel} className={`icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/[0.08] text-current transition hover:border-white/50 hover:bg-white/[0.18] nav-icon ${active === 'cart' ? '!border-white !bg-white !text-[#1d329c] hover:!bg-white hover:!text-[#1d329c]' : ''}`} href={withBasePath('/cart')}>
               <Icon name="cart" />
               {cartCount > 0 && (
                 <span aria-hidden className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-accent-light px-1.5 py-0.5 text-[10px] font-black leading-none text-accent ring-2 ring-accent">
@@ -189,7 +187,7 @@ export function TopNav({
             </a>
             {user ? (
               <>
-                <a aria-label="Inbox" className="icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent" href={withBasePath('/inbox')}>
+                <a aria-label="Inbox" className="icon-button relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/[0.08] text-current transition hover:border-white/50 hover:bg-white/[0.18] nav-icon" href={withBasePath('/inbox')}>
                   <Icon name="mail" />
                   {unreadMessageCount > 0 ? (
                     <span aria-label={`${unreadMessageCount} unread messages`} className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-accent-light px-1.5 py-0.5 text-[10px] font-black leading-none text-accent ring-2 ring-accent">
@@ -199,15 +197,12 @@ export function TopNav({
                     <span aria-label="Unread system notification" className="absolute right-2 top-2 size-2.5 rounded-full bg-accent-light ring-2 ring-accent" />
                   )}
                 </a>
-                <a aria-current={active === 'shop' ? 'page' : undefined} aria-label={shopLabel} className={`icon-button inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-current transition hover:bg-accent-light hover:text-accent nav-icon [&.active]:bg-white [&.active]:text-accent ${active === 'shop' ? 'active' : ''}`} href={withBasePath(shopHref)}>
-                  <Icon name="store" />
-                </a>
                 <div className="profile-menu-wrap relative" ref={desktopProfileMenuRef}>
                   <button
                     aria-expanded={profileMenuOpen}
                     aria-haspopup="menu"
                     aria-label="Open profile menu"
-                    className={`avatar-link inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-light text-sm font-bold text-accent [&_span]:inline-flex [&_span]:size-10 [&_span]:shrink-0 [&_span]:items-center [&_span]:justify-center [&_span]:rounded-full [&_span]:bg-accent-light [&_span]:text-sm [&_span]:font-bold [&_span]:text-accent [&_img]:inline-flex [&_img]:size-10 [&_img]:shrink-0 [&_img]:items-center [&_img]:justify-center [&_img]:rounded-full [&_img]:bg-accent-light [&_img]:text-sm [&_img]:font-bold [&_img]:text-accent [&_img]:object-cover profile-menu-trigger border border-white/25 bg-white/10 ${active === 'profile' ? 'active' : ''} `}
+                    className={`avatar-link inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-light text-sm font-bold text-accent [&_span]:inline-flex [&_span]:size-10 [&_span]:shrink-0 [&_span]:items-center [&_span]:justify-center [&_span]:rounded-full [&_span]:bg-accent-light [&_span]:text-sm [&_span]:font-bold [&_span]:text-accent [&_img]:inline-flex [&_img]:size-10 [&_img]:shrink-0 [&_img]:items-center [&_img]:justify-center [&_img]:rounded-full [&_img]:bg-accent-light [&_img]:text-sm [&_img]:font-bold [&_img]:text-accent [&_img]:object-cover profile-menu-trigger border border-white/20 bg-white/[0.08] hover:border-white/50 hover:bg-white/[0.18] ${active === 'profile' || active === 'shop' ? 'active' : ''} `}
                     onClick={() => setProfileMenuOpen((open) => !open)}
                     type="button"
                   >
@@ -236,6 +231,9 @@ export function TopNav({
                         <a href={withBasePath('/wallet')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                           Wallet
                         </a>
+                        <a aria-current={active === 'shop' ? 'page' : undefined} href={withBasePath(shopHref)} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
+                          {shopLabel}
+                        </a>
                         <span className="profile-dropdown-spacer h-3" />
                         <a href={withBasePath('/profile/settings')} role="menuitem" onClick={() => setProfileMenuOpen(false)}>
                           Profile
@@ -256,9 +254,9 @@ export function TopNav({
                 </div>
               </>
             ) : status === 'checking' ? null : (
-              <div className="auth-links flex items-center gap-2 [&>a:first-child]:rounded-lg [&>a:first-child]:px-3 [&>a:first-child]:py-2 [&>a:first-child]:text-sm [&>a:first-child]:font-semibold [&>a:first-child]:text-white/90 [&>a:first-child]:hover:bg-white/10">
+              <div className="auth-links flex items-center gap-2 [&>a:first-child]:rounded-full [&>a:first-child]:px-4 [&>a:first-child]:py-2 [&>a:first-child]:text-sm [&>a:first-child]:font-semibold [&>a:first-child]:text-white/90 [&>a:first-child]:hover:bg-white/10">
                 <a href={authHref('/login', redirectTarget)}>Log in</a>
-                <a className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-primary border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover" href={authHref('/register', redirectTarget)}>
+                <a className="button inline-flex min-h-[42px] items-center justify-center gap-2 rounded-full border border-white bg-white px-5 py-2.5 text-center text-sm font-bold text-[#1d329c] shadow-[0_5px_14px_rgb(4_10_44_/_13%)] transition hover:bg-[#e8ebff] hover:text-[#14267e] disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full" href={authHref('/register', redirectTarget)}>
                   Sign up
                 </a>
               </div>
