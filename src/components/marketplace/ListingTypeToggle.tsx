@@ -18,12 +18,12 @@ export function ListingTypeToggle({
   search: string
 }) {
   return (
-    <nav aria-label="Browse listing type" className="mx-auto flex w-full max-w-2xl items-center justify-center rounded-2xl border border-foose-border bg-foose-bg/95 px-3 py-2 shadow-sm backdrop-blur">
-      <div className="flex w-full max-w-sm items-center justify-between gap-4 text-sm font-black">
-        <a className={`border-b-2 px-4 py-2 transition ${activeMode === 'retail' ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:text-accent'}`} href={modeHref(actionPath, 'retail', search)}>
+    <nav aria-label="Browse listing type" className="mx-auto flex w-full max-w-2xl items-center justify-center rounded-full bg-foose-surface-low p-1">
+      <div className="grid w-full grid-cols-2 gap-1 text-center text-sm font-black">
+        <a aria-current={activeMode === 'retail' ? 'page' : undefined} className={`inline-flex min-h-10 items-center justify-center rounded-full px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-accent/25 ${activeMode === 'retail' ? 'bg-foose-surface text-accent shadow-sm' : 'text-foose-muted hover:text-accent'}`} href={modeHref(actionPath, 'retail', search)}>
           Retail
         </a>
-        <a className={`border-b-2 px-4 py-2 transition ${activeMode === 'wholesale' ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:text-accent'}`} href={modeHref(actionPath, 'wholesale', search)}>
+        <a aria-current={activeMode === 'wholesale' ? 'page' : undefined} className={`inline-flex min-h-10 items-center justify-center rounded-full px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-accent/25 ${activeMode === 'wholesale' ? 'bg-foose-surface text-accent shadow-sm' : 'text-foose-muted hover:text-accent'}`} href={modeHref(actionPath, 'wholesale', search)}>
           Bale
         </a>
       </div>

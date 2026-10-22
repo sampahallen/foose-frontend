@@ -25,7 +25,7 @@ type FilterOption = { label: string; value: string }
 type DrawerState = 'closed' | 'closing' | 'open' | 'opening'
 
 const transitionMs = 300
-const controlClass = 'h-11 w-full rounded-xl border border-foose-border bg-foose-surface px-3 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
+const controlClass = 'h-11 w-full rounded-xl border border-foose-border/80 bg-foose-surface px-3 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
 function availableLocations(options: FilterOption[], selected: string) {
   const defaults = GHANA_REGION_OPTIONS
   if (!selected || defaults.some((option) => option.value === selected)) return defaults
@@ -52,12 +52,14 @@ export function MarketplaceFilters({
   hideType = false,
   locationOptions = [],
   query,
+  stackedToolbar = false,
 }: {
   actionPath: string
   desktopOnly?: boolean
   hideType?: boolean
   locationOptions?: FilterOption[]
   query: URLSearchParams
+  stackedToolbar?: boolean
 }) {
   const [drawerState, setDrawerState] = useState<DrawerState>('closed')
   const initialSelection = normalizeCategorySelection(query.get('category') || '', query.get('subcategory') || '')
@@ -156,8 +158,11 @@ export function MarketplaceFilters({
         {query.get('q') && <input name="q" type="hidden" value={query.get('q') || ''} />}
         {hideType && query.get('type') && <input name="type" type="hidden" value={query.get('type') || ''} />}
         {query.get('sort') && <input name="sort" type="hidden" value={query.get('sort') || ''} />}
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-display text-xl font-semibold text-foose-text">Filters</h2>
+        <div className="flex items-center justify-between gap-3 border-b border-foose-border/70 pb-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-accent">Refine your finds</p>
+            <h2 className="mt-1 font-display text-xl font-bold text-foose-text">Filters</h2>
+          </div>
           <a className="text-sm font-black text-accent hover:text-accent-hover" href={clearHref(actionPath, query, hideType)}>Clear all</a>
         </div>
 
@@ -280,7 +285,7 @@ export function MarketplaceFilters({
 
         <PriceRangeFilter defaultMax={query.get('maxPrice') || ''} defaultMin={query.get('minPrice') || ''} idPrefix={`${idPrefix}-price`} />
 
-        <button className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-accent px-5 text-sm font-black text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover" type="submit">Apply filters</button>
+        <button className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-accent px-5 text-sm font-black text-white shadow-md shadow-accent/15 transition hover:bg-accent-hover" type="submit">Apply filters</button>
       </form>
     )
   }
@@ -290,13 +295,13 @@ export function MarketplaceFilters({
       <button aria-controls={drawerId} aria-expanded={drawerVisible} className={`${desktopOnly ? 'hidden' : 'inline-flex lg:hidden'} min-h-11 items-center gap-2 rounded-full bg-accent px-4 text-sm font-black text-white shadow-md shadow-accent/15`} onClick={openDrawer} ref={drawerTriggerRef} type="button">
         <IoFunnelOutline /> Filters
       </button>
-      <aside className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
-        {renderForm('desktop', 'flex max-h-[calc(100dvh-7rem)] flex-col gap-4 overflow-y-auto rounded-2xl border border-foose-border/80 bg-foose-surface p-4 shadow-sm [scrollbar-width:thin]')}
+      <aside className={`hidden lg:sticky lg:block lg:self-start ${stackedToolbar ? 'lg:top-56' : 'lg:top-24'}`}>
+        {renderForm('desktop', `flex flex-col gap-4 overflow-y-auto rounded-[22px] border border-foose-border/70 bg-foose-surface p-5 shadow-sm [scrollbar-width:thin] ${stackedToolbar ? 'max-h-[calc(100dvh-15rem)]' : 'max-h-[calc(100dvh-7rem)]'}`)}
       </aside>
       {drawerMounted && createPortal(
         <div className="fixed inset-0 z-[1000] lg:hidden">
           <button aria-label="Close filters" className={`absolute inset-0 bg-black/45 transition-opacity duration-300 ease-out motion-reduce:transition-none ${drawerVisible ? 'opacity-100' : 'opacity-0'}`} onClick={closeDrawer} type="button" />
-          <aside aria-labelledby={`${drawerId}-title`} aria-modal="true" className={`absolute left-0 top-0 z-10 h-full w-[min(22rem,88vw)] overflow-y-auto bg-foose-surface p-4 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${drawerVisible ? 'translate-x-0' : '-translate-x-full'}`} id={drawerId} ref={drawerPanelRef} role="dialog" tabIndex={-1}>
+          <aside aria-labelledby={`${drawerId}-title`} aria-modal="true" className={`absolute left-0 top-0 z-10 h-full w-[min(22rem,88vw)] overflow-y-auto bg-foose-surface p-5 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${drawerVisible ? 'translate-x-0' : '-translate-x-full'}`} id={drawerId} ref={drawerPanelRef} role="dialog" tabIndex={-1}>
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="sr-only" id={`${drawerId}-title`}>Marketplace filters</h2>
               <span className="font-display text-xl font-semibold">Marketplace</span>

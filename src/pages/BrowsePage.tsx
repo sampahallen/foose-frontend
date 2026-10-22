@@ -52,10 +52,19 @@ export function BrowsePage() {
   const feedListings = useMemo(() => withoutOwnListings(listings.items, user), [listings.items, user])
   const hasSearchQuery = Boolean(query.get('q')?.trim())
   const resultCount = listings.total > 50 ? '50+' : String(listings.total)
+  const modeLabel = activeMode === 'wholesale' ? 'Bale marketplace' : 'Retail marketplace'
 
   return (
     <AppShell active="browse">
-      <div className={`sticky top-16 z-40 mb-6 space-y-3 ${scrollRevealTransitionClass} ${scrollRevealStateClass(filterBandVisible)}`}>
+      <div className="relative mb-5 overflow-hidden rounded-[28px] border border-foose-border/60 bg-foose-surface px-5 py-7 shadow-sm sm:px-8 sm:py-9 lg:px-10">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-28 size-72 rounded-full bg-accent-light/80 blur-3xl sm:size-96" />
+        <div className="relative max-w-2xl">
+          <p className="mb-3 text-[11px] font-black uppercase tracking-[0.22em] text-accent">The Foose marketplace</p>
+          <h1 className="font-display text-[clamp(2rem,4.5vw,3.7rem)] font-bold leading-[1.07] tracking-[-0.045em] text-foose-text">Find a piece with a story.</h1>
+          <p className="mt-3 text-sm leading-6 text-foose-muted sm:text-base">Shop pre-loved finds from independent sellers, or source bales for your shop.</p>
+        </div>
+      </div>
+      <div className={`sticky top-16 z-40 mb-7 space-y-3 rounded-[22px] border border-foose-border/60 bg-foose-bg/95 p-3 shadow-sm backdrop-blur lg:top-[78px] ${scrollRevealTransitionClass} ${scrollRevealStateClass(filterBandVisible)}`}>
         <div className="space-y-3 lg:pl-[19.5rem]">
           <BrowseSearchCombobox actionPath="/browse" className="mx-auto w-full max-w-2xl" key={query.get('q') || ''} query={query} />
           <ListingTypeToggle actionPath="/browse" activeMode={activeMode} search={search} />
@@ -65,19 +74,18 @@ export function BrowsePage() {
         </div>
       </div>
       <div className="browse-layout grid min-w-0 items-start gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-        <MarketplaceFilters actionPath="/browse" desktopOnly hideType key={`desktop-${query.toString()}`} locationOptions={listings.data?.filters?.locations || []} query={query} />
+        <MarketplaceFilters actionPath="/browse" desktopOnly hideType key={`desktop-${query.toString()}`} locationOptions={listings.data?.filters?.locations || []} query={query} stackedToolbar />
         <section aria-busy={listings.loading} className="browse-results lg:pb-24">
-          {!listings.loading && !listings.error && (
-            <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-              <h1 className="font-display text-xl font-semibold text-foose-text">Marketplace</h1>
-              <div className="flex min-w-0 items-center gap-2">
-                <MarketplaceSortControl actionPath="/browse" query={query} />
-                <span className="whitespace-nowrap rounded-full bg-accent-light px-3 py-1.5 text-xs font-black text-accent">{resultCount} {activeMode === 'wholesale' ? 'bales' : 'items'}</span>
-              </div>
+          <div className="mb-6 flex flex-col items-start justify-between gap-3 border-b border-foose-border/70 pb-5 sm:flex-row sm:items-end">
+            <div>
+              <p className="mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-accent">{modeLabel}</p>
+              <h2 className="font-display text-2xl font-bold tracking-tight text-foose-text sm:text-3xl">{hasSearchQuery ? `Results for “${query.get('q')?.trim()}”` : activeMode === 'wholesale' ? 'Bales for your business' : 'The latest finds'}</h2>
+              {!listings.loading && !listings.error && <p className="mt-1.5 text-sm text-foose-muted">{resultCount} {activeMode === 'wholesale' ? 'bales' : 'items'} to explore</p>}
             </div>
-          )}
+            <MarketplaceSortControl actionPath="/browse" query={query} />
+          </div>
           <RefreshIndicator active={listings.refreshing} className="mb-4" label="Refreshing marketplace listings" />
-          {listings.loading && !feedListings.length && <ProductGridSkeleton label={hasSearchQuery ? 'Searching marketplace' : 'Loading marketplace'} />}
+          {listings.loading && !feedListings.length && <ProductGridSkeleton label={hasSearchQuery ? 'Searching marketplace' : 'Loading marketplace'} variant="catalog" />}
           {listings.error && !feedListings.length && (
             <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={listings.refetch} type="button">Try again</button>} body={listings.error} layout="section" title="Marketplace could not load" tone="error" />
           )}
@@ -92,9 +100,9 @@ export function BrowsePage() {
             />
           )}
           {!!feedListings.length && (
-            <div className={PRODUCT_GRID_CLASS}>
+            <div className={`${PRODUCT_GRID_CLASS} sm:gap-x-4 sm:gap-y-7`}>
               {feedListings.map((listing) => (
-                <ProductCard key={listing._id} listing={listing} />
+                <ProductCard key={listing._id} listing={listing} variant="catalog" />
               ))}
             </div>
           )}

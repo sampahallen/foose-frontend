@@ -84,7 +84,7 @@ function FinspoResultCard({ failed, post }: { failed: boolean; post: GalleryPost
   }
 
   return (
-    <article className="finspo-tile relative min-w-0 overflow-hidden rounded-xl bg-foose-surface shadow-sm">
+    <article className="finspo-tile group relative min-w-0 overflow-hidden rounded-[18px] border border-foose-border/60 bg-foose-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
       <FinspoMediaBadge count={images.length} />
       <a
         aria-label={post.caption || `Finspo by @${author?.username || 'Foose member'}`}
@@ -101,7 +101,7 @@ function FinspoResultCard({ failed, post }: { failed: boolean; post: GalleryPost
         initialLiked={user ? post.likes?.some((id) => String(id) === user._id) : undefined}
         targetId={post._id}
       />
-      <div className="px-2 pb-2 pt-1">
+      <div className="px-3 pb-3 pt-2">
         <FinspoCaption caption={post.caption} />
         <a className="mt-1 block truncate text-xs font-semibold text-foose-muted hover:text-accent" href={author?.username ? withBasePath(`/profile/${author.username}`) : '#'}>
           @{author?.username || 'Foose member'}
@@ -113,12 +113,12 @@ function FinspoResultCard({ failed, post }: { failed: boolean; post: GalleryPost
 
 function EventResultCard({ event, failed }: { event: Event; failed: boolean }) {
   return (
-    <article className="min-w-0 overflow-hidden rounded-xl border border-foose-border bg-foose-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className="min-w-0 overflow-hidden rounded-[18px] border border-foose-border/60 bg-foose-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
       <a className="block" href={withBasePath(`/community/events/${event._id}`)}>
         <div className="aspect-[16/9] overflow-hidden bg-foose-surface-mid">
           <SafeImage alt="" className="h-full w-full object-cover" fallback="No event image" fallbackClassName="text-sm" src={failed ? undefined : event.coverImage} />
         </div>
-        <div className="space-y-1.5 p-3">
+        <div className="space-y-1.5 p-4">
           <span className="text-[10px] font-black uppercase tracking-wider text-accent">{eventTypeLabel(event)}</span>
           <h2 className="line-clamp-2 text-sm font-black leading-tight text-foose-text">{event.title}</h2>
           <p className="text-[11px] text-foose-muted"><Icon name="calendar" size={14} /> {eventTimeLabel(event)}</p>
@@ -134,7 +134,7 @@ function UserResultCard({ failed, result }: { failed: boolean; result: UnifiedSe
   const profileImage = result.profilePhoto || result.shop?.logoUrl || ''
   const href = result.username ? `/profile/${encodeURIComponent(result.username)}` : `/profile/${result._id}`
   return (
-    <article className="min-w-0 rounded-xl border border-foose-border bg-foose-surface p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md">
+    <article className="min-w-0 rounded-[18px] border border-foose-border/60 bg-foose-surface p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-accent hover:shadow-lg">
       <a className="flex min-w-0 items-start gap-3" href={withBasePath(href)}>
         <SafeImage alt="" className="size-14 shrink-0 rounded-full bg-foose-surface-mid object-cover" fallback={initials(result.name)} fallbackClassName="bg-accent-light text-sm font-black text-accent" src={failed ? undefined : profileImage} />
         <span className="min-w-0 flex-1">
@@ -157,7 +157,7 @@ function UserResultCard({ failed, result }: { failed: boolean; result: UnifiedSe
 
 function SearchResultCard({ failedImages, result }: { failedImages: Set<string>; result: UnifiedSearchResult }) {
   const failed = failedImages.has(imageForResult(result))
-  if (result.type === 'item') return <ProductCard imageFailed={failed} listing={result.entity} />
+  if (result.type === 'item') return <ProductCard imageFailed={failed} listing={result.entity} variant="catalog" />
   if (result.type === 'finspo') return <FinspoResultCard failed={failed} post={result.entity} />
   if (result.type === 'event') return <EventResultCard event={result.entity} failed={failed} />
   return <UserResultCard failed={failed} result={result.entity} />
@@ -190,7 +190,7 @@ function ExploreTile({ failed, result }: { failed: boolean; result: UnifiedSearc
   if (result.type === 'user') {
     const profileImage = result.entity.profilePhoto || result.entity.shop?.logoUrl || ''
     return (
-      <article className="group relative min-w-0 overflow-hidden rounded-xl bg-foose-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+      <article className="group relative min-w-0 overflow-hidden rounded-[18px] border border-foose-border/60 bg-foose-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
         <a className="flex aspect-square flex-col items-center justify-center gap-3 p-4 text-center" href={withBasePath(href)}>
           <SafeImage alt="" className="size-20 rounded-full bg-foose-surface-mid object-cover shadow-sm sm:size-24" fallback={initials(result.entity.name)} fallbackClassName="bg-accent-light text-xl font-black text-accent" src={failed ? undefined : profileImage} />
           <span className="min-w-0 max-w-full">
@@ -216,7 +216,7 @@ function ExploreTile({ failed, result }: { failed: boolean; result: UnifiedSearc
   const aspect = result.type === 'item' ? 'aspect-[4/5]' : result.type === 'event' ? 'aspect-[4/3]' : ''
 
   return (
-    <article className="group relative min-w-0 overflow-hidden rounded-lg bg-foose-surface-mid shadow-sm">
+    <article className="group relative min-w-0 overflow-hidden rounded-[18px] border border-foose-border/60 bg-foose-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
       <a aria-label={`${typeLabel}: ${title}`} className="relative block" href={withBasePath(href)} id={result.type === 'finspo' ? `finspo-explore-${result.entity._id}` : undefined} onClick={rememberResult}>
         <SafeImage
           alt=""
@@ -225,10 +225,10 @@ function ExploreTile({ failed, result }: { failed: boolean; result: UnifiedSearc
           fallbackClassName={aspect || 'aspect-[4/5]'}
           src={failed ? undefined : image}
         />
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-3 pt-10 text-white opacity-95 transition group-hover:opacity-100">
-          <span className="mb-1 inline-flex rounded-full bg-black/35 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider backdrop-blur">{typeLabel}</span>
-          <strong className="block line-clamp-2 text-sm leading-tight">{title}</strong>
-          <small className="mt-1 block truncate text-[11px] text-white/80">{subtitle}</small>
+        <span className="absolute left-2.5 top-2.5 rounded-full bg-foose-surface/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-foose-text shadow-sm backdrop-blur">{typeLabel}</span>
+        <span className="block px-3 pb-3 pt-2.5">
+          <strong className="block line-clamp-2 text-sm leading-snug text-foose-text">{title}</strong>
+          <small className="mt-1 block truncate text-[11px] text-foose-muted">{subtitle}</small>
         </span>
       </a>
     </article>
@@ -239,9 +239,9 @@ function ExploreSkeleton({ count = 20 }: { count?: number }) {
   return (
     <section aria-busy="true" aria-label="Loading Explore recommendations" role="status">
       <span className="sr-only">Loading Explore recommendations</span>
-      <FinspoMasonry gap={8} maxColumns={6} minColumnWidth={155} singleColumnBelow={0} targetColumnWidth={220}>
+      <FinspoMasonry gap={14} maxColumns={5} minColumnWidth={160} singleColumnBelow={0} targetColumnWidth={240}>
         {Array.from({ length: count }, (_, index) => (
-          <div aria-hidden className={`animate-pulse rounded-lg bg-foose-surface-mid ${index % 5 === 0 ? 'aspect-square' : index % 3 === 0 ? 'aspect-[3/4]' : 'aspect-[4/5]'}`} key={index} />
+          <div aria-hidden className={`animate-pulse rounded-[18px] bg-foose-surface-mid ${index % 5 === 0 ? 'aspect-square' : index % 3 === 0 ? 'aspect-[3/4]' : 'aspect-[4/5]'}`} key={index} />
         ))}
       </FinspoMasonry>
     </section>
@@ -250,7 +250,7 @@ function ExploreSkeleton({ count = 20 }: { count?: number }) {
 
 function ExploreMosaic({ failedImages, results }: { failedImages: Set<string>; results: UnifiedSearchResult[] }) {
   return (
-    <FinspoMasonry gap={8} maxColumns={6} minColumnWidth={155} singleColumnBelow={0} targetColumnWidth={220}>
+    <FinspoMasonry gap={14} maxColumns={5} minColumnWidth={160} singleColumnBelow={0} targetColumnWidth={240}>
       {results.map((result) => (
         <ExploreTile failed={failedImages.has(imageForResult(result))} key={`${result.type}:${result.entity._id}`} result={result} />
       ))}
@@ -446,16 +446,23 @@ export function SearchPage() {
   return (
     <AppShell active="explore" wide>
       <section className="mx-auto w-full max-w-[1500px]">
-        <header className={`sticky top-16 z-40 -mx-4 mb-5 border-b border-foose-border bg-foose-bg/95 px-4 py-3 backdrop-blur ${scrollRevealTransitionClass} ${scrollRevealStateClass(searchBarVisible)} sm:-mx-5 sm:px-5 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 2xl:-mx-10 2xl:px-10`}>
+        <div className="relative mb-4 overflow-hidden rounded-[28px] border border-foose-border/60 bg-foose-surface px-5 py-7 shadow-sm sm:px-8 sm:py-9 lg:px-10 lg:py-10">
+          <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-28 size-72 rounded-full bg-accent-light/80 blur-3xl sm:size-96" />
+          <div className="relative max-w-3xl">
+            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.22em] text-accent">The Foose edit</p>
+            <h1 className="font-display text-[clamp(2.1rem,5vw,4.25rem)] font-bold leading-[1.05] tracking-[-0.045em] text-foose-text">{term ? 'Find what moves you.' : 'Find your next favorite.'}</h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-foose-muted sm:text-base">{term ? 'Explore the pieces, people and ideas behind your search.' : 'A fresh mix of pre-loved pieces, style inspiration, events and people.'}</p>
+          </div>
+        </div>
+        <header className={`sticky top-16 z-40 -mx-4 mb-7 border-b border-foose-border/70 bg-foose-bg/95 px-4 py-3 backdrop-blur lg:top-[78px] ${scrollRevealTransitionClass} ${scrollRevealStateClass(searchBarVisible)} sm:-mx-5 sm:px-5 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 2xl:-mx-10 2xl:px-10`}>
           <div className="mx-auto flex w-full max-w-4xl items-center gap-3">
-            <h1 className="hidden shrink-0 font-display text-xl font-black text-foose-text sm:block md:text-2xl">Explore</h1>
             <UnifiedSearchCombobox
               autoFocus={shouldFocusSearch}
               className="min-w-0 flex-1"
               defaultValue={term}
               key={`${term}:${term ? 'submitted' : 'explore'}`}
               onClear={term ? clearSearch : undefined}
-              placeholder="Search Foose"
+              placeholder="Search pieces, people, events and Finspo"
               variant="light"
             />
           </div>
@@ -464,11 +471,11 @@ export function SearchPage() {
 
         {(query || tag) && (
           <>
-            <nav aria-label="Search result types" className="mb-6 flex w-full overflow-x-auto border-b border-foose-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <nav aria-label="Search result types" className="mb-7 flex w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {tabs.map((tab) => (
                 <a
                   aria-current={scope === tab.scope ? 'page' : undefined}
-                  className={`relative -mb-px inline-flex min-h-12 min-w-[4.5rem] flex-1 items-center justify-center gap-2 border-b-2 px-2 text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent/25 sm:px-4 ${scope === tab.scope ? 'border-accent text-accent' : 'border-transparent text-foose-muted hover:border-accent/35 hover:text-accent'}`}
+                  className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border px-4 text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-accent/25 ${scope === tab.scope ? 'border-accent bg-accent text-white shadow-sm' : 'border-foose-border/70 bg-foose-surface text-foose-muted hover:border-accent hover:text-accent'}`}
                   href={searchHref(params, tab.scope)}
                   key={tab.scope}
                   onClick={(event) => {
@@ -478,18 +485,19 @@ export function SearchPage() {
                   }}
                 >
                   {tab.label}
-                  {!search.loading && <span className={`${scope === tab.scope ? 'bg-accent-light text-accent' : 'bg-foose-surface-low text-foose-faint'} rounded-md px-1.5 py-0.5 text-[10px]`}>{search.counts[tab.scope] || 0}</span>}
+                  {!search.loading && <span className={`${scope === tab.scope ? 'bg-white/20 text-white' : 'bg-foose-surface-low text-foose-faint'} rounded-full px-2 py-0.5 text-[10px]`}>{search.counts[tab.scope] || 0}</span>}
                 </a>
               ))}
             </nav>
 
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="text-xl font-black text-foose-text">{tag ? `#${tag}` : `Results for "${query}"`}</h2>
-                {!search.loading && !search.error && <p className="mt-1 text-xs text-foose-muted">{search.total.toLocaleString()} {scope === 'all' ? 'results' : scope}</p>}
+                <p className="mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-accent">Search results</p>
+                <h2 className="font-display text-2xl font-bold tracking-tight text-foose-text sm:text-3xl">{tag ? `#${tag}` : `Results for “${query}”`}</h2>
+                {!search.loading && !search.error && <p className="mt-1.5 text-sm text-foose-muted">{search.total.toLocaleString()} {scope === 'all' ? 'results' : scope}</p>}
               </div>
               {scope === 'items' && (
-                <a className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-foose-border bg-foose-surface px-4 text-xs font-bold text-foose-text transition hover:border-accent hover:text-accent" href={withBasePath('/browse')}>
+                <a className="inline-flex min-h-11 items-center gap-2 rounded-full border border-foose-border bg-foose-surface px-4 text-xs font-bold text-foose-text transition hover:border-accent hover:text-accent" href={withBasePath('/browse')}>
                   <Icon name="filter" size={16} /> Browse with filters
                 </a>
               )}
@@ -507,10 +515,11 @@ export function SearchPage() {
                   title="No matches found"
                   tone="empty"
                 />
-                <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-t border-foose-border pt-6">
+                <div className="mb-5 mt-7 flex flex-wrap items-end justify-between gap-3 border-t border-foose-border pt-7">
                   <div>
-                    <h2 className="text-xl font-black text-foose-text">Explore instead</h2>
-                    <p className="mt-1 text-xs text-foose-muted">A fresh mix from across Foose.</p>
+                    <p className="mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-accent">Keep discovering</p>
+                    <h2 className="font-display text-2xl font-bold tracking-tight text-foose-text">Explore instead</h2>
+                    <p className="mt-1 text-sm text-foose-muted">A fresh mix from across Foose.</p>
                   </div>
                   <button className="text-sm font-bold text-accent hover:text-accent-hover" onClick={clearSearch} type="button">Explore more</button>
                 </div>
@@ -538,10 +547,11 @@ export function SearchPage() {
 
         {!query && !tag && (
           <section>
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="text-xl font-black text-foose-text">Explore Foose</h2>
-                <p className="mt-1 text-xs text-foose-muted">
+                <p className="mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-accent">Made for discovery</p>
+                <h2 className="font-display text-2xl font-bold tracking-tight text-foose-text sm:text-3xl">Explore Foose</h2>
+                <p className="mt-1.5 text-sm text-foose-muted">
                   {explore.feed?.personalized ? 'A personal mix with room for something unexpected.' : 'Items, Finspo, events and people worth discovering.'}
                 </p>
               </div>

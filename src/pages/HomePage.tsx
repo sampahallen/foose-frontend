@@ -314,9 +314,9 @@ export function HomePage() {
           </div>}
 
           <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-col items-center px-5 pt-[142px] pb-[54px] text-center max-lg:py-20 max-sm:px-[18px] max-sm:py-16">
-            <span className="mb-[14px] text-[11px] font-extrabold tracking-[0.16em] text-accent uppercase">{user ? `Welcome back, ${greetingName}` : 'Welcome to Foose'}</span>
-            <h1 className="max-w-[620px] font-display text-[clamp(42px,5.2vw,76px)] font-bold leading-[0.95] tracking-[-0.055em] max-sm:text-[clamp(38px,10vw,52px)]" id="home-hero-title">Find your next piece.</h1>
-            <p className="mt-[18px] text-[clamp(14px,1.3vw,17px)] text-foose-muted max-sm:mt-3">One of a kind style from Ghana's thrift community.</p>
+            <span className="mb-[18px] text-[11px] font-extrabold tracking-[0.2em] text-accent uppercase">{user ? `Welcome back, ${greetingName}` : 'Welcome to Foose'}</span>
+            <h1 className="max-w-[620px] font-display text-[clamp(42px,5.2vw,76px)] font-bold leading-[1.02] tracking-[-0.045em] max-sm:text-[clamp(38px,10vw,52px)]" id="home-hero-title">Find your next piece.</h1>
+            <p className="mt-[22px] text-[clamp(14px,1.3vw,17px)] leading-[1.55] text-foose-muted max-sm:mt-4">One of a kind style from Ghana's thrift community.</p>
             <form action={withBasePath('/browse')} className="mt-7 flex w-full max-w-[580px] items-center rounded-2xl border border-foose-border bg-foose-surface p-1.5 text-foose-text shadow-xl shadow-black/10 max-sm:mt-[22px]" method="get" role="search">
               <label className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-3 focus-within:ring-2 focus-within:ring-accent/20">
                 <Icon name="search" size={21} />

@@ -17,12 +17,14 @@ export function ProductCard({
   imageLoading = 'lazy',
   listing,
   manageHref,
+  variant = 'default',
 }: {
   className?: string
   imageFailed?: boolean
   imageLoading?: 'eager' | 'lazy'
   listing: Listing
   manageHref?: string
+  variant?: 'default' | 'catalog'
 }) {
   const image = getListingImage(listing)
   const [failedImageUrl, setFailedImageUrl] = useState('')
@@ -64,7 +66,7 @@ export function ProductCard({
 
   const content = (
     <>
-      <div className="product-image relative overflow-hidden rounded-md bg-foose-surface-mid aspect-[4/5] [&_img]:h-full [&_img]:w-full [&_img]:object-cover">
+      <div className={`product-image relative overflow-hidden bg-foose-surface-mid aspect-[4/5] [&_img]:h-full [&_img]:w-full [&_img]:object-cover ${variant === 'catalog' ? 'rounded-[18px]' : 'rounded-md'}`}>
         {imageAvailable ? (
           <>
             <img
@@ -89,10 +91,11 @@ export function ProductCard({
           <span className="absolute left-2 top-2 rounded-full bg-accent px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-sm">Promoted</span>
         )}
       </div>
-      <div className="product-body flex flex-1 flex-col gap-px px-0 py-1">
-        <strong className="truncate text-[11px] font-semibold leading-tight text-accent">{brand}</strong>
-        <span className="text-[11px] leading-tight text-foose-muted">{size}</span>
-        <strong className="text-xs font-black leading-tight text-accent">{formatMoney(listing.price, listing.currency)}</strong>
+      <div className={`product-body flex flex-1 flex-col ${variant === 'catalog' ? 'gap-1 px-1 pb-2 pt-3' : 'gap-px px-0 py-1'}`}>
+        {variant === 'catalog' && <strong className="line-clamp-2 text-sm font-bold leading-snug text-foose-text">{listing.title}</strong>}
+        <span className={`truncate text-[11px] font-semibold leading-tight ${variant === 'catalog' ? 'text-foose-muted' : 'text-accent'}`}>{brand}{variant === 'catalog' && <> <span aria-hidden="true">·</span> {size}</>}</span>
+        {variant !== 'catalog' && <span className="text-[11px] leading-tight text-foose-muted">{size}</span>}
+        <strong className={`${variant === 'catalog' ? 'text-sm text-foose-text' : 'text-xs text-accent'} font-black leading-tight`}>{formatMoney(listing.price, listing.currency)}</strong>
         <p className="mt-px flex min-w-0 items-center gap-1 text-[10px] font-bold leading-tight text-foose-muted">
           <span className="truncate">{shopName}</span>
           <MdVerified className="shrink-0 text-accent" aria-label="Verified shop" />

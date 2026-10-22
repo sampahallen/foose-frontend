@@ -29,7 +29,7 @@ export function MarketplaceSortControl({
   return (
     <SelectControl
       aria-label="Sort listings"
-      className="h-10 rounded-lg border border-foose-border bg-foose-surface font-bold text-foose-text shadow-sm"
+      className="h-11 rounded-full border border-foose-border/80 bg-foose-surface font-bold text-foose-text shadow-sm"
       leadingIcon={<MdOutlineSort className="text-base" />}
       menuMinWidth={192}
       onChange={changeSort}

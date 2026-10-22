@@ -5,22 +5,23 @@ import { SkeletonBlock } from './SkeletonBlock'
 
 const productGridClasses = PRODUCT_GRID_CLASS
 
-function ProductTileSkeleton() {
+function ProductTileSkeleton({ variant = 'default' }: { variant?: 'default' | 'catalog' }) {
   return (
     <div aria-hidden className="min-w-0 space-y-2">
-      <SkeletonBlock className="aspect-[4/5] w-full rounded-lg" />
+      <SkeletonBlock className={`aspect-[4/5] w-full ${variant === 'catalog' ? 'rounded-[18px]' : 'rounded-lg'}`} />
       <SkeletonBlock className="h-3 w-4/5" />
+      {variant === 'catalog' && <SkeletonBlock className="h-3 w-3/5" />}
       <SkeletonBlock className="h-3 w-1/2" />
       <SkeletonBlock className="h-5 w-20" />
     </div>
   )
 }
 
-export function ProductGridSkeleton({ count = 12, label = 'Loading listings' }: { count?: number; label?: string }) {
+export function ProductGridSkeleton({ count = 12, label = 'Loading listings', variant = 'default' }: { count?: number; label?: string; variant?: 'default' | 'catalog' }) {
   return (
     <LoadingRegion label={label} layout="section">
-      <div className={productGridClasses}>
-        {Array.from({ length: count }, (_, index) => <ProductTileSkeleton key={index} />)}
+      <div className={`${productGridClasses} ${variant === 'catalog' ? 'sm:gap-x-4 sm:gap-y-7' : ''}`}>
+        {Array.from({ length: count }, (_, index) => <ProductTileSkeleton key={index} variant={variant} />)}
       </div>
     </LoadingRegion>
   )
