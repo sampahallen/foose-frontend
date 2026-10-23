@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { IoFunnelOutline } from 'react-icons/io5'
 import { GHANA_REGION_OPTIONS } from '../../utils/ghanaRegions'
@@ -26,6 +26,40 @@ type DrawerState = 'closed' | 'closing' | 'open' | 'opening'
 
 const transitionMs = 300
 const controlClass = 'h-11 w-full rounded-xl border border-foose-border/80 bg-foose-surface px-3 text-sm font-semibold text-foose-text outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/15'
+
+function PersistentScrollIndicator({ scrollRef, updateKey }: { scrollRef: RefObject<HTMLElement | null>; updateKey: string }) {
+  const [thumb, setThumb] = useState({ height: 0, top: 0 })
+
+  useEffect(() => {
+    const element = scrollRef.current
+    if (!element) return
+
+    const update = () => {
+      const trackHeight = Math.max(0, element.clientHeight - 16)
+      const scrollRange = element.scrollHeight - element.clientHeight
+      const height = scrollRange > 1 ? Math.max(24, trackHeight * element.clientHeight / element.scrollHeight) : 0
+      const top = scrollRange > 0 ? (element.scrollTop / scrollRange) * (trackHeight - height) : 0
+      setThumb({ height, top })
+    }
+
+    update()
+    element.addEventListener('scroll', update, { passive: true })
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
+    observer?.observe(element)
+    return () => {
+      element.removeEventListener('scroll', update)
+      observer?.disconnect()
+    }
+  }, [scrollRef, updateKey])
+
+  if (!thumb.height) return null
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-y-2 right-1 w-1 rounded-full bg-foose-border/35">
+      <div className="absolute inset-x-0 rounded-full bg-foose-muted/70" style={{ height: thumb.height, transform: `translateY(${thumb.top}px)` }} />
+    </div>
+  )
+}
+
 function availableLocations(options: FilterOption[], selected: string) {
   const defaults = GHANA_REGION_OPTIONS
   if (!selected || defaults.some((option) => option.value === selected)) return defaults
@@ -69,12 +103,14 @@ export function MarketplaceFilters({
   const drawerId = useId()
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const drawerPanelRef = useRef<HTMLElement | null>(null)
+  const desktopFormRef = useRef<HTMLFormElement | null>(null)
   const drawerTriggerRef = useRef<HTMLButtonElement | null>(null)
   const exitTimerRef = useRef<number | undefined>(undefined)
   const drawerMounted = drawerState !== 'closed'
   const drawerVisible = drawerState === 'open'
   const selectedLocation = query.get('location') || ''
   const locations = availableLocations(locationOptions, selectedLocation)
+  const indicatorUpdateKey = `${selectedCategory}-${selectedSubcategory}-${selectedType}-${query.toString()}`
 
   const openDrawer = useCallback(() => {
     window.clearTimeout(exitTimerRef.current)
@@ -154,7 +190,7 @@ export function MarketplaceFilters({
     const show = (field: Parameters<typeof categoryUsesField>[1]) =>
       categoryUsesField(selectedCategory, field, selectedSubcategory, selectedType)
     return (
-      <form action={withBasePath(actionPath)} className={className} key={`${idPrefix}-${query.toString()}`} method="get" onSubmit={submitFilters}>
+      <form action={withBasePath(actionPath)} className={className} key={`${idPrefix}-${query.toString()}`} method="get" onSubmit={submitFilters} ref={idPrefix === 'desktop' ? desktopFormRef : undefined}>
         {query.get('q') && <input name="q" type="hidden" value={query.get('q') || ''} />}
         {hideType && query.get('type') && <input name="type" type="hidden" value={query.get('type') || ''} />}
         {query.get('sort') && <input name="sort" type="hidden" value={query.get('sort') || ''} />}
@@ -295,20 +331,24 @@ export function MarketplaceFilters({
       <button aria-controls={drawerId} aria-expanded={drawerVisible} className={`${desktopOnly ? 'hidden' : 'inline-flex lg:hidden'} min-h-11 items-center gap-2 rounded-full bg-accent px-4 text-sm font-black text-white shadow-md shadow-accent/15`} onClick={openDrawer} ref={drawerTriggerRef} type="button">
         <IoFunnelOutline /> Filters
       </button>
-      <aside className={`hidden lg:sticky lg:block lg:self-start ${stackedToolbar ? 'lg:top-56' : 'lg:top-24'}`}>
-        {renderForm('desktop', `flex flex-col gap-4 overflow-y-auto rounded-[22px] border border-foose-border/70 bg-foose-surface p-5 shadow-sm [scrollbar-width:thin] ${stackedToolbar ? 'max-h-[calc(100dvh-15rem)]' : 'max-h-[calc(100dvh-7rem)]'}`)}
+      <aside className={`relative hidden lg:sticky lg:block lg:self-start ${stackedToolbar ? 'lg:top-56' : 'lg:top-24'}`}>
+        {renderForm('desktop', `flex flex-col gap-4 overflow-y-auto rounded-[22px] border border-foose-border/70 bg-foose-surface p-5 shadow-sm [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 ${stackedToolbar ? 'max-h-[calc(100dvh-15rem)]' : 'max-h-[calc(100dvh-7rem)]'}`)}
+        <PersistentScrollIndicator scrollRef={desktopFormRef} updateKey={indicatorUpdateKey} />
       </aside>
       {drawerMounted && createPortal(
         <div className="fixed inset-0 z-[1000] lg:hidden">
           <button aria-label="Close filters" className={`absolute inset-0 bg-black/45 transition-opacity duration-300 ease-out motion-reduce:transition-none ${drawerVisible ? 'opacity-100' : 'opacity-0'}`} onClick={closeDrawer} type="button" />
-          <aside aria-labelledby={`${drawerId}-title`} aria-modal="true" className={`absolute left-0 top-0 z-10 h-full w-[min(22rem,88vw)] overflow-y-auto bg-foose-surface p-5 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${drawerVisible ? 'translate-x-0' : '-translate-x-full'}`} id={drawerId} ref={drawerPanelRef} role="dialog" tabIndex={-1}>
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="sr-only" id={`${drawerId}-title`}>Marketplace filters</h2>
-              <span className="font-display text-xl font-semibold">Marketplace</span>
-              <button aria-label="Close filters" className="inline-flex size-11 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-xl" onClick={closeDrawer} ref={closeButtonRef} type="button">×</button>
-            </div>
-            {renderForm('mobile', 'flex w-full flex-col gap-4')}
-          </aside>
+          <div className={`absolute left-0 top-0 z-10 h-full w-[min(22rem,88vw)] bg-foose-surface shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${drawerVisible ? 'translate-x-0' : '-translate-x-full'}`}>
+            <aside aria-labelledby={`${drawerId}-title`} aria-modal="true" className="h-full overflow-y-auto p-5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5" id={drawerId} ref={drawerPanelRef} role="dialog" tabIndex={-1}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="sr-only" id={`${drawerId}-title`}>Marketplace filters</h2>
+                <span className="font-display text-xl font-semibold">Marketplace</span>
+                <button aria-label="Close filters" className="inline-flex size-11 items-center justify-center rounded-full border border-foose-border bg-foose-surface text-xl" onClick={closeDrawer} ref={closeButtonRef} type="button">×</button>
+              </div>
+              {renderForm('mobile', 'flex w-full flex-col gap-4')}
+            </aside>
+            <PersistentScrollIndicator scrollRef={drawerPanelRef} updateKey={indicatorUpdateKey} />
+          </div>
         </div>,
         document.body,
       )}

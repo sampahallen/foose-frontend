@@ -6,6 +6,7 @@ import { clearDraftImages, loadDraftImages, saveDraftImages } from '../component
 import { ChoiceCardGroup, ErrorSummary, SubmitButton } from '../components/forms/FormControls'
 import { FormField, TextAreaField, TextField } from '../components/forms/FormField'
 import { FormActions, FormPage, FormSection } from '../components/forms/FormLayout'
+import { ListingColorPicker } from '../components/marketplace/ListingColorPicker'
 import { UnsavedChangesGuard } from '../components/forms/UnsavedChangesGuard'
 import { useLocalDraft } from '../components/forms/useLocalDraft'
 import { FormPageSkeleton } from '../components/operational/OperationalStates'
@@ -14,6 +15,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useApiResource } from '../hooks/useApiResource'
 import { apiPost, apiPut } from '../lib/api'
 import type { Listing } from '../types/api'
+import { listingColors } from '../utils/listingColors'
 import { getErrorMessage } from '../utils/errorMessage'
 import { parseGhsToPesewas, priceInputValue } from '../utils/format'
 import {
@@ -33,6 +35,7 @@ import {
   sizeLabelForCategory,
   sizePlaceholderForCategory,
   type ListingAttributes,
+  type ListingColor,
 } from '../utils/listingTaxonomy'
 import { getCurrentAppPathname } from '../utils/navigation'
 import { navigateWithFlash } from '../utils/navigationFlash'
@@ -53,6 +56,13 @@ function taxonomyOptions(options: readonly string[]) {
 const ACCEPT_IMAGES = 'image/jpeg,image/png,image/webp'
 const LISTING_DESCRIPTION_MAX = 500
 const listingSelectControl = 'w-full'
+const LISTING_COLOR_VALUES = new Set<ListingColor>(LISTING_COLORS.map((color) => color.value))
+
+function initialColorValues(listing?: Listing): ListingColor[] {
+  if (!listing) return ['multi']
+  const values = listingColors(listing)
+  return values.length ? values : listing.type === 'wholesale' ? [] : ['multi']
+}
 
 function currentEditId() {
   const match = getCurrentAppPathname().match(/^\/listings\/([^/]+)\/edit/)
@@ -84,7 +94,7 @@ export function NewListingPage() {
   const [priceValue, setPriceValue] = useState(listing ? priceInputValue(listing.price) : '')
   const [descriptionValue, setDescriptionValue] = useState(listing?.description || '')
   const [brandValue, setBrandValue] = useState(listing?.brand || '')
-  const [colorValue, setColorValue] = useState<string>(listing?.color || 'multi')
+  const [colorValues, setColorValues] = useState<ListingColor[]>(initialColorValues(listing))
   const [sizeValue, setSizeValue] = useState(listing?.size || '')
   const [genderValue, setGenderValue] = useState(listing?.gender || '')
   const [bulkWeightValue, setBulkWeightValue] = useState(listing?.bulkWeight || '')
@@ -171,7 +181,8 @@ export function NewListingPage() {
     attributes: attributeValues,
     category: categoryValue,
     subcategory: subcategoryValue,
-    color: colorValue,
+    color: colorValues[0],
+    colors: colorValues,
     condition: conditionValue,
     description: descriptionValue,
     flawNote: flawNoteValue,
@@ -181,7 +192,7 @@ export function NewListingPage() {
     price: priceValue,
     size: sizeValue,
     title: titleValue,
-  }), [attributeValues, bargainingValue, brandValue, bulkWeightValue, categoryValue, colorValue, conditionValue, descriptionValue, flawNoteValue, genderValue, hashtags, listingType, minAcceptableValue, priceValue, sizeValue, subcategoryValue, titleValue])
+  }), [attributeValues, bargainingValue, brandValue, bulkWeightValue, categoryValue, colorValues, conditionValue, descriptionValue, flawNoteValue, genderValue, hashtags, listingType, minAcceptableValue, priceValue, sizeValue, subcategoryValue, titleValue])
   const draft = useLocalDraft({
     enabled: !editResource.initialLoading,
     formId: 'listing',
@@ -195,7 +206,11 @@ export function NewListingPage() {
       if (typeof saved.subcategory === 'string') setSelectedSubcategory(saved.subcategory)
       if (typeof saved.brand === 'string') setBrandValue(saved.brand)
       if (typeof saved.condition === 'string') setSelectedCondition(saved.condition)
-      if (typeof saved.color === 'string') setColorValue(saved.color)
+      if (Array.isArray(saved.colors)) {
+        const restoredColors = saved.colors.filter((color): color is ListingColor => LISTING_COLOR_VALUES.has(color as ListingColor)).slice(0, 5)
+        setColorValues(restoredColors.length ? restoredColors : saved.listingType === 'wholesale' ? [] : ['multi'])
+      }
+      else if (typeof saved.color === 'string' && LISTING_COLOR_VALUES.has(saved.color as ListingColor)) setColorValues([saved.color as ListingColor])
       if (typeof saved.size === 'string') setSizeValue(saved.size)
       if (typeof saved.gender === 'string') setGenderValue(saved.gender)
       if (typeof saved.bulkWeight === 'string') setBulkWeightValue(saved.bulkWeight)
@@ -210,8 +225,8 @@ export function NewListingPage() {
     value: draftValue,
   })
   const dirty = listing
-    ? titleValue !== (listing.title || '') || descriptionValue !== (listing.description || '') || priceValue !== priceInputValue(listing.price) || categoryValue !== storedSelection.category || subcategoryValue !== storedSelection.subcategory || JSON.stringify(attributeValues) !== JSON.stringify(listing.attributes || {}) || selectedFiles.length > 0 || bargainingValue !== (listing.bargainingAllowed ? 'yes' : 'no') || minAcceptableValue !== (listing.minAcceptablePrice ? priceInputValue(listing.minAcceptablePrice) : '')
-    : Boolean(titleValue || descriptionValue || priceValue || selectedCategory || brandValue || selectedCondition || hashtags.length || selectedFiles.length || selectedListingType || bargainingValue)
+    ? titleValue !== (listing.title || '') || descriptionValue !== (listing.description || '') || priceValue !== priceInputValue(listing.price) || categoryValue !== storedSelection.category || subcategoryValue !== storedSelection.subcategory || JSON.stringify(colorValues) !== JSON.stringify(initialColorValues(listing)) || JSON.stringify(attributeValues) !== JSON.stringify(listing.attributes || {}) || selectedFiles.length > 0 || bargainingValue !== (listing.bargainingAllowed ? 'yes' : 'no') || minAcceptableValue !== (listing.minAcceptablePrice ? priceInputValue(listing.minAcceptablePrice) : '')
+    : Boolean(titleValue || descriptionValue || priceValue || selectedCategory || brandValue || selectedCondition || hashtags.length || selectedFiles.length || selectedListingType || bargainingValue || (listingType !== 'wholesale' && (colorValues.length !== 1 || colorValues[0] !== 'multi')))
 
   useEffect(() => {
     selectedPreviewsRef.current = selectedPreviews
@@ -258,7 +273,7 @@ export function NewListingPage() {
     setSelectedCategory(normalizedListingCategory.category)
     setSelectedSubcategory(normalizedListingCategory.subcategory)
     setBrandValue(listing.brand || '')
-    setColorValue(listing.color || 'multi')
+    setColorValues(initialColorValues(listing))
     setSizeValue(listing.size || '')
     setGenderValue(listing.gender || '')
     setBulkWeightValue(listing.bulkWeight || '')
@@ -279,6 +294,7 @@ export function NewListingPage() {
 
   function changeListingType(type: 'retail' | 'wholesale') {
     setSelectedListingType(type)
+    if (type === 'retail' && !colorValues.length) setColorValues(['multi'])
     setAttributeValues((current) => pruneListingAttributes(categoryValue, current, subcategoryValue, type))
   }
 
@@ -369,9 +385,10 @@ export function NewListingPage() {
 
     appendText(uploadData, 'description', completeDescription)
     uploadData.append('hashtags', readFormText(sourceData, 'hashtags'))
-    ;['category', 'subcategory', 'condition', 'color'].forEach((field) => {
+    ;['category', 'subcategory', 'condition'].forEach((field) => {
       appendText(uploadData, field, readFormText(sourceData, field))
     })
+    if (listingType !== 'wholesale') appendText(uploadData, 'colors', JSON.stringify(colorValues))
     if (showsField('brand')) appendText(uploadData, 'brand', readFormText(sourceData, 'brand'))
     if (showsField('size')) appendText(uploadData, 'size', readFormText(sourceData, 'size'))
     if (showsField('gender')) appendText(uploadData, 'gender', readFormText(sourceData, 'gender'))
@@ -567,10 +584,8 @@ export function NewListingPage() {
             {showsField('pattern') && <FormField htmlFor="listing-pattern" label="Pattern" optional><SelectControl className={listingSelectControl} id="listing-pattern" onChange={(event) => changeAttribute('pattern', event.target.value)} value={attributeValues.pattern || ''}><option value="">Select pattern</option>{taxonomyOptions(LISTING_PATTERNS)}</SelectControl></FormField>}
             {showsField('baleGrade') && <FormField error={baleGradeInvalid ? 'Choose a bale grade.' : undefined} htmlFor="listing-bale-grade" label="Bale grade" required><SelectControl className={listingSelectControl} id="listing-bale-grade" onChange={(event) => changeAttribute('baleGrade', event.target.value)} required value={attributeValues.baleGrade || ''}><option value="">Select grade</option>{taxonomyOptions(LISTING_BALE_GRADES)}</SelectControl></FormField>}
             {listingType !== 'wholesale' && (
-              <FormField htmlFor="listing-color" label="Color" optional>
-                <SelectControl className={listingSelectControl} id="listing-color" name="color" onChange={(event) => setColorValue(event.target.value)} value={colorValue}>
-                  {LISTING_COLORS.map((color) => <option data-swatch={color.hex} key={color.value} value={color.value}>{color.label}</option>)}
-                </SelectControl>
+              <FormField hint="Choose up to five colors. Multi can only be selected on its own." htmlFor="listing-color" label="Colors" labelId="listing-color-label">
+                <ListingColorPicker onChange={setColorValues} value={colorValues} />
               </FormField>
             )}
             {needsFlawProof && <TextAreaField className="border-foose-warning/30 bg-foose-warning-bg" hint="Fair or poor items need an image showing the flaw. This note is appended to the description." id="listing-flaw" label="Flaw note for escrow review" name="flawNote" onChange={(event) => setFlawNoteValue(event.target.value)} placeholder="Small stain on the left sleeve, shown in photo 2." required rows={3} value={flawNoteValue} wrapperClassName="form-field-wide rounded-xl bg-foose-warning-bg p-4" />}

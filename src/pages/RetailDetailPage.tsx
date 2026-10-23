@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { FaAngleRight } from 'react-icons/fa'
 import { MdVerified } from 'react-icons/md'
-import { AppShell, Badge, ButtonLink, DropdownChevron, FavoriteButton, Icon, InlineNotice, ListingImageSlider, MakeOfferPanel, ProductCard, RefreshIndicator, SectionHeader, ShopReviewPanel, StatePanel, useToast } from '../components'
+import { AppShell, Badge, ButtonLink, DropdownChevron, FavoriteButton, Icon, InlineNotice, ListingImageSlider, MakeOfferPanel, ProductCard, RefreshIndicator, ShopReviewPanel, StatePanel, useToast } from '../components'
 import { ListingDetailSkeleton, ProductBandSkeleton } from '../components/feedback/DiscoverySkeletons'
 import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
@@ -14,6 +14,7 @@ import { formatMoney, getListingImage, getShop, getShopName, initials } from '..
 import { getCurrentAppPathname, navigateBack, navigateTo, withBasePath } from '../utils/navigation'
 import { isActiveTopPick } from '../utils/promotions'
 import { LISTING_COLORS, optionLabel } from '../utils/listingTaxonomy'
+import { listingColors } from '../utils/listingColors'
 
 function currentListingId() {
   return decodeURIComponent(getCurrentAppPathname().replace(/^\/listing\/?/, '')).trim()
@@ -88,31 +89,46 @@ function compactListings(items: Listing[] | undefined, currentId?: string, limit
 
 function ListingBand({
   action,
+  actionLabel,
   error,
+  kind,
   listings,
   loading,
   retry,
+  subtitle,
   title,
 }: {
   action?: string
+  actionLabel: string
   error?: string
+  kind: 'seller' | 'similar'
   listings: Listing[]
   loading?: boolean
   retry?: () => void
+  subtitle: string
   title: string
 }) {
   if (!listings.length && !loading && !error) return null
 
   return (
-    <section className="mt-8">
-      <SectionHeader title={title} action={action ? <a href={withBasePath(action)}>View more</a> : undefined} />
-      {loading && <ProductBandSkeleton label={`Loading ${title.toLowerCase()}`} />}
-      {error && <InlineNotice action={retry ? <button className="font-black text-accent" onClick={retry} type="button">Retry</button> : undefined} title={`${title} unavailable`} tone="error">{error}</InlineNotice>}
-      <div className="flex gap-3 overflow-x-auto pb-3 [scrollbar-width:thin] [&_.product-card]:w-[132px] [&_.product-card]:shrink-0 sm:[&_.product-card]:w-[148px] md:[&_.product-card]:w-[160px] lg:[&_.product-card]:w-[172px]">
-        {listings.map((listing) => (
-          <ProductCard key={listing._id} listing={listing} />
-        ))}
+    <section aria-labelledby={`${kind}-listing-band-title`} className={`mt-10 ${kind === 'seller' ? 'rounded-[24px] border border-foose-border/70 bg-foose-surface-low p-4 sm:p-6 lg:p-7' : 'border-t border-foose-border/80 pt-8'}`}>
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-x-5 gap-y-3">
+        <div>
+          <p className="mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-accent">{kind === 'seller' ? 'From this DigiShop' : 'Keep exploring'}</p>
+          <h2 className="font-display text-2xl font-bold tracking-tight text-foose-text sm:text-[1.75rem]" id={`${kind}-listing-band-title`}>{title}</h2>
+          <p className="mt-1 text-sm text-foose-muted">{subtitle}</p>
+        </div>
+        {action && <a className="inline-flex min-h-10 items-center gap-2 rounded-full border border-foose-border bg-foose-surface px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" href={withBasePath(action)}>{actionLabel}<Icon name="arrow" size={15} /></a>}
       </div>
+      {loading && <ProductBandSkeleton count={4} label={`Loading ${title.toLowerCase()}`} variant="catalog" />}
+      {error && <InlineNotice action={retry ? <button className="font-black text-accent" onClick={retry} type="button">Retry</button> : undefined} title={`${title} unavailable`} tone="error">{error}</InlineNotice>}
+      {!!listings.length && (
+        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0 lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
+          {listings.map((listing) => (
+            <ProductCard className="w-[min(62vw,14rem)] shrink-0 snap-start sm:w-56 lg:w-auto" key={listing._id} listing={listing} variant="catalog" />
+          ))}
+        </div>
+      )}
     </section>
   )
 }
@@ -139,7 +155,7 @@ export function RetailDetailPage() {
   )
   const mainImage = listing ? getListingImage(listing) : undefined
   const listingImages = listing?.images?.length ? listing.images : mainImage ? [mainImage] : []
-  const colorSwatch = listing?.color ? LISTING_COLORS.find((color) => color.value === listing.color)?.hex : undefined
+  const visibleColors = listing ? listingColors(listing) : []
   const specs = (listing ? [
     { label: 'Material', value: listing.attributes?.material },
     { label: 'Fit', value: listing.attributes?.fit },
@@ -155,13 +171,13 @@ export function RetailDetailPage() {
     [sellerListingsResource.data?.listings, shop],
   )
   const moreFromSeller = useMemo(
-    () => compactListings(sellerListings, listing?._id, 6),
+    () => compactListings(sellerListings, listing?._id, 4),
     [listing?._id, sellerListings],
   )
   const youMightLike = useMemo(
-    () => compactListings(relatedListingsResource.data?.results, listing?._id, 6).filter((item) => (
+    () => compactListings(relatedListingsResource.data?.results?.filter((item) => (
       shopIdValue(item.shopId) !== shopId && shopOwnerId(getShop(item)?.ownerId) !== user?._id
-    )),
+    )), listing?._id, 4),
     [listing?._id, relatedListingsResource.data?.results, shopId, user?._id],
   )
   useListingRecommendationSignals(listing?._id, Boolean(user))
@@ -212,19 +228,28 @@ export function RetailDetailPage() {
       {listing && (
         <>
           {listing.status === 'sold' && <InlineNotice className="mb-4" title="This item has sold" tone="info">You can still review its details and discover similar active listings below.</InlineNotice>}
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.62fr)] lg:items-start xl:gap-8">
-            <section className="space-y-3 lg:sticky lg:top-24">
+          <div className="grid gap-7 lg:grid-cols-[minmax(0,1.18fr)_minmax(340px,0.82fr)] lg:items-start lg:gap-9 xl:gap-12">
+            <section className={`min-w-0 space-y-3 lg:sticky ${isModal ? 'lg:top-5' : 'lg:top-24'}`}>
               <div className="relative">
                 <ListingImageSlider images={listingImages} key={listing._id} title={listing.title} />
                 {!isOwner && <FavoriteButton className="absolute right-3 top-3 z-10 inline-flex size-10 items-center justify-center rounded-full border border-foose-border bg-white/95 text-foose-ink shadow transition hover:bg-accent hover:text-white [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />}
               </div>
             </section>
 
-            <aside className="flex flex-col gap-4">
-              <section className="rounded-xl border border-foose-border bg-foose-surface p-4 shadow-sm sm:p-5">
-                {isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt) && <div className="mb-3"><Badge tone="accent">Promoted</Badge></div>}
-                <h1 className="text-2xl font-black leading-tight text-foose-text md:text-3xl">{listing.title}</h1>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-foose-muted">
+            <aside className="flex min-w-0 flex-col gap-6 lg:pt-1">
+              <section className="min-w-0">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  {isActiveTopPick(listing.promotionTags, listing.promotionExpiresAt) && <Badge tone="accent">Promoted</Badge>}
+                  {(listing.category || listing.subcategory) && (
+                    <p className="flex flex-wrap items-center gap-1 text-xs font-bold uppercase tracking-[0.12em] text-foose-muted">
+                      {listing.category}
+                      {listing.category && listing.subcategory && <FaAngleRight aria-hidden className="shrink-0 text-foose-faint" size={10} />}
+                      {listing.subcategory}
+                    </p>
+                  )}
+                </div>
+                <h1 className="font-display text-[clamp(1.75rem,3vw,2.6rem)] font-bold leading-[1.2] tracking-[0.01em] text-foose-text">{listing.title}</h1>
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-foose-muted">
                   {shop?.slug ? (
                     <a className="inline-flex items-center gap-1 font-bold text-foose-text hover:text-accent" href={withBasePath(`/shops/${shop.slug}`)}>
                       {getShopName(listing)}
@@ -235,54 +260,34 @@ export function RetailDetailPage() {
                   )}
                   <StarRating count={shop?.totalReviews || 0} value={shop?.rating} />
                 </div>
-                <div className="my-4 h-px bg-foose-border" />
-                <p className="text-3xl font-black text-foose-text">{formatMoney(listing.price, listing.currency)}</p>
-                {(listing.category || listing.subcategory) && (
-                  <p className="mt-1.5 flex flex-wrap items-center gap-1 text-sm font-semibold text-foose-muted">
-                    {listing.category}
-                    {listing.category && listing.subcategory && <FaAngleRight aria-hidden className="shrink-0 text-foose-faint" size={11} />}
-                    {listing.subcategory}
-                  </p>
+                <p className="mt-5 font-display text-3xl font-bold tracking-tight text-foose-text">{formatMoney(listing.price, listing.currency)}</p>
+                {(listing.size || listing.condition || specs.length > 0) && (
+                  <div className="mt-6 border-t border-foose-border/80 pt-5">
+                    <h2 className="mb-4 text-[11px] font-black uppercase tracking-[0.16em] text-foose-muted">Item details</h2>
+                    <dl className="grid grid-cols-2 gap-x-5 gap-y-4 text-sm">
+                      {listing.size && <div><dt className="text-xs text-foose-faint">Size</dt><dd className="mt-0.5 font-bold text-foose-text">{optionLabel(listing.size)}</dd></div>}
+                      {listing.condition && <div><dt className="text-xs text-foose-faint">Condition</dt><dd className="mt-0.5 font-bold text-foose-text">{optionLabel(listing.condition)}</dd></div>}
+                      {specs.map((spec) => (
+                        <div key={spec.label}>
+                          <dt className="text-xs text-foose-faint">{spec.label}</dt>
+                          <dd className="mt-0.5 font-bold text-foose-text">{optionLabel(spec.value)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
                 )}
-                {listing.size && (
-                  <p className="mt-1.5 flex items-baseline gap-1 text-sm">
-                    <span className="text-foose-faint">Size</span>
-                    <span className="font-bold text-foose-text">{optionLabel(listing.size)}</span>
-                  </p>
-                )}
-                {listing.condition && (
-                  <p className="mt-1.5 text-sm">
-                    <span className="font-bold text-foose-text">{optionLabel(listing.condition)}</span>
-                    <span className="text-foose-faint"> condition</span>
-                  </p>
-                )}
-                {specs.length > 0 && (
-                  <dl className="mt-3 flex flex-col gap-1.5 text-sm">
-                    {specs.map((spec) => (
-                      <div className="flex items-baseline gap-1" key={spec.label}>
-                        <dt className="text-foose-faint">{spec.label}</dt>
-                        <dd className="font-bold text-foose-text">{optionLabel(spec.value)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-                {listing.color && (
-                  <p className="mt-1.5 flex items-center gap-1.5 text-sm">
-                    {colorSwatch && <span aria-hidden className="inline-block size-3.5 shrink-0 rounded-full border border-black/10" style={{ background: colorSwatch }} />}
-                    <span className="font-bold text-foose-text">{optionLabel(listing.color)}</span>
-                  </p>
-                )}
-                {!!listing.hashtags?.length && (
-                  <div className="mt-3 flex flex-wrap gap-2" aria-label="Item vibe hashtags">
-                    {listing.hashtags.map((tag) => (
-                      <a
-                        className="rounded-full bg-accent-light px-3 py-1 text-xs font-black text-accent transition hover:bg-accent hover:text-white"
-                        href={withBasePath(`/search?tag=${encodeURIComponent(tag.replace(/^#+/, ''))}&tab=all`)}
-                        key={tag}
-                      >
-                        #{tag}
-                      </a>
-                    ))}
+                {visibleColors.length > 0 && (
+                  <div aria-label="Listing colors" className="mt-5 flex flex-wrap items-center gap-1.5 text-sm">
+                    <span className="mr-1 text-xs font-semibold text-foose-faint">Colors</span>
+                    {visibleColors.map((value) => {
+                      const color = LISTING_COLORS.find((item) => item.value === value)
+                      return (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-foose-border px-2.5 py-1 font-bold text-foose-text" key={value}>
+                          {color && <span aria-hidden className="size-3.5 shrink-0 rounded-full border border-black/10" style={{ background: color.hex }} />}
+                          {color?.label || optionLabel(value)}
+                        </span>
+                      )
+                    })}
                   </div>
                 )}
                 {listing.type === 'wholesale' && (
@@ -310,36 +315,38 @@ export function RetailDetailPage() {
                   </table>
                 )}
                 {isOwner ? (
-                  <div className="mt-5 grid gap-2">
+                  <div className="mt-7 grid gap-2 border-t border-foose-border/80 pt-6">
                     <InlineNotice tone="info">This is your listing. Buyer actions are hidden while you preview it.</InlineNotice>
                     <ButtonLink className="h-11 rounded-md" to={`/listings/${listing._id}/edit`}>Manage listing</ButtonLink>
                   </div>
-                ) : <div className="mt-5 grid gap-2">
-                  <button className="inline-flex h-11 items-center justify-center rounded-md border border-accent bg-accent px-4 text-sm font-black text-white transition hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleBuyNow} type="button">
+                ) : <div className="mt-7 border-t border-foose-border/80 pt-6">
+                  <button className="inline-flex min-h-12 w-full items-center justify-center rounded-full border border-accent bg-accent px-5 text-sm font-black text-white shadow-sm transition hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleBuyNow} type="button">
                     Buy now
                   </button>
-                  {inCart ? (
-                    <button className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-foose-success bg-foose-success-bg px-4 text-sm font-black text-foose-success transition hover:brightness-95" onClick={() => navigateTo('/cart')} type="button">
-                      <Icon name="check" size={16} />
-                      Added to cart
-                    </button>
-                  ) : (
-                    <button className="inline-flex h-11 items-center justify-center rounded-md border border-foose-border bg-foose-surface px-4 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleAddToCart} type="button">
-                      Add to cart
-                    </button>
-                  )}
-                  <ButtonLink to={askQuestionHref} className="h-11 rounded-md" variant="secondary">
-                    Ask a question
-                  </ButtonLink>
+                  <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+                    {inCart ? (
+                      <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-foose-success bg-foose-success-bg px-3 text-sm font-bold text-foose-success transition hover:brightness-95" onClick={() => navigateTo('/cart')} type="button">
+                        <Icon name="check" size={16} />
+                        Added to cart
+                      </button>
+                    ) : (
+                      <button className="inline-flex min-h-11 items-center justify-center rounded-full border border-foose-border bg-foose-surface px-3 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-50" disabled={listing.status !== 'active'} onClick={handleAddToCart} type="button">
+                        Add to cart
+                      </button>
+                    )}
+                    <ButtonLink to={askQuestionHref} className="min-h-11 rounded-full px-2" variant="secondary">
+                      Ask a question
+                    </ButtonLink>
+                  </div>
                   <MakeOfferPanel inboxHref={withBasePath(askQuestionHref)} listing={listing} />
                 </div>}
                 {!isOwner && (
-                  <div className="mt-4 grid justify-items-start gap-1.5 border-t border-foose-border pt-4">
-                    <p className="flex items-center gap-2 text-xs font-semibold text-foose-success"><Icon name="shield" size={14} /> Escrow protected. Funds release once you confirm delivery or pickup.</p>
-                    <p className="flex items-center gap-2 text-xs font-semibold text-foose-muted"><Icon name="truck" size={14} /> Delivery and pickup options are confirmed at checkout.</p>
+                  <div className="mt-6 grid gap-3 rounded-2xl bg-foose-surface-low p-4">
+                    <p className="flex items-start gap-3 text-xs font-semibold leading-5 text-foose-text"><span className="mt-0.5 text-foose-success"><Icon name="shield" size={17} /></span><span><strong className="block text-sm">Escrow protected</strong>Funds release once you confirm delivery or pickup.</span></p>
+                    <p className="flex items-start gap-3 text-xs font-semibold leading-5 text-foose-text"><span className="mt-0.5 text-accent"><Icon name="truck" size={17} /></span><span><strong className="block text-sm">Delivery or pickup</strong>Options are confirmed at checkout.</span></p>
                   </div>
                 )}
-                <details className="group mt-5 border-t border-foose-border pt-4 text-sm" open>
+                <details className="group mt-7 border-t border-foose-border/80 pt-5 text-sm" open>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-bold text-foose-text [&::-webkit-details-marker]:hidden">
                     <span>Description</span>
                     <DropdownChevron className="text-xs text-accent group-open:hidden" />
@@ -347,10 +354,24 @@ export function RetailDetailPage() {
                   </summary>
                   <p className="mt-3 leading-6 text-foose-muted">{listing.description || 'No description has been added for this listing yet.'}</p>
                 </details>
+                {!!listing.hashtags?.length && (
+                  <div className="mt-4 flex flex-wrap gap-2" aria-label="Item vibe hashtags">
+                    {listing.hashtags.map((tag) => (
+                      <a
+                        className="rounded-full bg-accent-light px-3 py-1 text-xs font-black text-accent transition hover:bg-accent hover:text-white"
+                        href={withBasePath(`/search?tag=${encodeURIComponent(tag.replace(/^#+/, ''))}&tab=all`)}
+                        key={tag}
+                      >
+                        #{tag}
+                      </a>
+                    ))}
+                  </div>
+                )}
               </section>
 
-              <section className="rounded-xl border border-foose-border bg-foose-surface p-4 shadow-sm sm:p-5">
-                <div className="flex items-center gap-3 border-b border-foose-border pb-4">
+              <section className="border-t border-foose-border/80 pt-6">
+                <p className="mb-4 text-[11px] font-black uppercase tracking-[0.16em] text-foose-muted">About the seller</p>
+                <div className="flex items-center gap-3">
                   {shop?.logoUrl ? (
                     <img alt="" className="size-12 rounded-full object-cover" src={shop.logoUrl} />
                   ) : (
@@ -361,13 +382,13 @@ export function RetailDetailPage() {
                     <StarRating label={`${shop?.totalReviews || 0} reviews`} value={shop?.rating} />
                   </div>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-5 grid grid-cols-2 gap-2.5">
                   {shop?.slug && (
-                    <a className="inline-flex h-10 items-center justify-center rounded-md border border-foose-border text-sm font-bold text-foose-text hover:border-accent hover:text-accent" href={withBasePath(`/shops/${shop.slug}`)}>
+                    <a className="inline-flex min-h-11 items-center justify-center rounded-full border border-foose-border text-sm font-bold text-foose-text hover:border-accent hover:text-accent" href={withBasePath(`/shops/${shop.slug}`)}>
                       Visit shop
                     </a>
                   )}
-                  <a className="inline-flex h-10 items-center justify-center rounded-md border border-foose-border text-sm font-bold text-foose-text hover:border-accent hover:text-accent" href={withBasePath(messageSellerHref)}>
+                  <a className="inline-flex min-h-11 items-center justify-center rounded-full border border-foose-border text-sm font-bold text-foose-text hover:border-accent hover:text-accent" href={withBasePath(messageSellerHref)}>
                     Message seller
                   </a>
                 </div>
@@ -376,8 +397,8 @@ export function RetailDetailPage() {
             </aside>
           </div>
 
-          {!isOwner && <ListingBand action={shop?.slug ? `/shops/${shop.slug}` : undefined} error={sellerListingsResource.error} listings={moreFromSeller} loading={sellerListingsResource.initialLoading} retry={sellerListingsResource.refetch} title="More from this seller" />}
-          <ListingBand action={listing.category ? `/browse?category=${encodeURIComponent(listing.category)}${listing.subcategory ? `&subcategory=${encodeURIComponent(listing.subcategory)}` : ''}` : '/browse'} error={relatedListingsResource.error} listings={youMightLike} loading={relatedListingsResource.initialLoading} retry={relatedListingsResource.refetch} title="You might also like" />
+          {!isOwner && <ListingBand action={shop?.slug ? `/shops/${shop.slug}` : undefined} actionLabel="View shop" error={sellerListingsResource.error} kind="seller" listings={moreFromSeller} loading={sellerListingsResource.initialLoading} retry={sellerListingsResource.refetch} subtitle="More pieces from the shop behind this find." title="More from this seller" />}
+          <ListingBand action={listing.category ? `/browse?category=${encodeURIComponent(listing.category)}${listing.subcategory ? `&subcategory=${encodeURIComponent(listing.subcategory)}` : ''}` : '/browse'} actionLabel={listing.category ? 'Browse category' : 'Browse all'} error={relatedListingsResource.error} kind="similar" listings={youMightLike} loading={relatedListingsResource.initialLoading} retry={relatedListingsResource.refetch} subtitle={listing.category ? 'Discover more finds in this category.' : 'Discover more finds across the marketplace.'} title="You might also like" />
         </>
       )}
     </>
@@ -389,7 +410,7 @@ export function RetailDetailPage() {
         <button aria-label="Close listing details" className="fixed inset-0 cursor-default border-0 bg-transparent" onClick={closeListing} type="button" />
         <section
           aria-modal="true"
-          className="relative z-10 flex max-h-[calc(100dvh-2rem)] min-h-[70dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-foose-border bg-foose-bg shadow-2xl shadow-black/30 sm:max-h-[calc(100dvh-4rem)]"
+          className="relative z-10 flex max-h-[calc(100dvh-2rem)] min-h-[70dvh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-foose-border bg-foose-bg shadow-2xl shadow-black/30 sm:max-h-[calc(100dvh-4rem)]"
           role="dialog"
         >
           <button
@@ -400,7 +421,7 @@ export function RetailDetailPage() {
           >
             <Icon name="close" size={18} />
           </button>
-          <div className="overflow-y-auto p-4 pr-4 sm:p-5 sm:pr-12 md:p-7 md:pr-14">{detailContent}</div>
+          <div className="min-h-0 overflow-y-auto overscroll-contain p-4 pr-4 sm:p-5 sm:pr-12 md:p-7 md:pr-14">{detailContent}</div>
         </section>
       </div>
     )

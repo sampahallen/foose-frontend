@@ -5,35 +5,35 @@ import { SkeletonBlock } from './SkeletonBlock'
 
 const productGridClasses = PRODUCT_GRID_CLASS
 
-function ProductTileSkeleton({ variant = 'default' }: { variant?: 'default' | 'catalog' }) {
+function ProductTileSkeleton({ variant = 'default' }: { variant?: 'default' | 'catalog' | 'saved' }) {
   return (
     <div aria-hidden className="min-w-0 space-y-2">
-      <SkeletonBlock className={`aspect-[4/5] w-full ${variant === 'catalog' ? 'rounded-[18px]' : 'rounded-lg'}`} />
+      <SkeletonBlock className={`aspect-[4/5] w-full ${variant === 'catalog' ? 'rounded-[18px]' : variant === 'saved' ? 'rounded-sm' : 'rounded-lg'}`} />
       <SkeletonBlock className="h-3 w-4/5" />
-      {variant === 'catalog' && <SkeletonBlock className="h-3 w-3/5" />}
+      {variant !== 'default' && <SkeletonBlock className="h-3 w-3/5" />}
       <SkeletonBlock className="h-3 w-1/2" />
       <SkeletonBlock className="h-5 w-20" />
     </div>
   )
 }
 
-export function ProductGridSkeleton({ count = 12, label = 'Loading listings', variant = 'default' }: { count?: number; label?: string; variant?: 'default' | 'catalog' }) {
+export function ProductGridSkeleton({ count = 12, label = 'Loading listings', variant = 'default' }: { count?: number; label?: string; variant?: 'default' | 'catalog' | 'saved' }) {
   return (
     <LoadingRegion label={label} layout="section">
-      <div className={`${productGridClasses} ${variant === 'catalog' ? 'sm:gap-x-4 sm:gap-y-7' : ''}`}>
+      <div className={variant === 'saved' ? 'grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-9 lg:grid-cols-4 xl:grid-cols-5' : `${productGridClasses} ${variant === 'catalog' ? 'sm:gap-x-4 sm:gap-y-7' : ''}`}>
         {Array.from({ length: count }, (_, index) => <ProductTileSkeleton key={index} variant={variant} />)}
       </div>
     </LoadingRegion>
   )
 }
 
-export function ProductBandSkeleton({ count = 6, label = 'Loading products' }: { count?: number; label?: string }) {
+export function ProductBandSkeleton({ count = 6, label = 'Loading products', variant = 'default' }: { count?: number; label?: string; variant?: 'default' | 'catalog' }) {
   return (
     <LoadingRegion label={label} layout="section">
-      <div className="flex gap-3 overflow-hidden">
+      <div className={`flex gap-3 overflow-hidden ${variant === 'catalog' ? 'lg:grid lg:grid-cols-4 lg:gap-4' : ''}`}>
         {Array.from({ length: count }, (_, index) => (
-          <div className="w-[132px] shrink-0 space-y-2 sm:w-[148px] md:w-[160px] lg:w-[172px]" key={index}>
-            <ProductTileSkeleton />
+          <div className={`shrink-0 space-y-2 ${variant === 'catalog' ? 'w-[min(62vw,14rem)] sm:w-56 lg:w-auto' : 'w-[132px] sm:w-[148px] md:w-[160px] lg:w-[172px]'}`} key={index}>
+            <ProductTileSkeleton variant={variant} />
           </div>
         ))}
       </div>
@@ -60,18 +60,34 @@ export function EventCarouselSkeleton({ label = 'Loading featured events' }: { l
   )
 }
 
-export function EventGridSkeleton({ count = 6, label = 'Loading events' }: { count?: number; label?: string }) {
+export function EventGridSkeleton({ count = 6, label = 'Loading events', variant = 'default' }: { count?: number; label?: string; variant?: 'default' | 'saved' }) {
   return (
     <LoadingRegion label={label} layout="section">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={variant === 'saved' ? 'grid gap-x-5 gap-y-9 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3'}>
         {Array.from({ length: count }, (_, index) => (
-          <div className="overflow-hidden rounded-xl border border-foose-border bg-foose-surface" key={index}>
-            <SkeletonBlock className="aspect-[16/9] w-full rounded-none" />
-            <div className="space-y-3 p-4">
+          <div className={variant === 'saved' ? 'overflow-hidden' : 'overflow-hidden rounded-xl border border-foose-border bg-foose-surface'} key={index}>
+            <SkeletonBlock className={variant === 'saved' ? 'aspect-[4/3] w-full rounded-sm' : 'aspect-[16/9] w-full rounded-none'} />
+            <div className={variant === 'saved' ? 'space-y-3 pt-3' : 'space-y-3 p-4'}>
               <SkeletonBlock className="h-5 w-4/5" />
               <SkeletonBlock className="h-3 w-2/3" />
-              <SkeletonBlock className="h-9 w-full" />
+              <SkeletonBlock className={variant === 'saved' ? 'h-3 w-1/3' : 'h-9 w-full'} />
             </div>
+          </div>
+        ))}
+      </div>
+    </LoadingRegion>
+  )
+}
+
+export function SavedFinspoSkeleton() {
+  return (
+    <LoadingRegion label="Loading liked Finspo posts" layout="section">
+      <div className="columns-2 gap-3 sm:gap-5 md:columns-3 lg:columns-4 xl:columns-5">
+        {Array.from({ length: 10 }, (_, index) => (
+          <div className="mb-7 break-inside-avoid space-y-2 sm:mb-9" key={index}>
+            <SkeletonBlock className={`${index % 3 === 0 ? 'aspect-[3/4]' : index % 3 === 1 ? 'aspect-square' : 'aspect-[4/5]'} w-full rounded-sm`} />
+            <SkeletonBlock className="h-3 w-4/5" />
+            <SkeletonBlock className="h-3 w-1/2" />
           </div>
         ))}
       </div>
@@ -125,26 +141,24 @@ export function ShopDetailSkeleton() {
 export function ListingDetailSkeleton() {
   return (
     <LoadingRegion label="Loading listing details" layout="page">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.62fr)] lg:items-start">
+      <div className="grid gap-7 lg:grid-cols-[minmax(0,1.18fr)_minmax(340px,0.82fr)] lg:items-start lg:gap-9 xl:gap-12">
         <div className="space-y-3">
-          <SkeletonBlock className="aspect-[4/5] max-h-[calc(100dvh-9rem)] w-full" />
+          <SkeletonBlock className="aspect-[4/5] max-h-[min(66dvh,44rem)] w-full rounded-[22px]" />
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-            {Array.from({ length: 5 }, (_, index) => <SkeletonBlock className="aspect-square" key={index} />)}
+            {Array.from({ length: 5 }, (_, index) => <SkeletonBlock className="aspect-square rounded-xl" key={index} />)}
           </div>
         </div>
-        <div className="space-y-4">
-          <div className="space-y-4 rounded-xl border border-foose-border bg-foose-surface p-4 sm:p-5">
-            <div className="flex gap-2"><SkeletonBlock className="h-6 w-16 rounded-full" /><SkeletonBlock className="h-6 w-20 rounded-full" /></div>
-            <SkeletonBlock className="h-8 w-4/5" />
-            <SkeletonBlock className="h-4 w-2/3" />
-            <SkeletonBlock className="h-9 w-32" />
-            {Array.from({ length: 3 }, (_, index) => <SkeletonBlock className="h-11 w-full" key={index} />)}
+        <div className="space-y-5 pt-1">
+          <SkeletonBlock className="h-3 w-28" />
+          <SkeletonBlock className="h-10 w-4/5" />
+          <SkeletonBlock className="h-4 w-2/3" />
+          <SkeletonBlock className="h-10 w-32" />
+          <div className="grid grid-cols-2 gap-3 border-t border-foose-border pt-5">
+            {Array.from({ length: 4 }, (_, index) => <SkeletonBlock className="h-9 w-full" key={index} />)}
           </div>
-          <div className="space-y-3 rounded-xl border border-foose-border bg-foose-surface p-4 sm:p-5">
-            <SkeletonBlock className="h-5 w-32" />
-            <SkeletonBlock className="h-4 w-full" />
-            <SkeletonBlock className="h-4 w-5/6" />
-          </div>
+          <SkeletonBlock className="h-12 w-full rounded-full" />
+          <div className="grid grid-cols-2 gap-2"><SkeletonBlock className="h-11 w-full rounded-full" /><SkeletonBlock className="h-11 w-full rounded-full" /></div>
+          <SkeletonBlock className="h-24 w-full rounded-2xl" />
         </div>
       </div>
     </LoadingRegion>

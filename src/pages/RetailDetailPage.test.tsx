@@ -17,6 +17,7 @@ const listing = {
   category: 'Shoes',
   currency: 'GHS',
   description: 'A clean pair of everyday trainers.',
+  colors: ['red', 'blue'],
   images: ['trainer.jpg'],
   price: 25000,
   shopId: { _id: 'shop-1', ownerId: 'seller-1', shopName: 'Sole Archive', slug: 'sole-archive' },
@@ -74,6 +75,12 @@ vi.mock('../utils/navigation', () => ({
 }))
 
 describe('RetailDetailPage cart actions', () => {
+  it('shows every selected listing color', () => {
+    render(<ToastProvider><RetailDetailPage /></ToastProvider>)
+    expect(screen.getByLabelText('Listing colors')).toHaveTextContent('Red')
+    expect(screen.getByLabelText('Listing colors')).toHaveTextContent('Blue')
+  })
+
   beforeEach(() => {
     mocks.addListing.mockReset()
     mocks.addListing.mockReturnValue(true)

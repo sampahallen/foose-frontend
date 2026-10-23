@@ -144,6 +144,7 @@ export type Listing = {
   gender?: 'men' | 'women' | 'unisex' | 'kids'
   condition?: 'excellent' | 'great' | 'good' | 'fair' | 'poor'
   color?: 'beige' | 'black' | 'blue' | 'brown' | 'burgundy' | 'cream' | 'cyan' | 'gold' | 'green' | 'gray' | 'ivory' | 'khaki' | 'multi' | 'navy' | 'olive' | 'orange' | 'pink' | 'purple' | 'red' | 'silver' | 'teal' | 'turquoise' | 'violet' | 'white' | 'yellow'
+  colors?: NonNullable<Listing['color']>[]
   attributes?: {
     material?: 'cotton' | 'denim' | 'leather' | 'faux-leather' | 'wool' | 'polyester' | 'linen' | 'silk' | 'canvas' | 'rubber' | 'metal' | 'wood' | 'mixed' | 'other'
     fit?: 'slim' | 'regular' | 'relaxed' | 'oversized' | 'tailored'

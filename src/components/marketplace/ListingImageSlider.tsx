@@ -63,9 +63,9 @@ export function ListingImageSlider({
 
   return (
     <section aria-label={`${title} photos`} aria-roledescription="carousel" className="space-y-3" onKeyDown={handleKeyDown}>
-      <div className="relative overflow-hidden rounded-xl bg-foose-surface-mid shadow-sm">
+      <div className="relative overflow-hidden rounded-[22px] bg-foose-surface-low">
         <div
-          className="flex w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] motion-reduce:scroll-auto md:max-h-[calc(100dvh-9rem)] [&::-webkit-scrollbar]:hidden"
+          className="flex w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] motion-reduce:scroll-auto md:max-h-[min(66dvh,44rem)] [&::-webkit-scrollbar]:hidden"
           data-testid="listing-image-track"
           onScroll={handleScroll}
           ref={trackRef}
@@ -140,12 +140,12 @@ export function ListingImageSlider({
       </div>
 
       {hasNavigation && (
-        <div aria-label="Choose a listing image" className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]" role="group">
+        <div aria-label="Choose a listing image" className="flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:thin]" role="group">
           {sources.map((src, index) => (
             <button
               aria-label={`Show image ${index + 1} of ${sources.length}`}
               aria-pressed={activeIndex === index}
-              className={`relative size-14 shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 bg-foose-surface-low transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:size-16 ${activeIndex === index ? 'border-accent shadow-sm' : 'border-transparent opacity-75 hover:opacity-100'}`}
+              className={`relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 bg-foose-surface-low transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:size-[72px] ${activeIndex === index ? 'border-accent shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'}`}
               key={src}
               onClick={() => selectImage(index)}
               type="button"

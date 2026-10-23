@@ -7,6 +7,7 @@ import { useApiResource } from '../hooks/useApiResource'
 import { useAuth } from '../hooks/useAuth'
 import type { Listing, Shop } from '../types/api'
 import { initials } from '../utils/format'
+import { listingColors } from '../utils/listingColors'
 import { getCurrentAppPathname, withBasePath } from '../utils/navigation'
 
 function currentShopSlug() {
@@ -32,7 +33,7 @@ function queryMatches(listing: Listing, query: URLSearchParams) {
   if (query.get('category') && listing.category !== query.get('category')) return false
   if (query.get('subcategory') && listing.subcategory !== query.get('subcategory')) return false
   if (query.get('brand') && listing.brand !== query.get('brand')) return false
-  if (query.get('color') && listing.color !== query.get('color')) return false
+  if (query.get('color') && !listingColors(listing).includes(query.get('color') as NonNullable<Listing['color']>)) return false
   if (query.get('condition') && listing.condition !== query.get('condition')) return false
 
   return true

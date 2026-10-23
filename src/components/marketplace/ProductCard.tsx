@@ -17,6 +17,7 @@ export function ProductCard({
   imageLoading = 'lazy',
   listing,
   manageHref,
+  onFavoriteChange,
   variant = 'default',
 }: {
   className?: string
@@ -24,7 +25,8 @@ export function ProductCard({
   imageLoading?: 'eager' | 'lazy'
   listing: Listing
   manageHref?: string
-  variant?: 'default' | 'catalog'
+  onFavoriteChange?: (active: boolean) => void
+  variant?: 'default' | 'catalog' | 'saved'
 }) {
   const image = getListingImage(listing)
   const [failedImageUrl, setFailedImageUrl] = useState('')
@@ -66,7 +68,7 @@ export function ProductCard({
 
   const content = (
     <>
-      <div className={`product-image relative overflow-hidden bg-foose-surface-mid aspect-[4/5] [&_img]:h-full [&_img]:w-full [&_img]:object-cover ${variant === 'catalog' ? 'rounded-[18px]' : 'rounded-md'}`}>
+      <div className={`product-image relative overflow-hidden bg-foose-surface-mid aspect-[4/5] [&_img]:h-full [&_img]:w-full [&_img]:object-cover ${variant === 'catalog' ? 'rounded-[18px]' : variant === 'saved' ? 'rounded-sm' : 'rounded-md'}`}>
         {imageAvailable ? (
           <>
             <img
@@ -91,11 +93,11 @@ export function ProductCard({
           <span className="absolute left-2 top-2 rounded-full bg-accent px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-sm">Promoted</span>
         )}
       </div>
-      <div className={`product-body flex flex-1 flex-col ${variant === 'catalog' ? 'gap-1 px-1 pb-2 pt-3' : 'gap-px px-0 py-1'}`}>
-        {variant === 'catalog' && <strong className="line-clamp-2 text-sm font-bold leading-snug text-foose-text">{listing.title}</strong>}
-        <span className={`truncate text-[11px] font-semibold leading-tight ${variant === 'catalog' ? 'text-foose-muted' : 'text-accent'}`}>{brand}{variant === 'catalog' && <> <span aria-hidden="true">·</span> {size}</>}</span>
-        {variant !== 'catalog' && <span className="text-[11px] leading-tight text-foose-muted">{size}</span>}
-        <strong className={`${variant === 'catalog' ? 'text-sm text-foose-text' : 'text-xs text-accent'} font-black leading-tight`}>{formatMoney(listing.price, listing.currency)}</strong>
+      <div className={`product-body flex flex-1 flex-col ${variant === 'catalog' ? 'gap-1 px-1 pb-2 pt-3' : variant === 'saved' ? 'gap-1.5 px-0 py-3' : 'gap-px px-0 py-1'}`}>
+        {(variant === 'catalog' || variant === 'saved') && <strong className={`line-clamp-2 text-sm leading-snug text-foose-text ${variant === 'saved' ? 'font-semibold' : 'font-bold'}`}>{listing.title}</strong>}
+        <span className={`truncate text-[11px] font-semibold leading-tight ${variant === 'default' ? 'text-accent' : 'text-foose-muted'}`}>{brand}{variant !== 'default' && <> <span aria-hidden="true">·</span> {size}</>}</span>
+        {variant === 'default' && <span className="text-[11px] leading-tight text-foose-muted">{size}</span>}
+        <strong className={`${variant === 'default' ? 'text-xs text-accent' : 'text-sm text-foose-text'} font-black leading-tight`}>{formatMoney(listing.price, listing.currency)}</strong>
         <p className="mt-px flex min-w-0 items-center gap-1 text-[10px] font-bold leading-tight text-foose-muted">
           <span className="truncate">{shopName}</span>
           <MdVerified className="shrink-0 text-accent" aria-label="Verified shop" />
@@ -114,7 +116,7 @@ export function ProductCard({
           <Icon name="pencil" size={15} />
         </a>
       ) : (
-        <FavoriteButton className="floating-round inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-ink shadow transition hover:bg-accent-light hover:text-accent absolute right-1.5 top-1.5 z-10 favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" targetId={listing._id} targetType="listing" />
+        <FavoriteButton className="floating-round inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-ink shadow transition hover:bg-accent-light hover:text-accent absolute right-1.5 top-1.5 z-10 favorite-button [&.is-active]:bg-accent [&.is-active]:text-white" onChange={onFavoriteChange} targetId={listing._id} targetType="listing" />
       )}
     </article>
   )

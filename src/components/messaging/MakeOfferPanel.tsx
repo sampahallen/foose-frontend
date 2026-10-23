@@ -98,8 +98,8 @@ export function MakeOfferPanel({
       ) : composerOpen ? (
         <div className="rounded-xl border border-foose-border bg-foose-surface-low p-3">
           <p className="mb-2 text-xs font-semibold text-foose-muted">
-            Listed at {formatMoney(listing.price, currency)}. Offer what you think it is worth — the seller can accept,
-            counter, or decline. Sending an offer also adds this item to your cart.
+            Listed at {formatMoney(listing.price, currency)}. The seller can accept,
+            counter, or decline.
           </p>
           <OfferAmountField
             busy={sending}
@@ -111,7 +111,7 @@ export function MakeOfferPanel({
         </div>
       ) : (
         <button
-          className="inline-flex h-11 items-center justify-center rounded-md border border-accent bg-foose-surface px-4 text-sm font-black text-accent transition hover:bg-accent-light"
+          className="inline-flex min-h-11 items-center justify-center rounded-full border border-accent bg-foose-surface px-4 text-sm font-black text-accent transition hover:bg-accent-light"
           onClick={() => setComposerOpen(true)}
           type="button"
         >
